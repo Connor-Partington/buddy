@@ -780,7 +780,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       animationTimer = setInterval(() => {
         frameIndex = (frameIndex + 1) % frames.length;
         drawFrame(frames[frameIndex]);
-      }, 150);
+      }, 250);
     }
 
     function setFrameAnimationsEnabled(enabled) {
