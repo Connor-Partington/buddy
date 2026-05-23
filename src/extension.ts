@@ -30,6 +30,14 @@ export function activate(context: vscode.ExtensionContext) {
   const previewCommand = vscode.commands.registerCommand('docfox.previewAnimations', () => {
     demoController.play();
   });
+  const showSidebarCommand = vscode.commands.registerCommand('docfox.showSidebar', async () => {
+    await vscode.commands.executeCommand('workbench.view.extension.docfox');
+    try {
+      await vscode.commands.executeCommand(`${DocFoxProvider.viewType}.focus`);
+    } catch {
+      // Older VS Code builds may not expose generated focus commands for every view.
+    }
+  });
   const toggleSoundsCommand = vscode.commands.registerCommand('docfox.toggleSounds', () => {
     void setSoundsEnabled(!soundsEnabled);
   });
@@ -58,6 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
     stateSubscription,
     disposable,
     previewCommand,
+    showSidebarCommand,
     toggleSoundsCommand,
     toggleFrameAnimationsCommand,
     ...stateCommands,
