@@ -50,13 +50,10 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       --space-blue: #90d5ff;
       --panel: color-mix(in srgb, var(--vscode-sideBar-background) 88%, var(--space-blue));
       --line: color-mix(in srgb, var(--vscode-sideBar-foreground) 18%, transparent);
-      --fox: #ff7f28;
-      --fox-dark: #bb4d20;
-      --cream: #ffe1bd;
-      --hoodie: #8fd8ff;
-      --hoodie-dark: #4c97c4;
-      --ink: #171a22;
-      --outline: #12151d;
+      --fox: #e97831;
+      --fox-dark: #9f431d;
+      --cream: #ffe8bf;
+      --ink: #23262d;
     }
 
     * {
@@ -83,7 +80,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     .stage {
       display: grid;
       place-items: center;
-      min-height: 250px;
+      min-height: 220px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -93,182 +90,64 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .fox {
       position: relative;
-      width: 176px;
-      height: 174px;
+      width: 148px;
+      height: 136px;
       animation: breathe 2.8s ease-in-out infinite;
       transition: filter 160ms ease, transform 160ms ease;
-      image-rendering: pixelated;
     }
 
     .ear {
       position: absolute;
-      top: 6px;
-      width: 54px;
-      height: 68px;
-      background: var(--outline);
+      top: 14px;
+      width: 48px;
+      height: 58px;
+      background: var(--fox-dark);
       clip-path: polygon(50% 0, 100% 100%, 0 100%);
       transform-origin: 50% 100%;
-      z-index: 3;
     }
 
     .ear.left {
-      left: 38px;
-      rotate: -20deg;
+      left: 25px;
+      rotate: -16deg;
       animation: ear-twitch 5.5s ease-in-out infinite;
     }
 
     .ear.right {
-      right: 38px;
-      rotate: 20deg;
+      right: 25px;
+      rotate: 16deg;
       animation: ear-twitch 5.5s ease-in-out infinite reverse;
     }
 
     .ear::after {
       content: "";
       position: absolute;
-      left: 8px;
-      top: 10px;
-      width: 38px;
-      height: 50px;
-      background: linear-gradient(135deg, var(--fox) 0 42%, var(--cream) 43% 100%);
+      left: 13px;
+      top: 18px;
+      width: 22px;
+      height: 32px;
+      background: var(--cream);
       clip-path: polygon(50% 0, 100% 100%, 0 100%);
       opacity: 0.9;
     }
 
-    .tail {
-      position: absolute;
-      right: 1px;
-      top: 73px;
-      width: 60px;
-      height: 88px;
-      border: 6px solid var(--outline);
-      border-radius: 24px 58px 32px 48px;
-      background: var(--fox);
-      transform: rotate(9deg);
-      z-index: 0;
-      box-shadow: inset -8px -10px 0 rgb(0 0 0 / 12%);
-    }
-
-    .tail::after {
-      content: "";
-      position: absolute;
-      right: -4px;
-      top: -5px;
-      width: 29px;
-      height: 36px;
-      border-radius: 55% 45% 40% 50%;
-      background: white;
-      clip-path: polygon(25% 0, 100% 0, 100% 65%, 64% 100%, 36% 72%, 0 86%);
-    }
-
-    .body {
-      position: absolute;
-      left: 48px;
-      top: 105px;
-      width: 80px;
-      height: 56px;
-      border: 6px solid var(--outline);
-      border-radius: 16px 16px 12px 12px;
-      background: linear-gradient(180deg, var(--hoodie) 0 72%, var(--hoodie-dark) 73% 100%);
-      z-index: 1;
-    }
-
-    .body::before,
-    .body::after {
-      content: "";
-      position: absolute;
-      top: 5px;
-      width: 16px;
-      height: 48px;
-      border-radius: 12px;
-      background: var(--hoodie);
-      box-shadow: inset 0 -8px 0 var(--hoodie-dark);
-    }
-
-    .body::before {
-      left: -8px;
-      transform: rotate(6deg);
-    }
-
-    .body::after {
-      right: -8px;
-      transform: rotate(-6deg);
-    }
-
-    .hood {
-      position: absolute;
-      left: 43px;
-      top: 89px;
-      width: 90px;
-      height: 38px;
-      border: 6px solid var(--outline);
-      border-bottom: 0;
-      border-radius: 22px 22px 8px 8px;
-      background: var(--hoodie);
-      z-index: 1;
-    }
-
-    .hood::before,
-    .hood::after {
-      content: "";
-      position: absolute;
-      top: 19px;
-      width: 3px;
-      height: 30px;
-      background: var(--outline);
-    }
-
-    .hood::before {
-      left: 27px;
-    }
-
-    .hood::after {
-      right: 27px;
-    }
-
     .head {
       position: absolute;
-      left: 30px;
-      top: 50px;
-      width: 116px;
-      height: 78px;
-      border: 6px solid var(--outline);
-      border-radius: 34% 34% 42% 42%;
+      left: 22px;
+      top: 43px;
+      width: 104px;
+      height: 86px;
+      border-radius: 42% 42% 46% 46%;
       background: var(--fox);
       box-shadow: inset 0 -10px 0 rgb(0 0 0 / 8%);
-      z-index: 4;
-    }
-
-    .head::before,
-    .head::after {
-      content: "";
-      position: absolute;
-      top: 39px;
-      width: 22px;
-      height: 17px;
-      background: var(--fox);
-      border: 5px solid var(--outline);
-      border-radius: 8px;
-      z-index: -1;
-    }
-
-    .head::before {
-      left: -19px;
-      transform: rotate(-8deg);
-    }
-
-    .head::after {
-      right: -19px;
-      transform: rotate(8deg);
     }
 
     .cheek {
       position: absolute;
-      bottom: -1px;
-      width: 62px;
-      height: 43px;
+      bottom: 0;
+      width: 58px;
+      height: 52px;
       background: var(--cream);
-      border-radius: 44% 44% 34% 34%;
+      border-radius: 48% 48% 45% 45%;
     }
 
     .cheek.left {
@@ -283,154 +162,36 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .eye {
       position: absolute;
-      top: 27px;
+      top: 29px;
       width: 10px;
-      height: 13px;
+      height: 12px;
       border-radius: 50%;
       background: var(--ink);
       animation: blink 4.2s infinite;
-      z-index: 2;
     }
 
     .eye.left {
-      left: 33px;
+      left: 32px;
     }
 
     .eye.right {
-      right: 33px;
+      right: 32px;
     }
 
     .nose {
       position: absolute;
       left: 45px;
-      top: 48px;
+      top: 49px;
       width: 15px;
       height: 11px;
       border-radius: 50% 50% 60% 60%;
       background: var(--ink);
-      z-index: 3;
-    }
-
-    .mouth {
-      position: absolute;
-      left: 52px;
-      top: 58px;
-      width: 12px;
-      height: 10px;
-      border-right: 3px solid var(--ink);
-      border-bottom: 3px solid var(--ink);
-      border-radius: 0 0 8px 0;
-      z-index: 3;
-    }
-
-    .mouth::before {
-      content: "";
-      position: absolute;
-      left: -11px;
-      top: 0;
-      width: 12px;
-      height: 10px;
-      border-left: 3px solid var(--ink);
-      border-bottom: 3px solid var(--ink);
-      border-radius: 0 0 0 8px;
-    }
-
-    .glasses {
-      position: absolute;
-      left: 25px;
-      top: 20px;
-      width: 66px;
-      height: 28px;
-      z-index: 4;
-    }
-
-    .glasses::before,
-    .glasses::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      width: 27px;
-      height: 27px;
-      border: 4px solid var(--outline);
-      border-radius: 50%;
-      background: rgb(255 255 255 / 16%);
-    }
-
-    .glasses::before {
-      left: 0;
-    }
-
-    .glasses::after {
-      right: 0;
-    }
-
-    .bridge {
-      position: absolute;
-      left: 29px;
-      top: 13px;
-      width: 14px;
-      height: 4px;
-      background: var(--outline);
-    }
-
-    .shine {
-      position: absolute;
-      width: 14px;
-      height: 7px;
-      background: rgb(255 255 255 / 82%);
-      clip-path: polygon(0 0, 100% 0, 72% 100%, 18% 100%);
-      z-index: 5;
-    }
-
-    .shine.one {
-      left: 47px;
-      top: 22px;
-    }
-
-    .shine.two {
-      left: 80px;
-      top: 25px;
-      width: 11px;
-      height: 6px;
-    }
-
-    .paw {
-      position: absolute;
-      bottom: 0;
-      width: 30px;
-      height: 28px;
-      border: 5px solid var(--outline);
-      border-radius: 12px 12px 16px 16px;
-      background: var(--fox);
-      z-index: 3;
-    }
-
-    .paw::before {
-      content: "";
-      position: absolute;
-      left: 6px;
-      top: 5px;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--cream);
-      box-shadow: 8px 2px 0 var(--cream), 4px 10px 0 var(--cream);
-    }
-
-    .paw.left {
-      left: 36px;
-      transform: rotate(-8deg);
-    }
-
-    .paw.right {
-      right: 36px;
-      transform: rotate(8deg);
     }
 
     .thought-cloud {
       position: absolute;
-      left: 103px;
-      top: 2px;
+      left: 82px;
+      top: -9px;
       width: 52px;
       height: 32px;
       opacity: 0;
@@ -486,8 +247,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .zzz {
       position: absolute;
-      right: 10px;
-      top: 18px;
+      right: 12px;
+      top: 4px;
       color: var(--space-blue);
       font-weight: 700;
       opacity: 0;
@@ -523,11 +284,6 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       box-shadow: inset 0 -10px 0 rgb(0 0 0 / 8%), 0 8px 0 rgb(144 213 255 / 20%);
     }
 
-    body[data-state="typing"] .body::before,
-    body[data-state="typing"] .body::after {
-      animation: sleeve-tap 0.34s ease-in-out infinite;
-    }
-
     body[data-state="thinking"] .fox {
       animation: head-tilt 1.6s ease-in-out infinite;
     }
@@ -544,7 +300,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     body[data-state="sleeping"] .eye {
       height: 3px;
-      top: 33px;
+      top: 34px;
       border-radius: 999px;
       animation: none;
     }
@@ -637,15 +393,6 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    @keyframes sleeve-tap {
-      0%, 100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(4px);
-      }
-    }
-
     @keyframes drift {
       0%, 100% {
         transform: translateY(0);
@@ -662,24 +409,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       <div class="fox" role="img" aria-label="A small fox waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
-        <div class="tail"></div>
         <div class="ear left"></div>
         <div class="ear right"></div>
-        <div class="hood"></div>
-        <div class="body"></div>
         <div class="head">
           <div class="cheek left"></div>
           <div class="cheek right"></div>
-          <div class="shine one"></div>
-          <div class="shine two"></div>
-          <div class="glasses"><div class="bridge"></div></div>
           <div class="eye left"></div>
           <div class="eye right"></div>
           <div class="nose"></div>
-          <div class="mouth"></div>
         </div>
-        <div class="paw left"></div>
-        <div class="paw right"></div>
       </div>
     </section>
     <section class="status" aria-live="polite">
