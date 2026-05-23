@@ -16,14 +16,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     private readonly onToggleFrameAnimations: () => void,
   ) {}
 
-  public resolveWebviewView(webviewView: vscode.WebviewView): void {
+  public async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.webviewView = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this.getHtml(webviewView.webview);
+    const frameSources = await getFrameSources(this.extensionUri, webviewView.webview);
+    webviewView.webview.html = this.getHtml(webviewView.webview, frameSources);
     webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
       if (message.type === 'toggleSounds') {
         this.onToggleSounds();
@@ -74,9 +75,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private getHtml(webview: vscode.Webview): string {
+  private getHtml(webview: vscode.Webview, frameSources: Record<DocFoxState, string[]>): string {
     const nonce = getNonce();
-    const frameSources = getFrameSources(this.extensionUri, webview);
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -858,27 +858,45 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   }
 }
 
-function getFrameSources(extensionUri: vscode.Uri, webview: vscode.Webview): Record<DocFoxState, string[]> {
-  const frameSets: Record<DocFoxState, { folder: string; count: number }> = {
-    idle: { folder: 'fox-frames-idle', count: 23 },
-    typing: { folder: 'fox-frames-looking', count: 24 },
-    searching: { folder: 'fox-frames-looking', count: 24 },
-    thinking: { folder: 'fox-frames-thinking', count: 23 },
-    sleeping: { folder: 'fox-frames-sleeping', count: 23 },
-    happy: { folder: 'fox-frames-idle', count: 23 },
-    panic: { folder: 'fox-frames-panic', count: 23 },
+async function getFrameSources(
+  extensionUri: vscode.Uri,
+  webview: vscode.Webview,
+): Promise<Record<DocFoxState, string[]>> {
+  const frameSets: Record<DocFoxState, string> = {
+    idle: 'fox-frames-idle',
+    typing: 'fox-frames-looking',
+    searching: 'fox-frames-looking',
+    thinking: 'fox-frames-thinking',
+    sleeping: 'fox-frames-sleeping',
+    happy: 'fox-frames-idle',
+    panic: 'fox-frames-panic',
   };
 
-  return Object.fromEntries(
-    Object.entries(frameSets).map(([state, frameSet]) => [
-      state,
-      Array.from({ length: frameSet.count }, (_, index) => {
-        const frameName = `frame_${String(index + 1).padStart(2, '0')}.png`;
-        const frameUri = vscode.Uri.joinPath(extensionUri, 'assets', 'images', frameSet.folder, frameName);
-        return webview.asWebviewUri(frameUri).toString();
-      }),
-    ]),
-  ) as Record<DocFoxState, string[]>;
+  const entries = await Promise.all(
+    Object.entries(frameSets).map(async ([state, folder]) => {
+      const folderUri = vscode.Uri.joinPath(extensionUri, 'assets', 'images', folder);
+      const frames = await getFramesInFolder(folderUri, webview);
+      return [state, frames] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries) as Record<DocFoxState, string[]>;
+}
+
+async function getFramesInFolder(folderUri: vscode.Uri, webview: vscode.Webview): Promise<string[]> {
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(folderUri);
+    return entries
+      .filter(([name, type]) => type === vscode.FileType.File && /^frame_\d+\.png$/i.test(name))
+      .sort(([first], [second]) => getFrameNumber(first) - getFrameNumber(second))
+      .map(([name]) => webview.asWebviewUri(vscode.Uri.joinPath(folderUri, name)).toString());
+  } catch {
+    return [];
+  }
+}
+
+function getFrameNumber(name: string): number {
+  return Number(name.match(/\d+/)?.[0] ?? 0);
 }
 
 function getNonce(): string {
