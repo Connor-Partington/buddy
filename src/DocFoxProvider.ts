@@ -729,10 +729,14 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         const red = data[index];
         const green = data[index + 1];
         const blue = data[index + 2];
-        const isGreenScreen = green > 125 && green > red * 1.35 && green > blue * 1.35;
+        const strongestNonGreen = Math.max(red, blue);
+        const greenDominance = green - strongestNonGreen;
+        const isGreenScreen = green > 95 && greenDominance > 10 && green > red * 1.05 && green > blue * 1.05;
 
         if (isGreenScreen) {
           data[index + 3] = 0;
+        } else if (green > strongestNonGreen && greenDominance > 4) {
+          data[index + 1] = strongestNonGreen;
         }
       }
 
