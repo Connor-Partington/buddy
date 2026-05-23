@@ -7,8 +7,11 @@ import { DocFoxStateManager, docFoxStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
   let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
+  let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', false);
   const provider = new DocFoxProvider(context.extensionUri, () => {
     void setSoundsEnabled(!soundsEnabled);
+  }, () => {
+    void setFrameAnimationsEnabled(!frameAnimationsEnabled);
   });
   const stateManager = new DocFoxStateManager();
   const activityController = new DocFoxActivityController(stateManager);
@@ -30,12 +33,22 @@ export function activate(context: vscode.ExtensionContext) {
   const toggleSoundsCommand = vscode.commands.registerCommand('docfox.toggleSounds', () => {
     void setSoundsEnabled(!soundsEnabled);
   });
+  const toggleFrameAnimationsCommand = vscode.commands.registerCommand('docfox.toggleFrameAnimations', () => {
+    void setFrameAnimationsEnabled(!frameAnimationsEnabled);
+  });
 
   async function setSoundsEnabled(enabled: boolean): Promise<void> {
     soundsEnabled = enabled;
     await context.globalState.update('soundsEnabled', enabled);
     provider.setSoundsEnabled(enabled);
     vscode.window.showInformationMessage(`Luna sounds ${enabled ? 'enabled' : 'disabled'}.`);
+  }
+
+  async function setFrameAnimationsEnabled(enabled: boolean): Promise<void> {
+    frameAnimationsEnabled = enabled;
+    await context.globalState.update('frameAnimationsEnabled', enabled);
+    provider.setFrameAnimationsEnabled(enabled);
+    vscode.window.showInformationMessage(`Luna frame animations ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   context.subscriptions.push(
@@ -46,11 +59,13 @@ export function activate(context: vscode.ExtensionContext) {
     disposable,
     previewCommand,
     toggleSoundsCommand,
+    toggleFrameAnimationsCommand,
     ...stateCommands,
   );
 
   provider.setState(stateManager.state);
   provider.setSoundsEnabled(soundsEnabled);
+  provider.setFrameAnimationsEnabled(frameAnimationsEnabled);
 }
 
 export function deactivate() {}

@@ -8,10 +8,12 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   private webviewView?: vscode.WebviewView;
   private state: DocFoxState = 'idle';
   private soundsEnabled = false;
+  private frameAnimationsEnabled = false;
 
   public constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly onToggleSounds: () => void,
+    private readonly onToggleFrameAnimations: () => void,
   ) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -25,10 +27,13 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
       if (message.type === 'toggleSounds') {
         this.onToggleSounds();
+      } else if (message.type === 'toggleFrameAnimations') {
+        this.onToggleFrameAnimations();
       }
     });
     this.postState();
     this.postSoundsEnabled();
+    this.postFrameAnimationsEnabled();
   }
 
   public setState(state: DocFoxState): void {
@@ -39,6 +44,11 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   public setSoundsEnabled(enabled: boolean): void {
     this.soundsEnabled = enabled;
     this.postSoundsEnabled();
+  }
+
+  public setFrameAnimationsEnabled(enabled: boolean): void {
+    this.frameAnimationsEnabled = enabled;
+    this.postFrameAnimationsEnabled();
   }
 
   private postState(): void {
@@ -57,8 +67,16 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postFrameAnimationsEnabled(): void {
+    void this.webviewView?.webview.postMessage({
+      type: 'setFrameAnimationsEnabled',
+      enabled: this.frameAnimationsEnabled,
+    });
+  }
+
   private getHtml(webview: vscode.Webview): string {
     const nonce = getNonce();
+    const frameSources = getFrameSources(this.extensionUri, webview);
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -116,6 +134,28 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       height: 136px;
       animation: breathe 2.8s ease-in-out infinite;
       transition: filter 160ms ease, transform 160ms ease;
+    }
+
+    .frame-stage {
+      display: none;
+      place-items: center;
+      width: min(190px, 100%);
+      aspect-ratio: 190 / 213;
+    }
+
+    .frame-canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    body[data-frame-animations="true"] .fox {
+      display: none;
+    }
+
+    body[data-frame-animations="true"] .frame-stage {
+      display: grid;
     }
 
     .ear {
@@ -290,7 +330,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       justify-content: center;
     }
 
-    .sound-toggle {
+    .sound-toggle,
+    .frame-toggle {
       position: relative;
       width: 30px;
       height: 30px;
@@ -330,6 +371,41 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     }
 
     .sound-toggle[aria-pressed="true"]::after {
+      opacity: 1;
+    }
+
+    .frame-toggle {
+      margin-left: 8px;
+    }
+
+    .frame-toggle::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      box-shadow: 4px 4px 0 rgb(144 213 255 / 28%);
+    }
+
+    .frame-toggle::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      opacity: 0.35;
+    }
+
+    .frame-toggle[aria-pressed="true"] {
+      border-color: var(--space-blue);
+      color: var(--space-blue);
+    }
+
+    .frame-toggle[aria-pressed="true"]::after {
       opacity: 1;
     }
 
@@ -397,6 +473,16 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       border-radius: 50% 50% 6px 6px;
       transform: rotate(180deg);
       animation: none;
+    }
+
+    body[data-state="panic"] .fox {
+      animation: panic-shake 0.18s steps(2, end) infinite;
+      filter: saturate(1.25);
+    }
+
+    body[data-state="panic"] .eye {
+      animation: none;
+      height: 15px;
     }
 
     @keyframes breathe {
@@ -471,6 +557,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
+    @keyframes panic-shake {
+      0%, 100% {
+        transform: translateX(-3px) rotate(-2deg);
+      }
+      50% {
+        transform: translateX(3px) rotate(2deg);
+      }
+    }
+
     @keyframes cloud-float {
       0%, 100% {
         transform: translateY(0);
@@ -490,7 +585,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     }
   </style>
 </head>
-<body data-state="${this.state}">
+<body data-state="${this.state}" data-frame-animations="${this.frameAnimationsEnabled}">
   <main class="shell">
     <section class="stage" aria-label="Luna companion">
       <div class="fox" role="img" aria-label="Luna waiting in the sidebar">
@@ -506,17 +601,22 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
           <div class="nose"></div>
         </div>
       </div>
+      <div class="frame-stage" role="img" aria-label="Luna frame animation">
+        <canvas class="frame-canvas" width="190" height="213"></canvas>
+      </div>
     </section>
     <section class="status" aria-live="polite">
       <h1 class="name">Luna</h1>
       <p class="mood">${getDocFoxStateLabel(this.state)}</p>
       <div class="toolbar">
         <button class="sound-toggle" type="button" aria-label="Toggle Luna sounds" aria-pressed="${this.soundsEnabled}"></button>
+        <button class="frame-toggle" type="button" aria-label="Toggle Luna frame animations" aria-pressed="${this.frameAnimationsEnabled}"></button>
       </div>
     </section>
   </main>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    const frameSources = ${JSON.stringify(frameSources)};
     const labels = ${JSON.stringify({
       idle: getDocFoxStateLabel('idle'),
       typing: getDocFoxStateLabel('typing'),
@@ -524,12 +624,20 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       thinking: getDocFoxStateLabel('thinking'),
       sleeping: getDocFoxStateLabel('sleeping'),
       happy: getDocFoxStateLabel('happy'),
+      panic: getDocFoxStateLabel('panic'),
     })};
     const mood = document.querySelector('.mood');
     const soundToggle = document.querySelector('.sound-toggle');
+    const frameToggle = document.querySelector('.frame-toggle');
+    const frameCanvas = document.querySelector('.frame-canvas');
+    const frameContext = frameCanvas?.getContext('2d');
     let audioContext;
     let soundsEnabled = ${this.soundsEnabled};
+    let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let lastState = '${this.state}';
+    let animationTimer;
+    let animationToken = 0;
+    const processedFrames = new Map();
 
     function getAudioContext() {
       if (!audioContext) {
@@ -591,13 +699,117 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
+    function loadImage(source) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = source;
+      });
+    }
+
+    async function getProcessedFrame(source) {
+      const cached = processedFrames.get(source);
+      if (cached) {
+        return cached;
+      }
+
+      const image = await loadImage(source);
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      context.drawImage(image, 0, 0);
+
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let index = 0; index < data.length; index += 4) {
+        const red = data[index];
+        const green = data[index + 1];
+        const blue = data[index + 2];
+        const isGreenScreen = green > 125 && green > red * 1.35 && green > blue * 1.35;
+
+        if (isGreenScreen) {
+          data[index + 3] = 0;
+        }
+      }
+
+      context.putImageData(imageData, 0, 0);
+      processedFrames.set(source, canvas);
+      return canvas;
+    }
+
+    async function getFramesForState(state) {
+      const sources = frameSources[state] || frameSources.idle || [];
+      return Promise.all(sources.map((source) => getProcessedFrame(source)));
+    }
+
+    function stopFrameAnimation() {
+      animationToken += 1;
+      if (animationTimer) {
+        clearInterval(animationTimer);
+        animationTimer = undefined;
+      }
+    }
+
+    function drawFrame(frame) {
+      if (!frameContext || !frameCanvas) {
+        return;
+      }
+
+      frameCanvas.width = frame.width;
+      frameCanvas.height = frame.height;
+      frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+      frameContext.drawImage(frame, 0, 0);
+    }
+
+    async function startFrameAnimation(state) {
+      stopFrameAnimation();
+      if (!frameAnimationsEnabled) {
+        return;
+      }
+
+      const token = animationToken;
+      const frames = await getFramesForState(state);
+      if (token !== animationToken || frames.length === 0) {
+        return;
+      }
+
+      let frameIndex = 0;
+      drawFrame(frames[frameIndex]);
+      animationTimer = setInterval(() => {
+        frameIndex = (frameIndex + 1) % frames.length;
+        drawFrame(frames[frameIndex]);
+      }, 90);
+    }
+
+    function setFrameAnimationsEnabled(enabled) {
+      frameAnimationsEnabled = enabled;
+      document.body.dataset.frameAnimations = String(enabled);
+      if (frameToggle) {
+        frameToggle.setAttribute('aria-pressed', String(enabled));
+      }
+      vscode.setState({
+        state: document.body.dataset.state || 'idle',
+        soundsEnabled,
+        frameAnimationsEnabled,
+      });
+
+      if (enabled) {
+        void startFrameAnimation(document.body.dataset.state || 'idle');
+      } else {
+        stopFrameAnimation();
+      }
+    }
+
     function setState(state) {
       playStateSound(state);
       document.body.dataset.state = state;
       if (mood) {
         mood.textContent = labels[state] || labels.idle;
       }
-      vscode.setState({ state, soundsEnabled });
+      vscode.setState({ state, soundsEnabled, frameAnimationsEnabled });
+      void startFrameAnimation(state);
       lastState = state;
     }
 
@@ -607,6 +819,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         setState(message.state);
       } else if (message.type === 'setSoundsEnabled') {
         setSoundsEnabled(message.enabled);
+      } else if (message.type === 'setFrameAnimationsEnabled') {
+        setFrameAnimationsEnabled(message.enabled);
       }
     });
 
@@ -614,12 +828,40 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       vscode.postMessage({ type: 'toggleSounds' });
     });
 
+    frameToggle?.addEventListener('click', () => {
+      vscode.postMessage({ type: 'toggleFrameAnimations' });
+    });
+
     setState('${this.state}');
     setSoundsEnabled(soundsEnabled, false);
+    setFrameAnimationsEnabled(frameAnimationsEnabled);
   </script>
 </body>
 </html>`;
   }
+}
+
+function getFrameSources(extensionUri: vscode.Uri, webview: vscode.Webview): Record<DocFoxState, string[]> {
+  const frameSets: Record<DocFoxState, { folder: string; count: number }> = {
+    idle: { folder: 'fox-frames-idle', count: 23 },
+    typing: { folder: 'fox-frames-looking', count: 24 },
+    searching: { folder: 'fox-frames-looking', count: 24 },
+    thinking: { folder: 'fox-frames-thinking', count: 23 },
+    sleeping: { folder: 'fox-frames-sleeping', count: 23 },
+    happy: { folder: 'fox-frames-idle', count: 23 },
+    panic: { folder: 'fox-frames-panic', count: 23 },
+  };
+
+  return Object.fromEntries(
+    Object.entries(frameSets).map(([state, frameSet]) => [
+      state,
+      Array.from({ length: frameSet.count }, (_, index) => {
+        const frameName = `frame_${String(index + 1).padStart(2, '0')}.png`;
+        const frameUri = vscode.Uri.joinPath(extensionUri, 'assets', 'images', frameSet.folder, frameName);
+        return webview.asWebviewUri(frameUri).toString();
+      }),
+    ]),
+  ) as Record<DocFoxState, string[]>;
 }
 
 function getNonce(): string {

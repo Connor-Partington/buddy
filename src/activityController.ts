@@ -23,7 +23,15 @@ export class DocFoxActivityController implements vscode.Disposable {
           this.handleSearching();
         }
       }),
+      vscode.languages.onDidChangeDiagnostics(() => {
+        this.updatePanicState();
+      }),
+      vscode.window.onDidChangeActiveTextEditor(() => {
+        this.updatePanicState();
+      }),
     );
+
+    this.updatePanicState();
   }
 
   public dispose(): void {
@@ -32,6 +40,11 @@ export class DocFoxActivityController implements vscode.Disposable {
   }
 
   private handleTyping(): void {
+    if (hasActiveMarkdownErrors()) {
+      this.setPanic();
+      return;
+    }
+
     this.clearTimers();
     this.stateManager.setState('typing');
     this.scheduleThinking(thinkingDelayMs);
@@ -42,9 +55,28 @@ export class DocFoxActivityController implements vscode.Disposable {
       return;
     }
 
+    if (hasActiveMarkdownErrors()) {
+      this.setPanic();
+      return;
+    }
+
     this.clearTimers();
     this.stateManager.setState('searching');
     this.scheduleThinking(searchingDelayMs);
+  }
+
+  private updatePanicState(): void {
+    if (hasActiveMarkdownErrors()) {
+      this.setPanic();
+    } else if (this.stateManager.state === 'panic') {
+      this.clearTimers();
+      this.stateManager.setState('idle');
+    }
+  }
+
+  private setPanic(): void {
+    this.clearTimers();
+    this.stateManager.setState('panic');
   }
 
   private scheduleThinking(delayMs: number): void {
@@ -72,4 +104,15 @@ export class DocFoxActivityController implements vscode.Disposable {
 
 function isMarkdownDocument(document: vscode.TextDocument): boolean {
   return document.languageId === 'markdown' || document.fileName.toLowerCase().endsWith('.md');
+}
+
+function hasActiveMarkdownErrors(): boolean {
+  const activeDocument = vscode.window.activeTextEditor?.document;
+  if (!activeDocument || !isMarkdownDocument(activeDocument)) {
+    return false;
+  }
+
+  return vscode.languages
+    .getDiagnostics(activeDocument.uri)
+    .some((diagnostic) => diagnostic.severity === vscode.DiagnosticSeverity.Error);
 }

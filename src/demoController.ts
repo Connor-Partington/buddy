@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { DocFoxState, DocFoxStateManager } from './stateManager';
 
-const previewStates: DocFoxState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy'];
+const previewStates: DocFoxState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'];
 const previewStepMs = 1200;
 
 export class DocFoxDemoController implements vscode.Disposable {

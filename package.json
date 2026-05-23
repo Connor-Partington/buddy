@@ -2,7 +2,7 @@
   "name": "docfox",
   "displayName": "Luna",
   "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "local",
   "engines": {
     "vscode": "^1.90.0"
@@ -64,12 +64,20 @@
         "title": "Luna: Set State Happy"
       },
       {
+        "command": "docfox.setState.panic",
+        "title": "Luna: Set State Panic"
+      },
+      {
         "command": "docfox.previewAnimations",
         "title": "Luna: Preview Animations"
       },
       {
         "command": "docfox.toggleSounds",
         "title": "Luna: Toggle Sounds"
+      },
+      {
+        "command": "docfox.toggleFrameAnimations",
+        "title": "Luna: Toggle Frame Animations"
       }
     ]
   },

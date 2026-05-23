@@ -5,3 +5,4 @@ out/test/**
 node_modules/**
 *.vsix
 TODO.md
+.DS_Store

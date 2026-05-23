@@ -100,6 +100,7 @@ src/DocFoxProvider.ts
 - [x] thinking
 - [x] sleeping
 - [x] happy (optional)
+- [x] panic
 
 ## Logic
 
