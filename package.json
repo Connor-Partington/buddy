@@ -37,6 +37,26 @@
       {
         "command": "docfox.helloWorld",
         "title": "DocFox: Hello World"
+      },
+      {
+        "command": "docfox.setState.idle",
+        "title": "DocFox: Set State Idle"
+      },
+      {
+        "command": "docfox.setState.typing",
+        "title": "DocFox: Set State Typing"
+      },
+      {
+        "command": "docfox.setState.thinking",
+        "title": "DocFox: Set State Thinking"
+      },
+      {
+        "command": "docfox.setState.sleeping",
+        "title": "DocFox: Set State Sleeping"
+      },
+      {
+        "command": "docfox.setState.happy",
+        "title": "DocFox: Set State Happy"
       }
     ]
   },

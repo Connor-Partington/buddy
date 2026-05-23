@@ -94,17 +94,17 @@ src/DocFoxProvider.ts
 
 ## States
 
-- [ ] idle
-- [ ] typing
-- [ ] thinking
-- [ ] sleeping
-- [ ] happy (optional)
+- [x] idle
+- [x] typing
+- [x] thinking
+- [x] sleeping
+- [x] happy (optional)
 
 ## Logic
 
-- [ ] Create `setState()` function
-- [ ] Send messages from extension → webview
-- [ ] Update displayed animation
+- [x] Create `setState()` function
+- [x] Send messages from extension → webview
+- [x] Update displayed animation
 
 ### Success Criteria
 

@@ -1,17 +1,38 @@
 import * as vscode from 'vscode';
 
+import { DocFoxState, DocFoxStateMessage, getDocFoxStateLabel } from './stateManager';
+
 export class DocFoxProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'docfox.companion';
+
+  private webviewView?: vscode.WebviewView;
+  private state: DocFoxState = 'idle';
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.webviewView = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this.extensionUri],
     };
 
     webviewView.webview.html = this.getHtml(webviewView.webview);
+    this.postState();
+  }
+
+  public setState(state: DocFoxState): void {
+    this.state = state;
+    this.postState();
+  }
+
+  private postState(): void {
+    const message: DocFoxStateMessage = {
+      type: 'setState',
+      state: this.state,
+    };
+
+    void this.webviewView?.webview.postMessage(message);
   }
 
   private getHtml(webview: vscode.Webview): string {
@@ -64,6 +85,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       border-radius: 8px;
       background: var(--panel);
       overflow: hidden;
+      transition: background-color 160ms ease, border-color 160ms ease;
     }
 
     .fox {
@@ -71,6 +93,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       width: 148px;
       height: 136px;
       animation: breathe 2.8s ease-in-out infinite;
+      transition: filter 160ms ease, transform 160ms ease;
     }
 
     .ear {
@@ -165,6 +188,45 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       background: var(--ink);
     }
 
+    .thoughts {
+      position: absolute;
+      left: 50%;
+      top: 2px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transform: translateX(-50%) translateY(4px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .thoughts span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--space-blue);
+      animation: float-dot 1.2s ease-in-out infinite;
+    }
+
+    .thoughts span:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .thoughts span:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    .zzz {
+      position: absolute;
+      right: 12px;
+      top: 4px;
+      color: var(--space-blue);
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 160ms ease, transform 160ms ease;
+      animation: drift 2.4s ease-in-out infinite;
+    }
+
     .status {
       display: grid;
       gap: 6px;
@@ -182,6 +244,51 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       margin: 0;
       color: var(--vscode-descriptionForeground);
       line-height: 1.4;
+    }
+
+    body[data-state="typing"] .fox {
+      animation: typing-bounce 0.34s ease-in-out infinite;
+    }
+
+    body[data-state="typing"] .head {
+      box-shadow: inset 0 -10px 0 rgb(0 0 0 / 8%), 0 8px 0 rgb(144 213 255 / 20%);
+    }
+
+    body[data-state="thinking"] .fox {
+      animation: head-tilt 1.6s ease-in-out infinite;
+    }
+
+    body[data-state="thinking"] .thoughts {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    body[data-state="sleeping"] .fox {
+      animation: sleepy-breathe 3.4s ease-in-out infinite;
+      filter: saturate(0.72);
+    }
+
+    body[data-state="sleeping"] .eye {
+      height: 3px;
+      top: 34px;
+      border-radius: 999px;
+      animation: none;
+    }
+
+    body[data-state="sleeping"] .zzz {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    body[data-state="happy"] .fox {
+      animation: happy-hop 0.52s ease-in-out infinite;
+    }
+
+    body[data-state="happy"] .eye {
+      height: 9px;
+      border-radius: 50% 50% 6px 6px;
+      transform: rotate(180deg);
+      animation: none;
     }
 
     @keyframes breathe {
@@ -210,12 +317,68 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         transform: rotate(-5deg);
       }
     }
+
+    @keyframes typing-bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    @keyframes head-tilt {
+      0%, 100% {
+        transform: rotate(-2deg);
+      }
+      50% {
+        transform: rotate(4deg);
+      }
+    }
+
+    @keyframes sleepy-breathe {
+      0%, 100% {
+        transform: translateY(7px) scaleY(0.94);
+      }
+      50% {
+        transform: translateY(10px) scaleY(0.9);
+      }
+    }
+
+    @keyframes happy-hop {
+      0%, 100% {
+        transform: translateY(0) rotate(-1deg);
+      }
+      50% {
+        transform: translateY(-9px) rotate(1deg);
+      }
+    }
+
+    @keyframes float-dot {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    @keyframes drift {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
   </style>
 </head>
-<body>
+<body data-state="${this.state}">
   <main class="shell">
     <section class="stage" aria-label="DocFox companion">
       <div class="fox" role="img" aria-label="A small fox waiting in the sidebar">
+        <div class="thoughts" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="zzz" aria-hidden="true">Zzz</div>
         <div class="ear left"></div>
         <div class="ear right"></div>
         <div class="head">
@@ -229,12 +392,36 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     </section>
     <section class="status" aria-live="polite">
       <h1 class="name">DocFox</h1>
-      <p class="mood">Ready for Markdown.</p>
+      <p class="mood">${getDocFoxStateLabel(this.state)}</p>
     </section>
   </main>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    vscode.setState({ state: 'idle' });
+    const labels = ${JSON.stringify({
+      idle: getDocFoxStateLabel('idle'),
+      typing: getDocFoxStateLabel('typing'),
+      thinking: getDocFoxStateLabel('thinking'),
+      sleeping: getDocFoxStateLabel('sleeping'),
+      happy: getDocFoxStateLabel('happy'),
+    })};
+    const mood = document.querySelector('.mood');
+
+    function setState(state) {
+      document.body.dataset.state = state;
+      if (mood) {
+        mood.textContent = labels[state] || labels.idle;
+      }
+      vscode.setState({ state });
+    }
+
+    window.addEventListener('message', (event) => {
+      const message = event.data;
+      if (message.type === 'setState') {
+        setState(message.state);
+      }
+    });
+
+    setState('${this.state}');
   </script>
 </body>
 </html>`;
