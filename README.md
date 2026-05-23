@@ -11,6 +11,14 @@ npm install
 npm run compile
 ```
 
+For local installs, bump the patch version before packaging and use the matching VSIX filename:
+
+```bash
+npm version patch --no-git-tag-version
+npx --yes @vscode/vsce package --out docfox-<version>.vsix
+'/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code' --install-extension docfox-<version>.vsix --force
+```
+
 The extension currently contributes a DocFox Activity Bar container with a sidebar webview. The sidebar renders a CSS placeholder fox so the UI can be developed before final animation assets exist.
 
 DocFox has an extension-side state manager and webview message handling for `idle`, `typing`, `thinking`, `sleeping`, and `happy`. Use `DocFox: Preview Animations` from the Command Palette to cycle through the CSS character states, or use the `DocFox: Set State ...` commands to preview one state at a time.
