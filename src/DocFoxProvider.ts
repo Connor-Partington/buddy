@@ -145,9 +145,14 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .frame-canvas {
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-height: 100%;
       object-fit: contain;
       image-rendering: pixelated;
+    }
+
+    body[data-frame-animations="true"][data-state="searching"] .frame-stage {
+      animation: frame-walk-left 2.1s linear infinite;
     }
 
     body[data-frame-animations="true"] .fox {
@@ -583,6 +588,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         transform: translateY(-6px);
       }
     }
+
+    @keyframes frame-walk-left {
+      0% {
+        transform: translateX(48px);
+      }
+      100% {
+        transform: translateX(-48px);
+      }
+    }
   </style>
 </head>
 <body data-state="${this.state}" data-frame-animations="${this.frameAnimationsEnabled}">
@@ -871,7 +885,7 @@ async function getFrameSources(
   const frameSets: Record<DocFoxState, string> = {
     idle: 'fox-frames-idle',
     typing: 'fox-frames-looking',
-    searching: 'fox-frames-looking',
+    searching: 'blog-frames-walking',
     thinking: 'fox-frames-thinking',
     sleeping: 'fox-frames-sleeping',
     happy: 'fox-frames-fireworks',
@@ -893,15 +907,24 @@ async function getFramesInFolder(folderUri: vscode.Uri, webview: vscode.Webview)
   try {
     const entries = await vscode.workspace.fs.readDirectory(folderUri);
     return entries
-      .filter(([name, type]) => type === vscode.FileType.File && /^frame_\d+\.png$/i.test(name))
-      .sort(([first], [second]) => getFrameNumber(first) - getFrameNumber(second))
+      .filter(([name, type]) => type === vscode.FileType.File && isFrameImage(name))
+      .sort(([first], [second]) => getFrameSortValue(first) - getFrameSortValue(second))
       .map(([name]) => webview.asWebviewUri(vscode.Uri.joinPath(folderUri, name)).toString());
   } catch {
     return [];
   }
 }
 
-function getFrameNumber(name: string): number {
+function isFrameImage(name: string): boolean {
+  return /^frame_\d+\.png$/i.test(name) || /^pixel-snapper-\d+-r\d+c\d+\.png$/i.test(name);
+}
+
+function getFrameSortValue(name: string): number {
+  const gridMatch = name.match(/-r(\d+)c(\d+)\.png$/i);
+  if (gridMatch) {
+    return Number(gridMatch[1]) * 1000 + Number(gridMatch[2]);
+  }
+
   return Number(name.match(/\d+/)?.[0] ?? 0);
 }
 

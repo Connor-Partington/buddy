@@ -60,6 +60,7 @@ Frame assets live under:
 ```text
 assets/images/
 ├── fox-frames-idle/
+├── blog-frames-walking/
 ├── fox-frames-looking/
 ├── fox-frames-panic/
 ├── fox-frames-sleeping/
@@ -72,14 +73,16 @@ State mapping:
 ```text
 idle      -> fox-frames-idle
 typing    -> fox-frames-looking
-searching -> fox-frames-looking
+searching -> blog-frames-walking
 thinking  -> fox-frames-thinking
 sleeping  -> fox-frames-sleeping
 happy     -> fox-frames-fireworks
 panic     -> fox-frames-panic
 ```
 
-Frame filenames must match `frame_*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by number.
+Frame filenames may match `frame_*.png` or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by number or row/column position.
+
+The walking frame set is used for `searching` and moves Luna left across the sidebar stage while the frames loop.
 
 The current frame player uses:
 
@@ -107,15 +110,17 @@ Press F5 in VS Code
 
 ## Local Install Workflow
 
-For local installs, bump the patch version before packaging and use the matching VSIX filename:
+For local installs, use the helper script. It bumps the patch version, compiles, packages a matching VSIX, installs it into VS Code, and removes older `docfox-*.vsix` packages:
 
 ```bash
-npm version patch --no-git-tag-version
-npx --yes @vscode/vsce package --out docfox-<version>.vsix
-'/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code' --install-extension docfox-<version>.vsix --force
+npm run install:local
 ```
 
-Keep only the current VSIX in the project root. Older VSIX files are ignored by git and can be removed after installing the newest version.
+If the VS Code CLI is not in the standard macOS app location or on `PATH`, pass it explicitly:
+
+```bash
+CODE_BIN="/path/to/code" npm run install:local
+```
 
 After install, run this in VS Code if the UI does not update immediately:
 

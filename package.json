@@ -89,6 +89,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "install:local": "scripts/install-latest.sh",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "npm run compile"

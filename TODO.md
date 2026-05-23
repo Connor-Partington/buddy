@@ -18,6 +18,7 @@ A lightweight VS Code companion for Markdown copyediting workflows.
 - [x] Package and install local VSIX builds
 - [x] Use patch version bumps for installable changes
 - [x] Keep only the current VSIX in the project root
+- [x] Add one-command local compile/package/install script
 
 ## Sidebar And Webview
 
@@ -78,6 +79,7 @@ Current frame folders:
 ```text
 assets/images/
 ├── fox-frames-idle/
+├── blog-frames-walking/
 ├── fox-frames-looking/
 ├── fox-frames-panic/
 ├── fox-frames-sleeping/
@@ -90,12 +92,14 @@ Current frame mapping:
 ```text
 idle      -> fox-frames-idle
 typing    -> fox-frames-looking
-searching -> fox-frames-looking
+searching -> blog-frames-walking
 thinking  -> fox-frames-thinking
 sleeping  -> fox-frames-sleeping
 happy     -> fox-frames-fireworks
 panic     -> fox-frames-panic
 ```
+
+- [x] Add dedicated walking/searching frames
 
 ## Sounds
 
