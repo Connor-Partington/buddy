@@ -637,7 +637,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     let lastState = '${this.state}';
     let animationFrameId;
     let animationToken = 0;
-    const frameDurationMs = 250;
+    const frameDurationMs = 160;
+    const frameHoldCount = 2;
     const processedFrames = new Map();
 
     function getAudioContext() {
@@ -742,7 +743,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     async function getFramesForState(state) {
       const sources = frameSources[state] || frameSources.idle || [];
-      return Promise.all(sources.map((source) => getProcessedFrame(source)));
+      const frames = await Promise.all(sources.map((source) => getProcessedFrame(source)));
+      return frames.flatMap((frame) => Array.from({ length: frameHoldCount }, () => frame));
     }
 
     function stopFrameAnimation() {
