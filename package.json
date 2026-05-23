@@ -11,10 +11,28 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onView:docfox.companion"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "docfox",
+          "title": "DocFox",
+          "icon": "media/docfox.svg"
+        }
+      ]
+    },
+    "views": {
+      "docfox": [
+        {
+          "id": "docfox.companion",
+          "name": "Companion",
+          "type": "webview"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "docfox.helloWorld",

@@ -11,4 +11,6 @@ npm install
 npm run compile
 ```
 
-The first scaffold includes a placeholder `DocFox: Hello World` command. The sidebar webview and animation state machine are next.
+The extension currently contributes a DocFox Activity Bar container with a sidebar webview. The sidebar renders a CSS placeholder fox so the UI can be developed before final animation assets exist.
+
+The animation state machine is next.

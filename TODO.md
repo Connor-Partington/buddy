@@ -57,9 +57,9 @@ yo code
 
 ## package.json
 
-- [ ] Add Activity Bar container
-- [ ] Add DocFox sidebar view
-- [ ] Add extension icon
+- [x] Add Activity Bar container
+- [x] Add DocFox sidebar view
+- [x] Add extension icon
 
 ### Success Criteria
 
@@ -80,9 +80,9 @@ src/DocFoxProvider.ts
 
 ## Tasks
 
-- [ ] Register webview provider
-- [ ] Render HTML UI
-- [ ] Display placeholder fox sprite
+- [x] Register webview provider
+- [x] Render HTML UI
+- [x] Display placeholder fox sprite
 
 ### Success Criteria
 
