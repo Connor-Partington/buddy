@@ -637,7 +637,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     let lastState = '${this.state}';
     let animationFrameId;
     let animationToken = 0;
-    const frameDurationMs = 180;
+    const frameDurationMs = 250;
     const processedFrames = new Map();
 
     function getAudioContext() {
