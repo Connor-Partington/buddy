@@ -635,8 +635,9 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     let soundsEnabled = ${this.soundsEnabled};
     let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let lastState = '${this.state}';
-    let animationTimer;
+    let animationFrameId;
     let animationToken = 0;
+    const frameDurationMs = 180;
     const processedFrames = new Map();
 
     function getAudioContext() {
@@ -746,9 +747,9 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     function stopFrameAnimation() {
       animationToken += 1;
-      if (animationTimer) {
-        clearInterval(animationTimer);
-        animationTimer = undefined;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = undefined;
       }
     }
 
@@ -757,8 +758,10 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      frameCanvas.width = frame.width;
-      frameCanvas.height = frame.height;
+      if (frameCanvas.width !== frame.width || frameCanvas.height !== frame.height) {
+        frameCanvas.width = frame.width;
+        frameCanvas.height = frame.height;
+      }
       frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
       frameContext.drawImage(frame, 0, 0);
     }
@@ -776,11 +779,25 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
 
       let frameIndex = 0;
+      let lastFrameTime = performance.now();
       drawFrame(frames[frameIndex]);
-      animationTimer = setInterval(() => {
-        frameIndex = (frameIndex + 1) % frames.length;
-        drawFrame(frames[frameIndex]);
-      }, 250);
+
+      function tick(now) {
+        if (token !== animationToken || !frameAnimationsEnabled) {
+          return;
+        }
+
+        if (now - lastFrameTime >= frameDurationMs) {
+          const frameSteps = Math.floor((now - lastFrameTime) / frameDurationMs);
+          frameIndex = (frameIndex + frameSteps) % frames.length;
+          lastFrameTime += frameSteps * frameDurationMs;
+          drawFrame(frames[frameIndex]);
+        }
+
+        animationFrameId = requestAnimationFrame(tick);
+      }
+
+      animationFrameId = requestAnimationFrame(tick);
     }
 
     function setFrameAnimationsEnabled(enabled) {
