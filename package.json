@@ -1,0 +1,40 @@
+{
+  "name": "docfox",
+  "displayName": "DocFox",
+  "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "docfox.helloWorld",
+        "title": "DocFox: Hello World"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5"
+  }
+}

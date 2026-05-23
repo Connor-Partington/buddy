@@ -1,0 +1,7 @@
+src/**
+.vscode/**
+.vscode-test/**
+out/test/**
+node_modules/**
+*.vsix
+TODO.md
