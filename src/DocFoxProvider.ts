@@ -188,31 +188,61 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       background: var(--ink);
     }
 
-    .thoughts {
+    .thought-cloud {
       position: absolute;
-      left: 50%;
-      top: 2px;
-      display: flex;
-      gap: 5px;
+      left: 82px;
+      top: -9px;
+      width: 52px;
+      height: 32px;
       opacity: 0;
-      transform: translateX(-50%) translateY(4px);
+      transform: translateY(6px) scale(0.96);
       transition: opacity 160ms ease, transform 160ms ease;
+      animation: cloud-float 2s ease-in-out infinite;
     }
 
-    .thoughts span {
-      width: 6px;
-      height: 6px;
+    .thought-cloud span {
+      position: absolute;
+      display: block;
       border-radius: 50%;
-      background: var(--space-blue);
-      animation: float-dot 1.2s ease-in-out infinite;
+      background: color-mix(in srgb, var(--space-blue) 82%, white);
+      box-shadow: inset 0 -2px 0 rgb(35 38 45 / 10%);
     }
 
-    .thoughts span:nth-child(2) {
-      animation-delay: 0.15s;
+    .thought-cloud span:nth-child(1) {
+      left: 3px;
+      top: 12px;
+      width: 19px;
+      height: 17px;
     }
 
-    .thoughts span:nth-child(3) {
-      animation-delay: 0.3s;
+    .thought-cloud span:nth-child(2) {
+      left: 14px;
+      top: 4px;
+      width: 27px;
+      height: 24px;
+    }
+
+    .thought-cloud span:nth-child(3) {
+      right: 3px;
+      top: 11px;
+      width: 20px;
+      height: 18px;
+    }
+
+    .thought-cloud span:nth-child(4) {
+      left: 13px;
+      bottom: -3px;
+      width: 8px;
+      height: 8px;
+      opacity: 0.85;
+    }
+
+    .thought-cloud span:nth-child(5) {
+      left: 4px;
+      bottom: -12px;
+      width: 5px;
+      height: 5px;
+      opacity: 0.7;
     }
 
     .zzz {
@@ -258,9 +288,9 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       animation: head-tilt 1.6s ease-in-out infinite;
     }
 
-    body[data-state="thinking"] .thoughts {
+    body[data-state="thinking"] .thought-cloud {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: translateY(0) scale(1);
     }
 
     body[data-state="sleeping"] .fox {
@@ -354,12 +384,12 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    @keyframes float-dot {
+    @keyframes cloud-float {
       0%, 100% {
         transform: translateY(0);
       }
       50% {
-        transform: translateY(-5px);
+        transform: translateY(-4px);
       }
     }
 
@@ -377,7 +407,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   <main class="shell">
     <section class="stage" aria-label="DocFox companion">
       <div class="fox" role="img" aria-label="A small fox waiting in the sidebar">
-        <div class="thoughts" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
         <div class="ear left"></div>
         <div class="ear right"></div>
