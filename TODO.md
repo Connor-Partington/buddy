@@ -116,14 +116,14 @@ src/DocFoxProvider.ts
 
 ## Typing Detection
 
-- [ ] Listen to:
+- [x] Listen to:
 
 ```ts
 vscode.workspace.onDidChangeTextDocument
 ```
 
-- [ ] Set state to `typing`
-- [ ] Reset idle timer
+- [x] Set state to `typing`
+- [x] Reset idle timer
 
 ---
 
@@ -131,11 +131,11 @@ vscode.workspace.onDidChangeTextDocument
 
 ## Idle Flow
 
-- [ ] After 1 second:
-  - [ ] Switch to `thinking`
+- [x] After 1 second:
+  - [x] Switch to `thinking`
 
-- [ ] After additional 2–3 seconds:
-  - [ ] Switch to `sleeping`
+- [x] After additional 2–3 seconds:
+  - [x] Switch to `sleeping`
 
 ### Expected Flow
 
