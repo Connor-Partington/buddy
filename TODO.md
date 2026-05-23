@@ -119,7 +119,7 @@ panic     -> fox-frames-panic
 Current local package:
 
 ```text
-docfox-0.0.15.vsix
+docfox-0.0.16.vsix
 ```
 
 ---
@@ -180,5 +180,5 @@ docfox-0.0.15.vsix
 - Activity and diagnostics logic lives in `src/activityController.ts`.
 - State definitions live in `src/stateManager.ts`.
 - Demo cycling lives in `src/demoController.ts`.
-- Current installed version should be `0.0.15`.
+- Current installed version should be `0.0.16`.
 - Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.
