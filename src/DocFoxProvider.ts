@@ -288,6 +288,14 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       animation: head-tilt 1.6s ease-in-out infinite;
     }
 
+    body[data-state="searching"] .eye {
+      animation: eye-scan 0.9s steps(2, end) infinite;
+    }
+
+    body[data-state="searching"] .head {
+      box-shadow: inset 0 -10px 0 rgb(0 0 0 / 8%), 0 0 0 4px rgb(144 213 255 / 16%);
+    }
+
     body[data-state="thinking"] .thought-cloud {
       opacity: 1;
       transform: translateY(0) scale(1);
@@ -366,6 +374,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
+    @keyframes eye-scan {
+      0%, 100% {
+        transform: translateX(-4px);
+      }
+      50% {
+        transform: translateX(4px);
+      }
+    }
+
     @keyframes sleepy-breathe {
       0%, 100% {
         transform: translateY(7px) scaleY(0.94);
@@ -430,6 +447,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     const labels = ${JSON.stringify({
       idle: getDocFoxStateLabel('idle'),
       typing: getDocFoxStateLabel('typing'),
+      searching: getDocFoxStateLabel('searching'),
       thinking: getDocFoxStateLabel('thinking'),
       sleeping: getDocFoxStateLabel('sleeping'),
       happy: getDocFoxStateLabel('happy'),

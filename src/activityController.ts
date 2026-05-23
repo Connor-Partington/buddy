@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { DocFoxStateManager } from './stateManager';
 
 const thinkingDelayMs = 1000;
+const searchingDelayMs = 1400;
 const sleepingDelayMs = 5500;
 
 export class DocFoxActivityController implements vscode.Disposable {
@@ -17,6 +18,11 @@ export class DocFoxActivityController implements vscode.Disposable {
           this.handleTyping();
         }
       }),
+      vscode.window.onDidChangeTextEditorSelection((event) => {
+        if (isMarkdownDocument(event.textEditor.document) && event.kind === vscode.TextEditorSelectionChangeKind.Mouse) {
+          this.handleSearching();
+        }
+      }),
     );
   }
 
@@ -28,14 +34,27 @@ export class DocFoxActivityController implements vscode.Disposable {
   private handleTyping(): void {
     this.clearTimers();
     this.stateManager.setState('typing');
+    this.scheduleThinking(thinkingDelayMs);
+  }
 
+  private handleSearching(): void {
+    if (this.stateManager.state === 'typing') {
+      return;
+    }
+
+    this.clearTimers();
+    this.stateManager.setState('searching');
+    this.scheduleThinking(searchingDelayMs);
+  }
+
+  private scheduleThinking(delayMs: number): void {
     this.thinkingTimer = setTimeout(() => {
       this.stateManager.setState('thinking');
 
       this.sleepingTimer = setTimeout(() => {
         this.stateManager.setState('sleeping');
       }, sleepingDelayMs);
-    }, thinkingDelayMs);
+    }, delayMs);
   }
 
   private clearTimers(): void {

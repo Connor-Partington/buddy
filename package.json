@@ -2,7 +2,7 @@
   "name": "docfox",
   "displayName": "DocFox",
   "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "local",
   "engines": {
     "vscode": "^1.90.0"
@@ -46,6 +46,10 @@
       {
         "command": "docfox.setState.typing",
         "title": "DocFox: Set State Typing"
+      },
+      {
+        "command": "docfox.setState.searching",
+        "title": "DocFox: Set State Searching"
       },
       {
         "command": "docfox.setState.thinking",

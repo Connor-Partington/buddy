@@ -96,6 +96,7 @@ src/DocFoxProvider.ts
 
 - [x] idle
 - [x] typing
+- [x] searching
 - [x] thinking
 - [x] sleeping
 - [x] happy (optional)

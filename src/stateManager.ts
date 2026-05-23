@@ -1,4 +1,4 @@
-export const docFoxStates = ['idle', 'typing', 'thinking', 'sleeping', 'happy'] as const;
+export const docFoxStates = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy'] as const;
 
 export type DocFoxState = (typeof docFoxStates)[number];
 
@@ -10,6 +10,7 @@ export type DocFoxStateMessage = {
 const stateLabels: Record<DocFoxState, string> = {
   idle: 'Ready for Markdown.',
   typing: 'Keeping pace with your draft.',
+  searching: 'Following your cursor.',
   thinking: 'Thinking through the pause.',
   sleeping: 'Resting until the next edit.',
   happy: 'Nice save.',
