@@ -4,315 +4,176 @@ A lightweight VS Code companion for Markdown copyediting workflows.
 
 ---
 
-# Goals
+# Completed
 
-Create a simple VS Code sidebar companion that:
-
-- Appears when editing Markdown files
-- Reacts to typing activity
-- Sleeps when idle
-- Shows a thinking animation after typing pauses
-- Uses lightweight sprite animations
-- Runs entirely locally
-- Requires no AI infrastructure
-
----
-
-# Tech Stack
-
-- TypeScript
-- VS Code Extension API
-- HTML/CSS/JS Webview
-- Pixel-art sprites
-- CSS sprite animations
-
----
-
-# Project Setup
+## Project Setup
 
 - [x] Install Node.js
-- [ ] Install Yeoman and generator-code
+- [x] Scaffold TypeScript VS Code extension project
+- [x] Add `package.json`
+- [x] Add `tsconfig.json`
+- [x] Add VS Code launch/tasks config
+- [x] Initialize git
+- [x] Commit scaffold
+- [x] Package and install local VSIX builds
+- [x] Use patch version bumps for installable changes
+- [x] Keep only the current VSIX in the project root
 
-```bash
-npm install -g yo generator-code
-```
-
-- [x] Generate extension project
-
-```bash
-yo code
-```
-
-- [ ] Select:
-- [x] TypeScript
-- [x] New Extension
-
-- [x] Name project `docfox`
-- [ ] Open project in VS Code
-- [ ] Run extension host using `F5`
-
----
-
-# Create Sidebar Panel
-
-## package.json
+## Sidebar And Webview
 
 - [x] Add Activity Bar container
 - [x] Add Luna sidebar view
 - [x] Add extension icon
-
-### Success Criteria
-
-- [ ] Luna icon appears in VS Code sidebar
-- [ ] Sidebar panel opens correctly
-
----
-
-# Create Webview
-
-## Files
-
-- [ ] Create:
-
-```text
-src/DocFoxProvider.ts
-```
-
-## Tasks
-
+- [x] Create `src/DocFoxProvider.ts`
 - [x] Register webview provider
-- [x] Render HTML UI
-- [x] Display placeholder fox sprite
+- [x] Render sidebar HTML UI
+- [x] Display CSS fallback character
+- [x] Add sidebar controls for sounds and frame mode
 
-### Success Criteria
+## State System
 
-- [ ] Fox appears in sidebar
+- [x] Add state manager
+- [x] Add `setState()` flow
+- [x] Send messages from extension to webview
+- [x] Update displayed animation from state
+- [x] Add Command Palette state preview commands
 
----
+Implemented states:
 
-# Create State System
+- [x] `idle`
+- [x] `typing`
+- [x] `searching`
+- [x] `thinking`
+- [x] `sleeping`
+- [x] `happy`
+- [x] `panic`
 
-## States
+## Markdown Activity
 
-- [x] idle
-- [x] typing
-- [x] searching
-- [x] thinking
-- [x] sleeping
-- [x] happy (optional)
-- [x] panic
+- [x] Detect Markdown document changes with `vscode.workspace.onDidChangeTextDocument`
+- [x] Trigger `typing` on Markdown edits
+- [x] Reset timers while typing
+- [x] Switch to `thinking` after 1 second of quiet
+- [x] Switch to `sleeping` after another 5.5 seconds
+- [x] Detect mouse selection changes in Markdown files
+- [x] Trigger `searching` when clicking around a Markdown file
+- [x] Detect active Markdown error diagnostics
+- [x] Trigger `panic` when errors are detected
 
-## Logic
+## Frame Animation Mode
 
-- [x] Create `setState()` function
-- [x] Send messages from extension → webview
-- [x] Update displayed animation
+- [x] Add PNG frame assets under `assets/images`
+- [x] Add frame mode toggle
+- [x] Keep CSS fallback mode available
+- [x] Load frame files dynamically from folders
+- [x] Support non-contiguous frame numbers after deleting bad frames
+- [x] Render frames through canvas
+- [x] Add runtime green-screen chroma keying
+- [x] Add green spill suppression for edge pixels
+- [x] Use `requestAnimationFrame` for frame playback
+- [x] Add code-level frame holding instead of duplicating files
 
-### Success Criteria
-
-- [ ] Fox changes state dynamically
-
----
-
-# Detect Typing Activity
-
-## Typing Detection
-
-- [x] Listen to:
-
-```ts
-vscode.workspace.onDidChangeTextDocument
-```
-
-- [x] Set state to `typing`
-- [x] Reset idle timer
-
----
-
-# Detect Idle State
-
-## Idle Flow
-
-- [x] After 1 second:
-  - [x] Switch to `thinking`
-
-- [x] After additional 5.5 seconds:
-  - [x] Switch to `sleeping`
-
-### Expected Flow
+Current frame folders:
 
 ```text
-typing → thinking → sleeping
+assets/images/
+├── fox-frames-idle/
+├── fox-frames-looking/
+├── fox-frames-panic/
+├── fox-frames-sleeping/
+└── fox-frames-thinking/
 ```
 
----
-
-# Sprite System
-
-## Folder Structure
-
-- [ ] Create:
+Current frame mapping:
 
 ```text
-media/
-├── idle/
-├── typing/
-├── thinking/
-├── sleeping/
-└── happy/
+idle      -> fox-frames-idle
+typing    -> fox-frames-looking
+searching -> fox-frames-looking
+thinking  -> fox-frames-thinking
+sleeping  -> fox-frames-sleeping
+happy     -> fox-frames-idle
+panic     -> fox-frames-panic
 ```
 
-## Assets
+## Sounds
 
-- [ ] Add idle frames
-- [ ] Add typing frames
-- [ ] Add thinking frames
-- [ ] Add sleeping frames
+- [x] Add optional sound toggle
+- [x] Keep sounds off by default
+- [x] Persist sound preference in VS Code global state
+- [x] Generate subtle sounds with Web Audio
+- [x] Add `Luna: Toggle Sounds`
 
----
+## Packaging
 
-# Animation System
+- [x] Bump version for each installed VSIX
+- [x] Build versioned VSIX files
+- [x] Install with VS Code CLI and `--force`
+- [x] Remove older ignored VSIX packages after install
 
-## Choose Animation Method
-
-- [ ] GIF animations
-OR
-- [ ] CSS spritesheets (recommended)
-
----
-
-# Idle Animation
-
-- [ ] Blinking
-- [ ] Ear twitch
-- [ ] Breathing effect
-
----
-
-# Typing Animation
-
-- [ ] Paw movement
-- [ ] Keyboard bounce
-- [ ] Tail movement
-
----
-
-# Thinking Animation
-
-- [ ] Floating dots
-- [ ] Head tilt
-- [ ] Blinking
-
----
-
-# Sleeping Animation
-
-- [ ] Sleeping pose
-- [ ] Zzz bubble
-- [ ] Slow breathing
-
-### Success Criteria
-
-- [ ] Luna feels alive
-
----
-
-# Markdown Awareness
-
-- [ ] Detect active editor
-- [ ] Detect `.md` files
-- [ ] Show Luna only for Markdown
-- [ ] Hide for non-doc files
-
----
-
-# UI Polish
-
-## Theme
-
-- [ ] Apply Space Blue theme
-- [ ] Use:
+Current local package:
 
 ```text
-#90D5FF
+docfox-0.0.13.vsix
 ```
-
-## Styling
-
-- [ ] Rounded corners
-- [ ] Smooth transitions
-- [ ] Better spacing
-- [ ] Reduce animation jitter
 
 ---
 
-# Optional Features
+# Still To Do
 
-## Save Reactions
+## Verification
+
+- [ ] Reload VS Code and verify Luna appears in the Activity Bar
+- [ ] Verify sidebar opens correctly
+- [ ] Verify CSS fallback mode still works
+- [ ] Verify frame mode works after deleting bad frames
+- [ ] Verify chroma key cleanup removes remaining green edge artifacts
+- [ ] Verify typing flow: `typing -> thinking -> sleeping`
+- [ ] Verify clicking in Markdown triggers `searching`
+- [ ] Verify active Markdown errors trigger `panic`
+- [ ] Verify `Luna: Preview Animations`
+- [ ] Verify sounds toggle and generated sounds
+
+## Markdown Awareness
+
+- [x] Detect `.md`/Markdown documents for typing behavior
+- [ ] Decide whether Luna should hide for non-Markdown files
+- [ ] If yes, implement non-Markdown hidden/disabled UI state
+
+## Animation Polish
+
+- [ ] Tune frame timing if it still feels too fast or too choppy
+- [ ] Tune `frameDurationMs` and `frameHoldCount`
+- [ ] Improve chroma key thresholds if green outlines remain
+- [ ] Consider pre-processing transparent PNGs if runtime chroma keying is not clean enough
+- [ ] Add dedicated typing frames if assets become available
+- [ ] Add dedicated happy frames if assets become available
+
+## UI Polish
+
+- [x] Apply Space Blue accent `#90D5FF`
+- [x] Add rounded sidebar stage
+- [x] Add smooth CSS fallback transitions
+- [ ] Improve icon affordances/tooltips if needed
+- [ ] Confirm layout at narrow sidebar widths
+
+## Optional Features
 
 - [ ] Detect save event
-- [ ] Trigger happy animation
+- [ ] Trigger `happy` on save
+- [ ] Add reading/no-typing state
+- [ ] Add documentation quality mood system
+- [ ] Add Git/PR celebration reactions
 
 ---
 
-# Reading State
+# Handoff Notes
 
-- [ ] Detect reading/no typing
-- [ ] Add reading animation
-
----
-
-# Surprise State
-
-- [ ] React to markdown lint issues
-- [ ] Trigger surprised animation
-
----
-
-# Recommended File Structure
-
-```text
-docfox/
-│
-├── media/
-│   ├── idle/
-│   ├── typing/
-│   ├── thinking/
-│   ├── sleeping/
-│   └── happy/
-│
-├── src/
-│   ├── extension.ts
-│   ├── DocFoxProvider.ts
-│   ├── stateManager.ts
-│   └── animations.ts
-│
-├── package.json
-└── tsconfig.json
-```
-
----
-
-# MVP Completion Criteria
-
-- [ ] Open Markdown file
-- [ ] Luna appears automatically
-- [ ] Typing triggers typing animation
-- [ ] Thinking state triggers after pause
-- [ ] Sleeping state triggers after idle
-- [ ] Animations play smoothly
-- [ ] Extension runs successfully in VS Code
-- [ ] Sidebar UI works correctly
-
----
-
-# Future Ideas
-
-- [ ] Copilot-aware reactions
-- [ ] Walking animation
-- [ ] Floating overlay mode
-- [ ] Sound effects
-- [ ] Git integration
-- [ ] PR celebration animation
-- [ ] Reading stats
-- [ ] Documentation quality mood system
+- User-facing name is **Luna**.
+- Internal extension/package/command prefix is still `docfox` to avoid installing a duplicate extension.
+- Main implementation file is `src/DocFoxProvider.ts`.
+- Activity and diagnostics logic lives in `src/activityController.ts`.
+- State definitions live in `src/stateManager.ts`.
+- Demo cycling lives in `src/demoController.ts`.
+- Current installed version should be `0.0.13`.
+- Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.

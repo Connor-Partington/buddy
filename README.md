@@ -1,15 +1,109 @@
 # Luna
 
-A lightweight local VS Code companion for Markdown copyediting workflows.
+Luna is a lightweight local VS Code sidebar companion for Markdown copyediting workflows.
+
+The extension still uses the internal package/command prefix `docfox` so VS Code updates the same installed extension, but the user-facing companion name is **Luna**.
+
+## Current Status
+
+- VS Code extension scaffold is complete.
+- Luna contributes an Activity Bar container and sidebar webview.
+- The webview supports two visual modes:
+  - CSS fallback character.
+  - PNG frame animation mode from `assets/images`.
+- Frame mode is optional and can be toggled from the sidebar or Command Palette.
+- Frame PNGs are loaded dynamically from disk, so non-contiguous frame numbers are allowed.
+- Green-screen chroma keying runs in the webview canvas at runtime.
+- Sounds are optional, off by default, and generated with Web Audio.
+- Current packaged version: `0.0.13`.
+
+## Behavior
+
+Luna has these states:
+
+- `idle`
+- `typing`
+- `searching`
+- `thinking`
+- `sleeping`
+- `happy`
+- `panic`
+
+Markdown typing flow:
+
+```text
+typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
+```
+
+Clicking around a Markdown file triggers `searching`.
+
+When the active Markdown file has VS Code error diagnostics, Luna switches to `panic`.
+
+## Commands
+
+- `Luna: Preview Animations`
+- `Luna: Toggle Sounds`
+- `Luna: Toggle Frame Animations`
+- `Luna: Set State Idle`
+- `Luna: Set State Typing`
+- `Luna: Set State Searching`
+- `Luna: Set State Thinking`
+- `Luna: Set State Sleeping`
+- `Luna: Set State Happy`
+- `Luna: Set State Panic`
+
+## Frame Assets
+
+Frame assets live under:
+
+```text
+assets/images/
+├── fox-frames-idle/
+├── fox-frames-looking/
+├── fox-frames-panic/
+├── fox-frames-sleeping/
+└── fox-frames-thinking/
+```
+
+State mapping:
+
+```text
+idle      -> fox-frames-idle
+typing    -> fox-frames-looking
+searching -> fox-frames-looking
+thinking  -> fox-frames-thinking
+sleeping  -> fox-frames-sleeping
+happy     -> fox-frames-idle
+panic     -> fox-frames-panic
+```
+
+Frame filenames must match `frame_*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by number.
+
+The current frame player uses:
+
+```text
+frameDurationMs = 160
+frameHoldCount = 2
+```
+
+That means each source frame is held for roughly `320ms`.
 
 ## Development
 
-Install dependencies, compile the extension, then press `F5` in VS Code to open an Extension Development Host.
+Install dependencies and compile:
 
 ```bash
 npm install
 npm run compile
 ```
+
+Run in the Extension Development Host:
+
+```text
+Press F5 in VS Code
+```
+
+## Local Install Workflow
 
 For local installs, bump the patch version before packaging and use the matching VSIX filename:
 
@@ -19,14 +113,19 @@ npx --yes @vscode/vsce package --out docfox-<version>.vsix
 '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code' --install-extension docfox-<version>.vsix --force
 ```
 
-The extension currently contributes a Luna Activity Bar container with a sidebar webview. The sidebar renders a CSS placeholder companion so the UI can be developed before final animation assets exist.
+Keep only the current VSIX in the project root. Older VSIX files are ignored by git and can be removed after installing the newest version.
 
-Luna has an extension-side state manager and webview message handling for `idle`, `typing`, `searching`, `thinking`, `sleeping`, `happy`, and `panic`. Use `Luna: Preview Animations` from the Command Palette to cycle through the CSS character states, or use the `Luna: Set State ...` commands to preview one state at a time.
+After install, run this in VS Code if the UI does not update immediately:
 
-When Markdown documents change, Luna switches to `typing`, moves to `thinking` after 1 second of quiet, then moves to `sleeping` after another 5.5 seconds. Clicking around a Markdown file switches Luna to `searching` before returning to the idle flow.
+```text
+Developer: Reload Window
+```
 
-Sounds are off by default. Use `Luna: Toggle Sounds` or the sidebar sound button to enable subtle synthesized state sounds.
+## Notes For Next Handoff
 
-Frame animations are optional. Use `Luna: Toggle Frame Animations` or the sidebar frame button to switch between the CSS fallback character and PNG frame animations with automatic green-screen chroma keying.
-
-When the active Markdown file has error diagnostics, Luna switches to `panic`.
+- The current source of truth is the latest git commit in this repository.
+- `docfox-0.0.13.vsix` is the current local package.
+- The CSS fallback remains useful for comparison because it feels smoother than frame mode.
+- Frame mode quality depends heavily on the source PNGs and the green-screen edges.
+- Chroma keying happens in `src/DocFoxProvider.ts` inside `getProcessedFrame()`.
+- Frame timing and hold behavior are in the webview script in `src/DocFoxProvider.ts`.
