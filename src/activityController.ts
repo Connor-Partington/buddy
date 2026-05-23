@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { DocFoxStateManager } from './stateManager';
 
 const thinkingDelayMs = 1000;
-const sleepingDelayMs = 2500;
+const sleepingDelayMs = 5500;
 
 export class DocFoxActivityController implements vscode.Disposable {
   private thinkingTimer?: ReturnType<typeof setTimeout>;

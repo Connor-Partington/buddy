@@ -134,7 +134,7 @@ vscode.workspace.onDidChangeTextDocument
 - [x] After 1 second:
   - [x] Switch to `thinking`
 
-- [x] After additional 2–3 seconds:
+- [x] After additional 5.5 seconds:
   - [x] Switch to `sleeping`
 
 ### Expected Flow
