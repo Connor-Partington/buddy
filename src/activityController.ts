@@ -5,10 +5,12 @@ import { DocFoxStateManager } from './stateManager';
 const thinkingDelayMs = 1000;
 const searchingDelayMs = 1400;
 const sleepingDelayMs = 5500;
+const happyDelayMs = 2600;
 
 export class DocFoxActivityController implements vscode.Disposable {
   private thinkingTimer?: ReturnType<typeof setTimeout>;
   private sleepingTimer?: ReturnType<typeof setTimeout>;
+  private happyTimer?: ReturnType<typeof setTimeout>;
   private readonly subscriptions: vscode.Disposable[] = [];
 
   public constructor(private readonly stateManager: DocFoxStateManager) {
@@ -16,6 +18,11 @@ export class DocFoxActivityController implements vscode.Disposable {
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (isMarkdownDocument(event.document)) {
           this.handleTyping();
+        }
+      }),
+      vscode.workspace.onDidSaveTextDocument((document) => {
+        if (isMarkdownDocument(document)) {
+          this.handleSave();
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((event) => {
@@ -65,6 +72,23 @@ export class DocFoxActivityController implements vscode.Disposable {
     this.scheduleThinking(searchingDelayMs);
   }
 
+  private handleSave(): void {
+    this.clearTimers();
+    this.stateManager.setState('happy');
+
+    this.happyTimer = setTimeout(() => {
+      if (this.stateManager.state !== 'happy') {
+        return;
+      }
+
+      if (hasActiveMarkdownErrors()) {
+        this.setPanic();
+      } else {
+        this.stateManager.setState('idle');
+      }
+    }, happyDelayMs);
+  }
+
   private updatePanicState(): void {
     if (hasActiveMarkdownErrors()) {
       this.setPanic();
@@ -98,6 +122,11 @@ export class DocFoxActivityController implements vscode.Disposable {
     if (this.sleepingTimer) {
       clearTimeout(this.sleepingTimer);
       this.sleepingTimer = undefined;
+    }
+
+    if (this.happyTimer) {
+      clearTimeout(this.happyTimer);
+      this.happyTimer = undefined;
     }
   }
 }

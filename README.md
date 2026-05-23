@@ -15,7 +15,7 @@ The extension still uses the internal package/command prefix `docfox` so VS Code
 - Frame PNGs are loaded dynamically from disk, so non-contiguous frame numbers are allowed.
 - Green-screen chroma keying runs in the webview canvas at runtime.
 - Sounds are optional, off by default, and generated with Web Audio.
-- Current packaged version: `0.0.14`.
+- Current packaged version: `0.0.15`.
 
 ## Behavior
 
@@ -63,7 +63,8 @@ assets/images/
 ├── fox-frames-looking/
 ├── fox-frames-panic/
 ├── fox-frames-sleeping/
-└── fox-frames-thinking/
+├── fox-frames-thinking/
+└── fox-frames-fireworks/
 ```
 
 State mapping:
@@ -74,7 +75,7 @@ typing    -> fox-frames-looking
 searching -> fox-frames-looking
 thinking  -> fox-frames-thinking
 sleeping  -> fox-frames-sleeping
-happy     -> fox-frames-idle
+happy     -> fox-frames-fireworks
 panic     -> fox-frames-panic
 ```
 
@@ -125,7 +126,7 @@ Developer: Reload Window
 ## Notes For Next Handoff
 
 - The current source of truth is the latest git commit in this repository.
-- `docfox-0.0.14.vsix` is the current local package.
+- `docfox-0.0.15.vsix` is the current local package.
 - The CSS fallback remains useful for comparison because it feels smoother than frame mode.
 - Frame mode quality depends heavily on the source PNGs and the green-screen edges.
 - Chroma keying happens in `src/DocFoxProvider.ts` inside `getProcessedFrame()`.

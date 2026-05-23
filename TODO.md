@@ -81,7 +81,8 @@ assets/images/
 ├── fox-frames-looking/
 ├── fox-frames-panic/
 ├── fox-frames-sleeping/
-└── fox-frames-thinking/
+├── fox-frames-thinking/
+└── fox-frames-fireworks/
 ```
 
 Current frame mapping:
@@ -92,7 +93,7 @@ typing    -> fox-frames-looking
 searching -> fox-frames-looking
 thinking  -> fox-frames-thinking
 sleeping  -> fox-frames-sleeping
-happy     -> fox-frames-idle
+happy     -> fox-frames-fireworks
 panic     -> fox-frames-panic
 ```
 
@@ -114,7 +115,7 @@ panic     -> fox-frames-panic
 Current local package:
 
 ```text
-docfox-0.0.14.vsix
+docfox-0.0.15.vsix
 ```
 
 ---
@@ -147,7 +148,7 @@ docfox-0.0.14.vsix
 - [ ] Improve chroma key thresholds if green outlines remain
 - [ ] Consider pre-processing transparent PNGs if runtime chroma keying is not clean enough
 - [ ] Add dedicated typing frames if assets become available
-- [ ] Add dedicated happy frames if assets become available
+- [x] Add dedicated happy/fireworks frames
 
 ## UI Polish
 
@@ -159,8 +160,8 @@ docfox-0.0.14.vsix
 
 ## Optional Features
 
-- [ ] Detect save event
-- [ ] Trigger `happy` on save
+- [x] Detect save event
+- [x] Trigger `happy`/fireworks on save
 - [ ] Add reading/no-typing state
 - [ ] Add documentation quality mood system
 - [ ] Add Git/PR celebration reactions
@@ -175,5 +176,5 @@ docfox-0.0.14.vsix
 - Activity and diagnostics logic lives in `src/activityController.ts`.
 - State definitions live in `src/stateManager.ts`.
 - Demo cycling lives in `src/demoController.ts`.
-- Current installed version should be `0.0.14`.
+- Current installed version should be `0.0.15`.
 - Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.

@@ -874,7 +874,7 @@ async function getFrameSources(
     searching: 'fox-frames-looking',
     thinking: 'fox-frames-thinking',
     sleeping: 'fox-frames-sleeping',
-    happy: 'fox-frames-idle',
+    happy: 'fox-frames-fireworks',
     panic: 'fox-frames-panic',
   };
 
