@@ -1,8 +1,8 @@
 {
   "name": "docfox",
-  "displayName": "DocFox",
+  "displayName": "Luna",
   "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "local",
   "engines": {
     "vscode": "^1.90.0"
@@ -20,7 +20,7 @@
       "activitybar": [
         {
           "id": "docfox",
-          "title": "DocFox",
+          "title": "Luna",
           "icon": "media/docfox.svg"
         }
       ]
@@ -37,35 +37,35 @@
     "commands": [
       {
         "command": "docfox.helloWorld",
-        "title": "DocFox: Hello World"
+        "title": "Luna: Hello World"
       },
       {
         "command": "docfox.setState.idle",
-        "title": "DocFox: Set State Idle"
+        "title": "Luna: Set State Idle"
       },
       {
         "command": "docfox.setState.typing",
-        "title": "DocFox: Set State Typing"
+        "title": "Luna: Set State Typing"
       },
       {
         "command": "docfox.setState.searching",
-        "title": "DocFox: Set State Searching"
+        "title": "Luna: Set State Searching"
       },
       {
         "command": "docfox.setState.thinking",
-        "title": "DocFox: Set State Thinking"
+        "title": "Luna: Set State Thinking"
       },
       {
         "command": "docfox.setState.sleeping",
-        "title": "DocFox: Set State Sleeping"
+        "title": "Luna: Set State Sleeping"
       },
       {
         "command": "docfox.setState.happy",
-        "title": "DocFox: Set State Happy"
+        "title": "Luna: Set State Happy"
       },
       {
         "command": "docfox.previewAnimations",
-        "title": "DocFox: Preview Animations"
+        "title": "Luna: Preview Animations"
       }
     ]
   },

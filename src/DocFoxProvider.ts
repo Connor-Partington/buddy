@@ -44,7 +44,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
-  <title>DocFox</title>
+  <title>Luna</title>
   <style nonce="${nonce}">
     :root {
       --space-blue: #90d5ff;
@@ -422,8 +422,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 </head>
 <body data-state="${this.state}">
   <main class="shell">
-    <section class="stage" aria-label="DocFox companion">
-      <div class="fox" role="img" aria-label="A small fox waiting in the sidebar">
+    <section class="stage" aria-label="Luna companion">
+      <div class="fox" role="img" aria-label="Luna waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
         <div class="ear left"></div>
@@ -438,7 +438,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       </div>
     </section>
     <section class="status" aria-live="polite">
-      <h1 class="name">DocFox</h1>
+      <h1 class="name">Luna</h1>
       <p class="mood">${getDocFoxStateLabel(this.state)}</p>
     </section>
   </main>

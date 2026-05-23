@@ -1,4 +1,4 @@
-# DocFox MVP Checklist
+# Luna MVP Checklist
 
 A lightweight VS Code companion for Markdown copyediting workflows.
 
@@ -58,12 +58,12 @@ yo code
 ## package.json
 
 - [x] Add Activity Bar container
-- [x] Add DocFox sidebar view
+- [x] Add Luna sidebar view
 - [x] Add extension icon
 
 ### Success Criteria
 
-- [ ] DocFox icon appears in VS Code sidebar
+- [ ] Luna icon appears in VS Code sidebar
 - [ ] Sidebar panel opens correctly
 
 ---
@@ -212,7 +212,7 @@ OR
 
 ### Success Criteria
 
-- [ ] DocFox feels alive
+- [ ] Luna feels alive
 
 ---
 
@@ -220,7 +220,7 @@ OR
 
 - [ ] Detect active editor
 - [ ] Detect `.md` files
-- [ ] Show DocFox only for Markdown
+- [ ] Show Luna only for Markdown
 - [ ] Hide for non-doc files
 
 ---
@@ -295,7 +295,7 @@ docfox/
 # MVP Completion Criteria
 
 - [ ] Open Markdown file
-- [ ] DocFox appears automatically
+- [ ] Luna appears automatically
 - [ ] Typing triggers typing animation
 - [ ] Thinking state triggers after pause
 - [ ] Sleeping state triggers after idle

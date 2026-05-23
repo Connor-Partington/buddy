@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
     provider.setState(state);
   });
   const disposable = vscode.commands.registerCommand('docfox.helloWorld', () => {
-    vscode.window.showInformationMessage('DocFox is awake.');
+    vscode.window.showInformationMessage('Luna is awake.');
   });
   const stateCommands = docFoxStates.map((state) =>
     vscode.commands.registerCommand(`docfox.setState.${state}`, () => {
