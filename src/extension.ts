@@ -6,7 +6,10 @@ import { DocFoxProvider } from './DocFoxProvider';
 import { DocFoxStateManager, docFoxStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
-  const provider = new DocFoxProvider(context.extensionUri);
+  let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
+  const provider = new DocFoxProvider(context.extensionUri, () => {
+    void setSoundsEnabled(!soundsEnabled);
+  });
   const stateManager = new DocFoxStateManager();
   const activityController = new DocFoxActivityController(stateManager);
   const demoController = new DocFoxDemoController(stateManager);
@@ -24,6 +27,16 @@ export function activate(context: vscode.ExtensionContext) {
   const previewCommand = vscode.commands.registerCommand('docfox.previewAnimations', () => {
     demoController.play();
   });
+  const toggleSoundsCommand = vscode.commands.registerCommand('docfox.toggleSounds', () => {
+    void setSoundsEnabled(!soundsEnabled);
+  });
+
+  async function setSoundsEnabled(enabled: boolean): Promise<void> {
+    soundsEnabled = enabled;
+    await context.globalState.update('soundsEnabled', enabled);
+    provider.setSoundsEnabled(enabled);
+    vscode.window.showInformationMessage(`Luna sounds ${enabled ? 'enabled' : 'disabled'}.`);
+  }
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(DocFoxProvider.viewType, provider),
@@ -32,10 +45,12 @@ export function activate(context: vscode.ExtensionContext) {
     stateSubscription,
     disposable,
     previewCommand,
+    toggleSoundsCommand,
     ...stateCommands,
   );
 
   provider.setState(stateManager.state);
+  provider.setSoundsEnabled(soundsEnabled);
 }
 
 export function deactivate() {}

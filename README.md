@@ -24,3 +24,5 @@ The extension currently contributes a Luna Activity Bar container with a sidebar
 Luna has an extension-side state manager and webview message handling for `idle`, `typing`, `searching`, `thinking`, `sleeping`, and `happy`. Use `Luna: Preview Animations` from the Command Palette to cycle through the CSS character states, or use the `Luna: Set State ...` commands to preview one state at a time.
 
 When Markdown documents change, Luna switches to `typing`, moves to `thinking` after 1 second of quiet, then moves to `sleeping` after another 5.5 seconds. Clicking around a Markdown file switches Luna to `searching` before returning to the idle flow.
+
+Sounds are off by default. Use `Luna: Toggle Sounds` or the sidebar sound button to enable subtle synthesized state sounds.

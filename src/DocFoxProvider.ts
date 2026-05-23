@@ -7,8 +7,12 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
   private webviewView?: vscode.WebviewView;
   private state: DocFoxState = 'idle';
+  private soundsEnabled = false;
 
-  public constructor(private readonly extensionUri: vscode.Uri) {}
+  public constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly onToggleSounds: () => void,
+  ) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.webviewView = webviewView;
@@ -18,12 +22,23 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     };
 
     webviewView.webview.html = this.getHtml(webviewView.webview);
+    webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
+      if (message.type === 'toggleSounds') {
+        this.onToggleSounds();
+      }
+    });
     this.postState();
+    this.postSoundsEnabled();
   }
 
   public setState(state: DocFoxState): void {
     this.state = state;
     this.postState();
+  }
+
+  public setSoundsEnabled(enabled: boolean): void {
+    this.soundsEnabled = enabled;
+    this.postSoundsEnabled();
   }
 
   private postState(): void {
@@ -33,6 +48,13 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     };
 
     void this.webviewView?.webview.postMessage(message);
+  }
+
+  private postSoundsEnabled(): void {
+    void this.webviewView?.webview.postMessage({
+      type: 'setSoundsEnabled',
+      enabled: this.soundsEnabled,
+    });
   }
 
   private getHtml(webview: vscode.Webview): string {
@@ -263,6 +285,54 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       text-align: center;
     }
 
+    .toolbar {
+      display: flex;
+      justify-content: center;
+    }
+
+    .sound-toggle {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--vscode-sideBar-foreground);
+      background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--space-blue));
+      cursor: pointer;
+    }
+
+    .sound-toggle::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 10px;
+      width: 7px;
+      height: 10px;
+      background: currentColor;
+      clip-path: polygon(0 30%, 42% 30%, 100% 0, 100% 100%, 42% 70%, 0 70%);
+    }
+
+    .sound-toggle::after {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 8px;
+      width: 7px;
+      height: 14px;
+      border-right: 2px solid currentColor;
+      border-radius: 50%;
+      opacity: 0.35;
+    }
+
+    .sound-toggle[aria-pressed="true"] {
+      border-color: var(--space-blue);
+      color: var(--space-blue);
+    }
+
+    .sound-toggle[aria-pressed="true"]::after {
+      opacity: 1;
+    }
+
     .name {
       margin: 0;
       font-size: 15px;
@@ -440,6 +510,9 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     <section class="status" aria-live="polite">
       <h1 class="name">Luna</h1>
       <p class="mood">${getDocFoxStateLabel(this.state)}</p>
+      <div class="toolbar">
+        <button class="sound-toggle" type="button" aria-label="Toggle Luna sounds" aria-pressed="${this.soundsEnabled}"></button>
+      </div>
     </section>
   </main>
   <script nonce="${nonce}">
@@ -453,23 +526,96 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       happy: getDocFoxStateLabel('happy'),
     })};
     const mood = document.querySelector('.mood');
+    const soundToggle = document.querySelector('.sound-toggle');
+    let audioContext;
+    let soundsEnabled = ${this.soundsEnabled};
+    let lastState = '${this.state}';
+
+    function getAudioContext() {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+      }
+
+      if (audioContext.state === 'suspended') {
+        void audioContext.resume();
+      }
+
+      return audioContext;
+    }
+
+    function playTone(frequency, duration, startOffset = 0, type = 'sine', gainValue = 0.026) {
+      const context = getAudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startTime = context.currentTime + startOffset;
+      const endTime = startTime + duration;
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startTime);
+      oscillator.stop(endTime + 0.02);
+    }
+
+    function playStateSound(state) {
+      if (!soundsEnabled || state === lastState) {
+        return;
+      }
+
+      if (state === 'typing') {
+        playTone(520, 0.035, 0, 'square', 0.014);
+      } else if (state === 'searching') {
+        playTone(360, 0.08, 0, 'triangle', 0.018);
+        playTone(540, 0.08, 0.07, 'triangle', 0.016);
+      } else if (state === 'thinking') {
+        playTone(660, 0.05, 0, 'sine', 0.02);
+      } else if (state === 'happy') {
+        playTone(640, 0.08, 0, 'sine', 0.024);
+        playTone(860, 0.1, 0.09, 'sine', 0.024);
+      }
+    }
+
+    function setSoundsEnabled(enabled, playFeedback = true) {
+      soundsEnabled = enabled;
+      if (soundToggle) {
+        soundToggle.setAttribute('aria-pressed', String(enabled));
+      }
+      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled });
+
+      if (enabled && playFeedback) {
+        playTone(720, 0.06, 0, 'sine', 0.018);
+      }
+    }
 
     function setState(state) {
+      playStateSound(state);
       document.body.dataset.state = state;
       if (mood) {
         mood.textContent = labels[state] || labels.idle;
       }
-      vscode.setState({ state });
+      vscode.setState({ state, soundsEnabled });
+      lastState = state;
     }
 
     window.addEventListener('message', (event) => {
       const message = event.data;
       if (message.type === 'setState') {
         setState(message.state);
+      } else if (message.type === 'setSoundsEnabled') {
+        setSoundsEnabled(message.enabled);
       }
     });
 
+    soundToggle?.addEventListener('click', () => {
+      vscode.postMessage({ type: 'toggleSounds' });
+    });
+
     setState('${this.state}');
+    setSoundsEnabled(soundsEnabled, false);
   </script>
 </body>
 </html>`;
