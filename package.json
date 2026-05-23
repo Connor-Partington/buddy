@@ -58,6 +58,10 @@
       {
         "command": "docfox.setState.happy",
         "title": "DocFox: Set State Happy"
+      },
+      {
+        "command": "docfox.previewAnimations",
+        "title": "DocFox: Preview Animations"
       }
     ]
   },
