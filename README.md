@@ -1,67 +1,66 @@
 # Buddy
 
-Buddy is a small, animated IDE companion for VS Code. It lives in your Activity Bar, reacts to your editor activity, and adds a little personality to focused work without sending your code anywhere.
+An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-Buddy is local-first, lightweight, and designed as the foundation for a broader IDE companion experience.
+[![Version](https://img.shields.io/badge/version-0.0.26-blue)](CHANGELOG.md)
+[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+## Preview
+
+| Idle | Think | Search | Sleep |
+| --- | --- | --- | --- |
+| ![Buddy idle animation](assets/images/idle.gif) | ![Buddy thinking animation](assets/images/think.gif) | ![Buddy searching animation](assets/images/search.gif) | ![Buddy sleeping animation](assets/images/sleep.gif) |
+
+| Happy | Jump | Walk |
+| --- | --- | --- |
+| ![Buddy happy animation](assets/images/happy.gif) | ![Buddy panic animation](assets/images/jump.gif) | ![Buddy walking animation](assets/images/walk.gif) |
+
+Buddy is local-first, lightweight, and built to add a little personality to focused work without sending your code anywhere.
+
+## Table of Contents
+
+- [Preview](#preview)
+- [Features](#features)
+- [Installation](#installation)
+- [Using Buddy](#using-buddy)
+- [Commands](#commands)
+- [How Buddy Reacts](#how-buddy-reacts)
+- [Assets](#assets)
+- [Privacy](#privacy)
+- [Development](#development)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ## Features
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and panic states.
 - Editor-aware reactions while you write, navigate, save, and encounter diagnostics.
-- Optional sound effects generated locally with the Web Audio API.
-- Animated sprite mode with a CSS fallback renderer.
+- Optional local sound effects generated with the Web Audio API.
+- Animated sprite rendering with a CSS fallback.
 - Command Palette controls for showing Buddy, previewing animations, toggling sounds, and testing states.
-- No network calls and no external service dependency.
+- No network calls, external services, telemetry, or account setup.
 
-## Install
+## Installation
 
-### From a VSIX
+### Install from a VSIX
 
-Download or build a `.vsix` package, then install it in VS Code:
+Download or build a `.vsix` package, then install it with the VS Code CLI:
 
 ```bash
 code --install-extension buddy-ide-companion-0.0.26.vsix
 ```
 
-You can also install manually from VS Code:
+You can also install it from VS Code:
 
 1. Open the Extensions view.
 2. Choose `Install from VSIX...` from the `...` menu.
 3. Select the Buddy `.vsix` file.
 4. Run `Developer: Reload Window` if the Activity Bar does not refresh immediately.
 
-### From Source
+VSIX installs are manual. To update Buddy, install a newer VSIX with the same extension ID.
 
-Install dependencies:
-
-```bash
-npm install
-```
-
-For day-to-day development, run Buddy in an Extension Development Host:
-
-```text
-Press F5 in VS Code
-```
-
-You can also keep TypeScript compiling in the background:
-
-```bash
-npm run watch
-```
-
-Before sharing a build, compile and package a VSIX:
-
-```bash
-npm run compile
-npm run package
-```
-
-Install or update that VSIX locally with the VS Code CLI:
-
-```bash
-code --install-extension buddy-ide-companion-0.0.26.vsix --force
-```
+### Remove the old prototype
 
 If you still have the old local prototype installed from before the rename, remove it once:
 
@@ -69,22 +68,40 @@ If you still have the old local prototype installed from before the rename, remo
 code --uninstall-extension local.docfox
 ```
 
-Published Marketplace installs update through VS Code. VSIX installs are manual and can be updated by installing a newer VSIX with the same extension ID.
+## Using Buddy
+
+After installing Buddy, open the Command Palette:
+
+```text
+Ctrl+Shift+P on Windows/Linux
+Cmd+Shift+P on macOS
+```
+
+Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run into diagnostics.
+
+Try these first:
+
+- `Buddy: Wake Up` to return Buddy to the idle state.
+- `Buddy: Preview Animations` to cycle through the available animation states.
+- `Buddy: Toggle Sounds` to turn local sound effects on or off.
+- `Buddy: Toggle Animated Sprites` to switch animated sprite rendering on or off.
 
 ## Commands
 
-- `Buddy: Show Sidebar`
-- `Buddy: Wake Up`
-- `Buddy: Preview Animations`
-- `Buddy: Toggle Sounds`
-- `Buddy: Toggle Animated Sprites`
-- `Buddy: Set State Idle`
-- `Buddy: Set State Typing`
-- `Buddy: Set State Searching`
-- `Buddy: Set State Thinking`
-- `Buddy: Set State Sleeping`
-- `Buddy: Set State Happy`
-- `Buddy: Set State Panic`
+| Command | What it does |
+| --- | --- |
+| `Buddy: Show Sidebar` | Opens the Buddy Activity Bar view. |
+| `Buddy: Wake Up` | Returns Buddy to the idle state. |
+| `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
+| `Buddy: Toggle Sounds` | Enables or disables local sound effects. |
+| `Buddy: Toggle Animated Sprites` | Enables or disables animated sprite rendering. |
+| `Buddy: Set State Idle` | Shows the idle state. |
+| `Buddy: Set State Typing` | Shows the typing state. |
+| `Buddy: Set State Searching` | Shows the searching state. |
+| `Buddy: Set State Thinking` | Shows the thinking state. |
+| `Buddy: Set State Sleeping` | Shows the sleeping state. |
+| `Buddy: Set State Happy` | Shows the happy state. |
+| `Buddy: Set State Panic` | Shows the panic state. |
 
 ## How Buddy Reacts
 
@@ -112,19 +129,52 @@ walk.gif
 
 Current state mapping:
 
-```text
-idle      -> idle.gif
-typing    -> think.gif
-searching -> search.gif
-thinking  -> think.gif
-sleeping  -> sleep.gif
-happy     -> happy.gif
-panic     -> jump.gif
-```
+| State | Sprite |
+| --- | --- |
+| `idle` | `idle.gif` |
+| `typing` | `think.gif` |
+| `searching` | `search.gif` |
+| `thinking` | `think.gif` |
+| `sleeping` | `sleep.gif` |
+| `happy` | `happy.gif` |
+| `panic` | `jump.gif` |
 
 ## Privacy
 
 Buddy runs locally inside VS Code. It does not collect telemetry, call an API, upload source files, or require an account.
+
+## Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run Buddy in an Extension Development Host:
+
+```text
+Press F5 in VS Code
+```
+
+Keep TypeScript compiling in the background:
+
+```bash
+npm run watch
+```
+
+Before sharing a build, compile and package a VSIX:
+
+```bash
+npm run compile
+npm run package
+```
+
+Install or update that VSIX locally with the VS Code CLI:
+
+```bash
+code --install-extension buddy-ide-companion-0.0.26.vsix --force
+```
 
 ## Roadmap
 

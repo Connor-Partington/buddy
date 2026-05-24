@@ -6,6 +6,11 @@
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Connor-Partington/buddy.git"
+  },
+  "icon": "assets/icon.png",
   "engines": {
     "vscode": "^1.90.0"
   },
