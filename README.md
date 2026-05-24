@@ -64,6 +64,7 @@ assets/images/
 ├── blob-frames-jump/
 ├── blob-frames-search/
 ├── blob-frames-sleep/
+├── blob-frames-think/
 └── blob-frames-walk/
 ```
 
@@ -71,15 +72,15 @@ State mapping:
 
 ```text
 idle      -> blob-frames-idle
-typing    -> blob-frames-jump
-searching -> blob-frames-walk
-thinking  -> blob-frames-search
+typing    -> blob-frames-think
+searching -> blob-frames-search
+thinking  -> blob-frames-think
 sleeping  -> blob-frames-sleep
 happy     -> blob-frames-fireworks
 panic     -> blob-frames-jump
 ```
 
-Frame filenames may match `generated-*.png`, `frame_*.png`, or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by trailing number or row/column position.
+Frame filenames may match `generated-*.png`, `frame_*.png`, `frame-*.png`, or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by trailing number or row/column position.
 
 The Blob walking frame set is used for `searching` and moves Luna left across the sidebar stage while the frames loop.
 

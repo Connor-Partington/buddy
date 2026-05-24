@@ -83,6 +83,7 @@ assets/images/
 ├── blob-frames-jump/
 ├── blob-frames-search/
 ├── blob-frames-sleep/
+├── blob-frames-think/
 └── blob-frames-walk/
 ```
 
@@ -90,9 +91,9 @@ Current frame mapping:
 
 ```text
 idle      -> blob-frames-idle
-typing    -> blob-frames-jump
-searching -> blob-frames-walk
-thinking  -> blob-frames-search
+typing    -> blob-frames-think
+searching -> blob-frames-search
+thinking  -> blob-frames-think
 sleeping  -> blob-frames-sleep
 happy     -> blob-frames-fireworks
 panic     -> blob-frames-jump

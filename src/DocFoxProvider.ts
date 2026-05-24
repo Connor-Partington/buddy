@@ -883,9 +883,9 @@ async function getFrameSources(
 ): Promise<Record<DocFoxState, string[]>> {
   const frameSets: Record<DocFoxState, string> = {
     idle: 'blob-frames-idle',
-    typing: 'blob-frames-jump',
-    searching: 'blob-frames-walk',
-    thinking: 'blob-frames-search',
+    typing: 'blob-frames-think',
+    searching: 'blob-frames-search',
+    thinking: 'blob-frames-think',
     sleeping: 'blob-frames-sleep',
     happy: 'blob-frames-fireworks',
     panic: 'blob-frames-jump',
@@ -917,6 +917,7 @@ async function getFramesInFolder(folderUri: vscode.Uri, webview: vscode.Webview)
 function isFrameImage(name: string): boolean {
   return (
     /^frame_\d+\.png$/i.test(name) ||
+    /^frame-\d+\.png$/i.test(name) ||
     /^pixel-snapper-\d+-r\d+c\d+\.png$/i.test(name) ||
     /^generated(?:-frames)?-[a-z-]+-\d+\.png$/i.test(name)
   );
