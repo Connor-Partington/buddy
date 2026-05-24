@@ -119,7 +119,7 @@ panic     -> blob-frames-jump
 Current local package:
 
 ```text
-docfox-0.0.16.vsix
+docfox-0.0.17.vsix
 ```
 
 ---
@@ -180,5 +180,5 @@ docfox-0.0.16.vsix
 - Activity and diagnostics logic lives in `src/activityController.ts`.
 - State definitions live in `src/stateManager.ts`.
 - Demo cycling lives in `src/demoController.ts`.
-- Current installed version should be `0.0.16`.
+- Current installed version should be `0.0.17`.
 - Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.

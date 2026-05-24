@@ -26,7 +26,7 @@ echo "Compiling Luna ${VERSION}..."
 npm run compile
 
 echo "Packaging ${VSIX}..."
-npx --yes @vscode/vsce package --out "$VSIX"
+npx --yes @vscode/vsce package --allow-missing-repository --out "$VSIX"
 
 echo "Installing ${VSIX}..."
 "$CODE_BIN" --install-extension "$VSIX" --force
