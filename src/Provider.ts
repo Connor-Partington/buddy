@@ -102,7 +102,7 @@ export class Provider implements vscode.WebviewViewProvider {
       min-height: 100vh;
       display: grid;
       align-content: stretch;
-      padding: 18px;
+      padding: 0;
     }
 
     .stage {
@@ -127,6 +127,9 @@ export class Provider implements vscode.WebviewViewProvider {
       width: min(190px, 100%);
       aspect-ratio: 190 / 213;
       align-self: end;
+      transform: translateX(var(--walk-x, 0px));
+      transition: transform var(--walk-duration, 0ms) linear;
+      will-change: transform;
     }
 
     .sprite-image {
@@ -136,14 +139,12 @@ export class Provider implements vscode.WebviewViewProvider {
       align-self: end;
       object-fit: contain;
       image-rendering: pixelated;
+      transform: scaleX(var(--sprite-direction, 1));
+      transform-origin: center bottom;
     }
 
     .fox {
       display: none;
-    }
-
-    .frame-stage.is-walking {
-      animation: walk-right 2.4s linear;
     }
 
     .ear {
@@ -469,14 +470,6 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    @keyframes walk-right {
-      0% {
-        transform: translateX(-72px);
-      }
-      100% {
-        transform: translateX(72px);
-      }
-    }
   </style>
 </head>
 <body data-state="${this.state}" data-frame-animations="${this.frameAnimationsEnabled}">
@@ -503,6 +496,7 @@ export class Provider implements vscode.WebviewViewProvider {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
+    const stage = document.querySelector('.stage');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     let audioContext;
@@ -510,9 +504,12 @@ export class Provider implements vscode.WebviewViewProvider {
     let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let lastState = '${this.state}';
     let currentState = '${this.state}';
+    let stateBeforeWalk = '${this.state}';
     let walkTimer;
-    let walkResetTimer;
-    const walkAnimationMs = 2400;
+    let walkTransitionTimer;
+    let walkX = 0;
+    let walkDirection = 1;
+    const walkSpeedPxPerSecond = 70;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -582,24 +579,66 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
+    function getWalkLimit() {
+      if (!stage || !spriteStage) {
+        return 0;
+      }
+
+      const stageWidth = stage.getBoundingClientRect().width;
+      const spriteWidth = spriteStage.getBoundingClientRect().width;
+      return Math.max(0, (stageWidth - spriteWidth) / 2);
+    }
+
+    function applyWalkPosition(durationMs = 0) {
+      if (!spriteStage) {
+        return;
+      }
+
+      spriteStage.style.setProperty('--walk-duration', durationMs + 'ms');
+      spriteStage.style.setProperty('--walk-x', walkX + 'px');
+      spriteStage.style.setProperty('--sprite-direction', String(walkDirection));
+    }
+
+    function captureWalkPosition() {
+      if (!spriteStage) {
+        return;
+      }
+
+      const transform = getComputedStyle(spriteStage).transform;
+      if (transform && transform !== 'none') {
+        const matrix = new DOMMatrixReadOnly(transform);
+        walkX = matrix.m41;
+      }
+
+      applyWalkPosition(0);
+    }
+
+    function clampWalkPosition() {
+      const limit = getWalkLimit();
+      walkX = Math.min(limit, Math.max(-limit, walkX));
+      applyWalkPosition(0);
+    }
+
     function clearRandomWalk() {
       if (walkTimer) {
         clearTimeout(walkTimer);
         walkTimer = undefined;
       }
-      if (walkResetTimer) {
-        clearTimeout(walkResetTimer);
-        walkResetTimer = undefined;
+      if (walkTransitionTimer) {
+        clearTimeout(walkTransitionTimer);
+        walkTransitionTimer = undefined;
       }
-      spriteStage?.classList.remove('is-walking');
+      captureWalkPosition();
     }
 
     function scheduleRandomWalk() {
-      if (walkTimer || currentState !== 'idle') {
+      if (walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
 
-      const delay = 8000 + Math.random() * 14000;
+      const delay = currentState === 'sleeping'
+        ? 12000 + Math.random() * 26000
+        : 8000 + Math.random() * 14000;
       walkTimer = setTimeout(() => {
         walkTimer = undefined;
         startRandomWalk();
@@ -607,7 +646,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function startRandomWalk() {
-      if (!spriteImage || !spriteStage || currentState !== 'idle') {
+      if (!spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
         scheduleRandomWalk();
         return;
       }
@@ -617,17 +656,32 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      spriteStage.classList.remove('is-walking');
-      void spriteStage.offsetWidth;
-      spriteImage.setAttribute('src', walkSource);
-      spriteStage.classList.add('is-walking');
-
-      walkResetTimer = setTimeout(() => {
-        walkResetTimer = undefined;
-        spriteStage.classList.remove('is-walking');
-        setSpriteForState(currentState);
+      const limit = getWalkLimit();
+      if (limit <= 0) {
         scheduleRandomWalk();
-      }, walkAnimationMs);
+        return;
+      }
+
+      const targetX = walkDirection > 0 ? limit : -limit;
+      const distance = Math.abs(targetX - walkX);
+      const durationMs = Math.max(900, Math.round((distance / walkSpeedPxPerSecond) * 1000));
+
+      stateBeforeWalk = currentState;
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      spriteImage.setAttribute('src', walkSource);
+      walkX = targetX;
+      applyWalkPosition(durationMs);
+
+      walkTransitionTimer = setTimeout(() => {
+        walkTransitionTimer = undefined;
+        walkDirection *= -1;
+        currentState = stateBeforeWalk;
+        document.body.dataset.state = currentState;
+        setSpriteForState(currentState);
+        applyWalkPosition(0);
+        scheduleRandomWalk();
+      }, durationMs);
     }
 
     function setFrameAnimationsEnabled(enabled) {
@@ -667,6 +721,8 @@ export class Provider implements vscode.WebviewViewProvider {
     setState('${this.state}');
     setSoundsEnabled(soundsEnabled, false);
     setFrameAnimationsEnabled(frameAnimationsEnabled);
+    clampWalkPosition();
+    window.addEventListener('resize', clampWalkPosition);
   </script>
 </body>
 </html>`;

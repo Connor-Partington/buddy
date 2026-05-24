@@ -44,6 +44,7 @@ export class DocFoxActivityController implements vscode.Disposable {
     );
 
     this.updatePanicState();
+    this.scheduleIdleSleep();
   }
 
   public dispose(): void {
@@ -89,7 +90,7 @@ export class DocFoxActivityController implements vscode.Disposable {
       if (hasActiveMarkdownErrors()) {
         this.setPanic();
       } else {
-        this.stateManager.setState('idle');
+        this.setIdle();
       }
     }, happyDelayMs);
   }
@@ -99,13 +100,20 @@ export class DocFoxActivityController implements vscode.Disposable {
       this.setPanic();
     } else if (this.stateManager.state === 'panic') {
       this.clearTimers();
-      this.stateManager.setState('idle');
+      this.setIdle();
+    } else if (this.stateManager.state === 'idle') {
+      this.scheduleIdleSleep();
     }
   }
 
   private setPanic(): void {
     this.clearTimers();
     this.stateManager.setState('panic');
+  }
+
+  private setIdle(): void {
+    this.stateManager.setState('idle');
+    this.scheduleIdleSleep();
   }
 
   private scheduleThinking(delayMs: number): void {
@@ -116,6 +124,18 @@ export class DocFoxActivityController implements vscode.Disposable {
         this.stateManager.setState('sleeping');
       }, sleepingDelayMs);
     }, delayMs);
+  }
+
+  private scheduleIdleSleep(): void {
+    if (this.sleepingTimer || this.stateManager.state !== 'idle') {
+      return;
+    }
+
+    this.sleepingTimer = setTimeout(() => {
+      if (this.stateManager.state === 'idle') {
+        this.stateManager.setState('sleeping');
+      }
+    }, sleepingDelayMs);
   }
 
   private clearTimers(): void {

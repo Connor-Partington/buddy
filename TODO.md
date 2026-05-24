@@ -58,6 +58,7 @@ Implemented states:
 - [x] Reset timers while typing
 - [x] Switch to `thinking` after 1 second of quiet
 - [x] Switch to `sleeping` after another 5.5 seconds
+- [x] Switch from `idle` to `sleeping` after inactivity
 - [x] Detect mouse selection changes in Markdown files
 - [x] Trigger `searching` when clicking around an editor file
 - [x] Trigger `searching` when scrolling an editor file
@@ -99,6 +100,7 @@ panic     -> jump.gif
 
 - [x] Add dedicated walking/searching sprites
 - [x] Replace fox assets with Blob assets
+- [x] Let Luna randomly wake from sleep and walk to an edge
 
 ## Sounds
 
@@ -107,7 +109,7 @@ panic     -> jump.gif
 - [x] Persist sound preference in VS Code global state
 - [x] Generate subtle sounds with Web Audio
 - [x] Add `Luna: Toggle Sounds`
-
+ 
 ## Packaging
 
 - [x] Bump version for each installed VSIX
@@ -132,6 +134,7 @@ docfox-0.0.19.vsix
 - [ ] Verify CSS fallback mode still works
 - [ ] Verify animated sprite mode loads the GIF for each state
 - [ ] Verify typing flow: `typing -> thinking -> sleeping`
+- [ ] Verify idle inactivity triggers `sleeping`
 - [ ] Verify clicking or scrolling in an editor file triggers `searching`
 - [ ] Verify active Markdown errors trigger `panic`
 - [ ] Verify `Luna: Preview Animations`
