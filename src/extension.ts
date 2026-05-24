@@ -7,7 +7,7 @@ import { DocFoxStateManager, docFoxStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
   let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
-  let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', false);
+  let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', true);
   const provider = new DocFoxProvider(context.extensionUri, () => {
     void setSoundsEnabled(!soundsEnabled);
   }, () => {

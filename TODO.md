@@ -78,28 +78,28 @@ Current frame folders:
 
 ```text
 assets/images/
-├── fox-frames-idle/
-├── blog-frames-walking/
-├── fox-frames-looking/
-├── fox-frames-panic/
-├── fox-frames-sleeping/
-├── fox-frames-thinking/
-└── fox-frames-fireworks/
+├── blob-frames-fireworks/
+├── blob-frames-idle/
+├── blob-frames-jump/
+├── blob-frames-search/
+├── blob-frames-sleep/
+└── blob-frames-walk/
 ```
 
 Current frame mapping:
 
 ```text
-idle      -> fox-frames-idle
-typing    -> fox-frames-looking
-searching -> blog-frames-walking
-thinking  -> fox-frames-thinking
-sleeping  -> fox-frames-sleeping
-happy     -> fox-frames-fireworks
-panic     -> fox-frames-panic
+idle      -> blob-frames-idle
+typing    -> blob-frames-jump
+searching -> blob-frames-walk
+thinking  -> blob-frames-search
+sleeping  -> blob-frames-sleep
+happy     -> blob-frames-fireworks
+panic     -> blob-frames-jump
 ```
 
 - [x] Add dedicated walking/searching frames
+- [x] Replace fox frame assets with Blob frame assets
 
 ## Sounds
 

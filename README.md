@@ -11,7 +11,7 @@ The extension still uses the internal package/command prefix `docfox` so VS Code
 - The webview supports two visual modes:
   - CSS fallback character.
   - PNG frame animation mode from `assets/images`.
-- Frame mode is optional and can be toggled from the sidebar or Command Palette.
+- Frame mode is enabled by default for fresh installs and can be toggled from the sidebar or Command Palette.
 - Frame PNGs are loaded dynamically from disk, so non-contiguous frame numbers are allowed.
 - Green-screen chroma keying runs in the webview canvas at runtime.
 - Sounds are optional, off by default, and generated with Web Audio.
@@ -59,30 +59,29 @@ Frame assets live under:
 
 ```text
 assets/images/
-├── fox-frames-idle/
-├── blog-frames-walking/
-├── fox-frames-looking/
-├── fox-frames-panic/
-├── fox-frames-sleeping/
-├── fox-frames-thinking/
-└── fox-frames-fireworks/
+├── blob-frames-fireworks/
+├── blob-frames-idle/
+├── blob-frames-jump/
+├── blob-frames-search/
+├── blob-frames-sleep/
+└── blob-frames-walk/
 ```
 
 State mapping:
 
 ```text
-idle      -> fox-frames-idle
-typing    -> fox-frames-looking
-searching -> blog-frames-walking
-thinking  -> fox-frames-thinking
-sleeping  -> fox-frames-sleeping
-happy     -> fox-frames-fireworks
-panic     -> fox-frames-panic
+idle      -> blob-frames-idle
+typing    -> blob-frames-jump
+searching -> blob-frames-walk
+thinking  -> blob-frames-search
+sleeping  -> blob-frames-sleep
+happy     -> blob-frames-fireworks
+panic     -> blob-frames-jump
 ```
 
-Frame filenames may match `frame_*.png` or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by number or row/column position.
+Frame filenames may match `generated-*.png`, `frame_*.png`, or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by trailing number or row/column position.
 
-The walking frame set is used for `searching` and moves Luna left across the sidebar stage while the frames loop.
+The Blob walking frame set is used for `searching` and moves Luna left across the sidebar stage while the frames loop.
 
 The current frame player uses:
 

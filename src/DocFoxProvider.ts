@@ -90,9 +90,9 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       --space-blue: #90d5ff;
       --panel: color-mix(in srgb, var(--vscode-sideBar-background) 88%, var(--space-blue));
       --line: color-mix(in srgb, var(--vscode-sideBar-foreground) 18%, transparent);
-      --fox: #e97831;
-      --fox-dark: #9f431d;
-      --cream: #ffe8bf;
+      --fox: #ff5f8a;
+      --fox-dark: #cf3f6a;
+      --cream: #ff9fc0;
       --ink: #23262d;
     }
 
@@ -165,6 +165,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .ear {
       position: absolute;
+      display: none;
       top: 14px;
       width: 48px;
       height: 58px;
@@ -199,37 +200,35 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
 
     .head {
       position: absolute;
-      left: 22px;
-      top: 43px;
-      width: 104px;
-      height: 86px;
-      border-radius: 42% 42% 46% 46%;
+      left: 14px;
+      top: 25px;
+      width: 120px;
+      height: 108px;
+      border-radius: 48% 48% 38% 38%;
       background: var(--fox);
-      box-shadow: inset 0 -10px 0 rgb(0 0 0 / 8%);
+      box-shadow: inset 0 -12px 0 rgb(0 0 0 / 10%), 0 10px 0 -6px var(--fox-dark);
     }
 
     .cheek {
       position: absolute;
-      bottom: 0;
-      width: 58px;
-      height: 52px;
+      bottom: 28px;
+      width: 17px;
+      height: 12px;
       background: var(--cream);
-      border-radius: 48% 48% 45% 45%;
+      border-radius: 999px;
     }
 
     .cheek.left {
-      left: 0;
-      clip-path: polygon(0 0, 100% 35%, 88% 100%, 0 100%);
+      left: 20px;
     }
 
     .cheek.right {
-      right: 0;
-      clip-path: polygon(0 35%, 100% 0, 100% 100%, 12% 100%);
+      right: 20px;
     }
 
     .eye {
       position: absolute;
-      top: 29px;
+      top: 39px;
       width: 10px;
       height: 12px;
       border-radius: 50%;
@@ -238,19 +237,19 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     }
 
     .eye.left {
-      left: 32px;
+      left: 34px;
     }
 
     .eye.right {
-      right: 32px;
+      right: 34px;
     }
 
     .nose {
       position: absolute;
-      left: 45px;
-      top: 49px;
-      width: 15px;
-      height: 11px;
+      left: 55px;
+      top: 62px;
+      width: 11px;
+      height: 6px;
       border-radius: 50% 50% 60% 60%;
       background: var(--ink);
     }
@@ -883,13 +882,13 @@ async function getFrameSources(
   webview: vscode.Webview,
 ): Promise<Record<DocFoxState, string[]>> {
   const frameSets: Record<DocFoxState, string> = {
-    idle: 'fox-frames-idle',
-    typing: 'fox-frames-looking',
-    searching: 'blog-frames-walking',
-    thinking: 'fox-frames-thinking',
-    sleeping: 'fox-frames-sleeping',
-    happy: 'fox-frames-fireworks',
-    panic: 'fox-frames-panic',
+    idle: 'blob-frames-idle',
+    typing: 'blob-frames-jump',
+    searching: 'blob-frames-walk',
+    thinking: 'blob-frames-search',
+    sleeping: 'blob-frames-sleep',
+    happy: 'blob-frames-fireworks',
+    panic: 'blob-frames-jump',
   };
 
   const entries = await Promise.all(
@@ -916,7 +915,11 @@ async function getFramesInFolder(folderUri: vscode.Uri, webview: vscode.Webview)
 }
 
 function isFrameImage(name: string): boolean {
-  return /^frame_\d+\.png$/i.test(name) || /^pixel-snapper-\d+-r\d+c\d+\.png$/i.test(name);
+  return (
+    /^frame_\d+\.png$/i.test(name) ||
+    /^pixel-snapper-\d+-r\d+c\d+\.png$/i.test(name) ||
+    /^generated(?:-frames)?-[a-z-]+-\d+\.png$/i.test(name)
+  );
 }
 
 function getFrameSortValue(name: string): number {
@@ -925,7 +928,7 @@ function getFrameSortValue(name: string): number {
     return Number(gridMatch[1]) * 1000 + Number(gridMatch[2]);
   }
 
-  return Number(name.match(/\d+/)?.[0] ?? 0);
+  return Number(name.match(/(\d+)\.png$/i)?.[1] ?? 0);
 }
 
 function getNonce(): string {
