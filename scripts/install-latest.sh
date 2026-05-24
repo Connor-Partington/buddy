@@ -20,19 +20,22 @@ echo "Bumping patch version..."
 npm version patch --no-git-tag-version
 
 VERSION="$(node -p "require('./package.json').version")"
-VSIX="docfox-${VERSION}.vsix"
+VSIX="buddy-ide-companion-${VERSION}.vsix"
 
-echo "Compiling Luna ${VERSION}..."
+echo "Compiling Buddy ${VERSION}..."
 npm run compile
 
 echo "Packaging ${VSIX}..."
 npx --yes @vscode/vsce package --allow-missing-repository --out "$VSIX"
 
+echo "Removing legacy local prototype extension if present..."
+"$CODE_BIN" --uninstall-extension local.docfox >/dev/null 2>&1 || true
+
 echo "Installing ${VSIX}..."
 "$CODE_BIN" --install-extension "$VSIX" --force
 
-echo "Removing older docfox VSIX packages..."
-find . -maxdepth 1 -name 'docfox-*.vsix' ! -name "$VSIX" -delete
+echo "Removing older Buddy VSIX packages..."
+find . -maxdepth 1 \( -name 'buddy-ide-companion-*.vsix' -o -name 'docfox-*.vsix' \) ! -name "$VSIX" -delete
 
-echo "Installed Luna ${VERSION}."
+echo "Installed Buddy ${VERSION}."
 echo "Run 'Developer: Reload Window' in VS Code if the UI does not refresh immediately."

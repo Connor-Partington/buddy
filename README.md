@@ -1,99 +1,36 @@
-# Luna
+# Buddy
 
-Luna is a lightweight local VS Code sidebar companion for Markdown copyediting workflows.
+Buddy is a small, animated IDE companion for VS Code. It lives in your Activity Bar, reacts to your editor activity, and adds a little personality to focused work without sending your code anywhere.
 
-The extension still uses the internal package/command prefix `docfox` so VS Code updates the same installed extension, but the user-facing companion name is **Luna**.
+Buddy is local-first, lightweight, and designed as the foundation for a broader IDE companion experience.
 
-## Current Status
+## Features
 
-- VS Code extension scaffold is complete.
-- Luna contributes an Activity Bar container and sidebar webview.
-- The webview supports two visual modes:
-  - CSS fallback character.
-  - PNG frame animation mode from `assets/images`.
-- Frame mode is enabled by default for fresh installs and can be toggled from the sidebar or Command Palette.
-- Frame PNGs are loaded dynamically from disk, so non-contiguous frame numbers are allowed.
-- Green-screen chroma keying runs in the webview canvas at runtime.
-- Sounds are optional, off by default, and generated with Web Audio.
-- Current packaged version: `0.0.17`.
+- Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and panic states.
+- Markdown-aware reactions while you write, navigate, save, and encounter diagnostics.
+- Optional sound effects generated locally with the Web Audio API.
+- Animated sprite mode with a CSS fallback renderer.
+- Command Palette controls for showing Buddy, previewing animations, toggling sounds, and testing states.
+- No network calls and no external service dependency.
 
-## Behavior
+## Install
 
-Luna has these states:
+### From a VSIX
 
-- `idle`
-- `typing`
-- `searching`
-- `thinking`
-- `sleeping`
-- `happy`
-- `panic`
+Download or build a `.vsix` package, then install it in VS Code:
 
-Markdown typing flow:
-
-```text
-typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
+```bash
+code --install-extension buddy-ide-companion-0.0.25.vsix
 ```
 
-Clicking around a Markdown file triggers `searching`.
+You can also install manually from VS Code:
 
-When the active Markdown file has VS Code error diagnostics, Luna switches to `panic`.
+1. Open the Extensions view.
+2. Choose `Install from VSIX...` from the `...` menu.
+3. Select the Buddy `.vsix` file.
+4. Run `Developer: Reload Window` if the Activity Bar does not refresh immediately.
 
-## Commands
-
-- `Luna: Preview Animations`
-- `Luna: Show Sidebar`
-- `Luna: Toggle Sounds`
-- `Luna: Toggle Frame Animations`
-- `Luna: Set State Idle`
-- `Luna: Set State Typing`
-- `Luna: Set State Searching`
-- `Luna: Set State Thinking`
-- `Luna: Set State Sleeping`
-- `Luna: Set State Happy`
-- `Luna: Set State Panic`
-
-## Frame Assets
-
-Frame assets live under:
-
-```text
-assets/images/
-├── blob-frames-fireworks/
-├── blob-frames-idle/
-├── blob-frames-jump/
-├── blob-frames-search/
-├── blob-frames-sleep/
-├── blob-frames-think/
-└── blob-frames-walk/
-```
-
-State mapping:
-
-```text
-idle      -> blob-frames-idle
-typing    -> blob-frames-think
-searching -> blob-frames-search
-thinking  -> blob-frames-think
-sleeping  -> blob-frames-sleep
-happy     -> blob-frames-fireworks
-panic     -> blob-frames-jump
-```
-
-Frame filenames may match `generated-*.png`, `frame_*.png`, `frame-*.png`, or `pixel-snapper-*-r*c*.png`. They do not need to be contiguous; the extension reads existing frame files and sorts them by trailing number or row/column position.
-
-The Blob walking frame set is used for `searching` and moves Luna left across the sidebar stage while the frames loop.
-
-The current frame player uses:
-
-```text
-frameDurationMs = 160
-frameHoldCount = 2
-```
-
-That means each source frame is held for roughly `320ms`.
-
-## Development
+### From Source
 
 Install dependencies and compile:
 
@@ -102,15 +39,19 @@ npm install
 npm run compile
 ```
 
-Run in the Extension Development Host:
+Run Buddy in an Extension Development Host:
 
 ```text
 Press F5 in VS Code
 ```
 
-## Local Install Workflow
+Package a local build:
 
-For local installs, use the helper script. It bumps the patch version, compiles, packages a matching VSIX, installs it into VS Code, and removes older `docfox-*.vsix` packages:
+```bash
+npx @vscode/vsce package
+```
+
+For a one-command local workflow, this project includes a helper that bumps the patch version, compiles, packages, installs, and cleans up older local VSIX files:
 
 ```bash
 npm run install:local
@@ -122,17 +63,67 @@ If the VS Code CLI is not in the standard macOS app location or on `PATH`, pass 
 CODE_BIN="/path/to/code" npm run install:local
 ```
 
-After install, run this in VS Code if the UI does not update immediately:
+The local install helper also removes the legacy local prototype extension ID if it is present, so Buddy does not appear twice in the Activity Bar after the rename.
+
+## Commands
+
+- `Buddy: Show Sidebar`
+- `Buddy: Wake Up`
+- `Buddy: Preview Animations`
+- `Buddy: Toggle Sounds`
+- `Buddy: Toggle Animated Sprites`
+- `Buddy: Set State Idle`
+- `Buddy: Set State Typing`
+- `Buddy: Set State Searching`
+- `Buddy: Set State Thinking`
+- `Buddy: Set State Sleeping`
+- `Buddy: Set State Happy`
+- `Buddy: Set State Panic`
+
+## How Buddy Reacts
+
+Buddy currently pays attention to Markdown editing activity:
 
 ```text
-Developer: Reload Window
+typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
 ```
 
-## Notes For Next Handoff
+Clicking or scrolling in supported editor files triggers `searching`. Saving a Markdown document triggers `happy`. Active Markdown diagnostics trigger `panic`.
 
-- The current source of truth is the latest git commit in this repository.
-- `docfox-0.0.17.vsix` is the current local package.
-- The CSS fallback remains useful for comparison because it feels smoother than frame mode.
-- Frame mode quality depends heavily on the source PNGs and the green-screen edges.
-- Chroma keying happens in `src/DocFoxProvider.ts` inside `getProcessedFrame()`.
-- Frame timing and hold behavior are in the webview script in `src/DocFoxProvider.ts`.
+## Assets
+
+Animated sprites live in `assets/images`:
+
+```text
+happy.gif
+idle.gif
+jump.gif
+search.gif
+sleep.gif
+think.gif
+walk.gif
+```
+
+Current state mapping:
+
+```text
+idle      -> idle.gif
+typing    -> think.gif
+searching -> search.gif
+thinking  -> think.gif
+sleeping  -> sleep.gif
+happy     -> happy.gif
+panic     -> jump.gif
+```
+
+## Privacy
+
+Buddy runs locally inside VS Code. It does not collect telemetry, call an API, upload source files, or require an account.
+
+## Roadmap
+
+Buddy is starting as a VS Code extension, with room to grow into a more customizable IDE companion over time. Good next steps include more companion themes, richer activity awareness, customizable reactions, and support for additional IDEs.
+
+## License
+
+MIT

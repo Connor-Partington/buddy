@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 
-import { DocFoxState, DocFoxStateMessage } from './stateManager';
+import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = DocFoxState | 'walk';
+type SpriteKey = BuddyState | 'walk';
 
 export class Provider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'docfox.companion';
+  public static readonly viewType = 'buddy.companion';
 
   private webviewView?: vscode.WebviewView;
-  private state: DocFoxState = 'idle';
+  private state: BuddyState = 'idle';
   private soundsEnabled = false;
   private frameAnimationsEnabled = false;
 
@@ -28,7 +28,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postFrameAnimationsEnabled();
   }
 
-  public setState(state: DocFoxState): void {
+  public setState(state: BuddyState): void {
     this.state = state;
     this.postState();
   }
@@ -44,7 +44,7 @@ export class Provider implements vscode.WebviewViewProvider {
   }
 
   private postState(): void {
-    const message: DocFoxStateMessage = {
+    const message: BuddyStateMessage = {
       type: 'setState',
       state: this.state,
     };
@@ -75,7 +75,7 @@ export class Provider implements vscode.WebviewViewProvider {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
-  <title>Luna</title>
+  <title>Buddy</title>
   <style nonce="${nonce}">
     :root {
       --space-blue: #90d5ff;
@@ -474,8 +474,8 @@ export class Provider implements vscode.WebviewViewProvider {
 </head>
 <body data-state="${this.state}" data-frame-animations="${this.frameAnimationsEnabled}">
   <main class="shell">
-    <section class="stage" aria-label="Luna companion">
-      <div class="fox" role="img" aria-label="Luna waiting in the sidebar">
+    <section class="stage" aria-label="Buddy companion">
+      <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
         <div class="ear left"></div>
@@ -488,7 +488,7 @@ export class Provider implements vscode.WebviewViewProvider {
           <div class="nose"></div>
         </div>
       </div>
-      <div class="frame-stage" role="img" aria-label="Luna frame animation">
+      <div class="frame-stage" role="img" aria-label="Buddy frame animation">
         <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
     </section>
@@ -510,6 +510,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let walkX = 0;
     let walkDirection = 1;
     const walkSpeedPxPerSecond = 70;
+    const walkVisibleWidthRatio = 0.42;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -579,13 +580,13 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    function getWalkLimit() {
+    function getWalkLimit(useVisibleWalkWidth = false) {
       if (!stage || !spriteStage) {
         return 0;
       }
 
       const stageWidth = stage.getBoundingClientRect().width;
-      const spriteWidth = spriteStage.getBoundingClientRect().width;
+      const spriteWidth = spriteStage.getBoundingClientRect().width * (useVisibleWalkWidth ? walkVisibleWidthRatio : 1);
       return Math.max(0, (stageWidth - spriteWidth) / 2);
     }
 
@@ -614,7 +615,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function clampWalkPosition() {
-      const limit = getWalkLimit();
+      const limit = getWalkLimit(true);
       walkX = Math.min(limit, Math.max(-limit, walkX));
       applyWalkPosition(0);
     }

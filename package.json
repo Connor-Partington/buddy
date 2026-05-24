@@ -1,88 +1,98 @@
 {
-  "name": "docfox",
-  "displayName": "Luna",
-  "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
-  "version": "0.0.24",
-  "publisher": "local",
+  "name": "buddy-ide-companion",
+  "displayName": "Buddy",
+  "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
+  "version": "0.0.25",
+  "publisher": "connor-partington",
+  "author": "Connor",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "companion",
+    "assistant",
+    "productivity",
+    "sidebar",
+    "fun"
   ],
   "activationEvents": [
-    "onCommand:docfox.showSidebar",
+    "onCommand:buddy.showSidebar",
     "onLanguage:markdown",
-    "onView:docfox.companion"
+    "onView:buddy.companion"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "docfox",
-          "title": "Luna",
-          "icon": "media/docfox.svg"
+          "id": "buddy",
+          "title": "Buddy",
+          "icon": "media/buddy.svg"
         }
       ]
     },
     "views": {
-      "docfox": [
+      "buddy": [
         {
-          "id": "docfox.companion",
-          "name": "Luna",
+          "id": "buddy.companion",
+          "name": "Buddy",
           "type": "webview"
         }
       ]
     },
     "commands": [
       {
-        "command": "docfox.helloWorld",
-        "title": "Luna: Hello World"
+        "command": "buddy.wakeUp",
+        "title": "Buddy: Wake Up"
       },
       {
-        "command": "docfox.setState.idle",
-        "title": "Luna: Set State Idle"
+        "command": "buddy.setState.idle",
+        "title": "Buddy: Set State Idle"
       },
       {
-        "command": "docfox.setState.typing",
-        "title": "Luna: Set State Typing"
+        "command": "buddy.setState.typing",
+        "title": "Buddy: Set State Typing"
       },
       {
-        "command": "docfox.setState.searching",
-        "title": "Luna: Set State Searching"
+        "command": "buddy.setState.searching",
+        "title": "Buddy: Set State Searching"
       },
       {
-        "command": "docfox.setState.thinking",
-        "title": "Luna: Set State Thinking"
+        "command": "buddy.setState.thinking",
+        "title": "Buddy: Set State Thinking"
       },
       {
-        "command": "docfox.setState.sleeping",
-        "title": "Luna: Set State Sleeping"
+        "command": "buddy.setState.sleeping",
+        "title": "Buddy: Set State Sleeping"
       },
       {
-        "command": "docfox.setState.happy",
-        "title": "Luna: Set State Happy"
+        "command": "buddy.setState.happy",
+        "title": "Buddy: Set State Happy"
       },
       {
-        "command": "docfox.setState.panic",
-        "title": "Luna: Set State Panic"
+        "command": "buddy.setState.panic",
+        "title": "Buddy: Set State Panic"
       },
       {
-        "command": "docfox.previewAnimations",
-        "title": "Luna: Preview Animations"
+        "command": "buddy.previewAnimations",
+        "title": "Buddy: Preview Animations"
       },
       {
-        "command": "docfox.showSidebar",
-        "title": "Luna: Show Sidebar"
+        "command": "buddy.showSidebar",
+        "title": "Buddy: Show Sidebar"
       },
       {
-        "command": "docfox.toggleSounds",
-        "title": "Luna: Toggle Sounds"
+        "command": "buddy.toggleSounds",
+        "title": "Buddy: Toggle Sounds"
       },
       {
-        "command": "docfox.toggleFrameAnimations",
-        "title": "Luna: Toggle Animated Sprites"
+        "command": "buddy.toggleFrameAnimations",
+        "title": "Buddy: Toggle Animated Sprites"
       }
     ]
   },

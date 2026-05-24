@@ -1,8 +1,12 @@
+.gitignore
 src/**
 .vscode/**
 .vscode-test/**
 out/test/**
+out/DocFoxProvider.js
+out/DocFoxProvider.js.map
 node_modules/**
+scripts/**
+tsconfig.json
 *.vsix
-TODO.md
 .DS_Store

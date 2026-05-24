@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 
-import { DocFoxState, DocFoxStateManager } from './stateManager';
+import { BuddyState, BuddyStateManager } from './stateManager';
 
-const previewStates: DocFoxState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'];
+const previewStates: BuddyState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'];
 const previewStepMs = 1200;
 
-export class DocFoxDemoController implements vscode.Disposable {
+export class BuddyDemoController implements vscode.Disposable {
   private timers: ReturnType<typeof setTimeout>[] = [];
 
-  public constructor(private readonly stateManager: DocFoxStateManager) {}
+  public constructor(private readonly stateManager: BuddyStateManager) {}
 
   public play(): void {
     this.stop();

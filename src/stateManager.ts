@@ -1,13 +1,13 @@
-export const docFoxStates = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'] as const;
+export const buddyStates = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'] as const;
 
-export type DocFoxState = (typeof docFoxStates)[number];
+export type BuddyState = (typeof buddyStates)[number];
 
-export type DocFoxStateMessage = {
+export type BuddyStateMessage = {
   type: 'setState';
-  state: DocFoxState;
+  state: BuddyState;
 };
 
-const stateLabels: Record<DocFoxState, string> = {
+const stateLabels: Record<BuddyState, string> = {
   idle: 'Ready for Markdown.',
   typing: 'Keeping pace with your draft.',
   searching: 'Following your cursor.',
@@ -17,19 +17,19 @@ const stateLabels: Record<DocFoxState, string> = {
   panic: 'Something needs attention.',
 };
 
-export class DocFoxStateManager {
-  private currentState: DocFoxState = 'idle';
-  private listeners = new Set<(state: DocFoxState) => void>();
+export class BuddyStateManager {
+  private currentState: BuddyState = 'idle';
+  private listeners = new Set<(state: BuddyState) => void>();
 
-  public get state(): DocFoxState {
+  public get state(): BuddyState {
     return this.currentState;
   }
 
   public get label(): string {
-    return getDocFoxStateLabel(this.currentState);
+    return getBuddyStateLabel(this.currentState);
   }
 
-  public setState(state: DocFoxState): void {
+  public setState(state: BuddyState): void {
     if (state === this.currentState) {
       return;
     }
@@ -38,7 +38,7 @@ export class DocFoxStateManager {
     this.listeners.forEach((listener) => listener(state));
   }
 
-  public onDidChangeState(listener: (state: DocFoxState) => void): { dispose(): void } {
+  public onDidChangeState(listener: (state: BuddyState) => void): { dispose(): void } {
     this.listeners.add(listener);
 
     return {
@@ -49,6 +49,6 @@ export class DocFoxStateManager {
   }
 }
 
-export function getDocFoxStateLabel(state: DocFoxState): string {
+export function getBuddyStateLabel(state: BuddyState): string {
   return stateLabels[state];
 }

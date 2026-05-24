@@ -1,43 +1,43 @@
 import * as vscode from 'vscode';
 
-import { DocFoxActivityController } from './activityController';
-import { DocFoxDemoController } from './demoController';
+import { BuddyActivityController } from './activityController';
+import { BuddyDemoController } from './demoController';
 import { Provider } from './Provider';
-import { DocFoxStateManager, docFoxStates } from './stateManager';
+import { BuddyStateManager, buddyStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
   let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
   let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', true);
   const provider = new Provider(context.extensionUri);
-  const stateManager = new DocFoxStateManager();
-  const activityController = new DocFoxActivityController(stateManager);
-  const demoController = new DocFoxDemoController(stateManager);
+  const stateManager = new BuddyStateManager();
+  const activityController = new BuddyActivityController(stateManager);
+  const demoController = new BuddyDemoController(stateManager);
   const stateSubscription = stateManager.onDidChangeState((state) => {
     provider.setState(state);
   });
-  const disposable = vscode.commands.registerCommand('docfox.helloWorld', () => {
-    vscode.window.showInformationMessage('Luna is awake.');
+  const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
+    vscode.window.showInformationMessage('Buddy is awake.');
   });
-  const stateCommands = docFoxStates.map((state) =>
-    vscode.commands.registerCommand(`docfox.setState.${state}`, () => {
+  const stateCommands = buddyStates.map((state) =>
+    vscode.commands.registerCommand(`buddy.setState.${state}`, () => {
       stateManager.setState(state);
     }),
   );
-  const previewCommand = vscode.commands.registerCommand('docfox.previewAnimations', () => {
+  const previewCommand = vscode.commands.registerCommand('buddy.previewAnimations', () => {
     demoController.play();
   });
-  const showSidebarCommand = vscode.commands.registerCommand('docfox.showSidebar', async () => {
-    await vscode.commands.executeCommand('workbench.view.extension.docfox');
+  const showSidebarCommand = vscode.commands.registerCommand('buddy.showSidebar', async () => {
+    await vscode.commands.executeCommand('workbench.view.extension.buddy');
     try {
       await vscode.commands.executeCommand(`${Provider.viewType}.focus`);
     } catch {
       // Older VS Code builds may not expose generated focus commands for every view.
     }
   });
-  const toggleSoundsCommand = vscode.commands.registerCommand('docfox.toggleSounds', () => {
+  const toggleSoundsCommand = vscode.commands.registerCommand('buddy.toggleSounds', () => {
     void setSoundsEnabled(!soundsEnabled);
   });
-  const toggleFrameAnimationsCommand = vscode.commands.registerCommand('docfox.toggleFrameAnimations', () => {
+  const toggleFrameAnimationsCommand = vscode.commands.registerCommand('buddy.toggleFrameAnimations', () => {
     void setFrameAnimationsEnabled(!frameAnimationsEnabled);
   });
 
@@ -45,14 +45,14 @@ export function activate(context: vscode.ExtensionContext) {
     soundsEnabled = enabled;
     await context.globalState.update('soundsEnabled', enabled);
     provider.setSoundsEnabled(enabled);
-    vscode.window.showInformationMessage(`Luna sounds ${enabled ? 'enabled' : 'disabled'}.`);
+    vscode.window.showInformationMessage(`Buddy sounds ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   async function setFrameAnimationsEnabled(enabled: boolean): Promise<void> {
     frameAnimationsEnabled = enabled;
     await context.globalState.update('frameAnimationsEnabled', enabled);
     provider.setFrameAnimationsEnabled(enabled);
-    vscode.window.showInformationMessage(`Luna animated sprites ${enabled ? 'enabled' : 'disabled'}.`);
+    vscode.window.showInformationMessage(`Buddy animated sprites ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   context.subscriptions.push(

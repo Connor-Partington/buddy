@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
 
-import { DocFoxStateManager } from './stateManager';
+import { BuddyStateManager } from './stateManager';
 
 const thinkingDelayMs = 1000;
 const searchingDelayMs = 1400;
 const sleepingDelayMs = 5500;
 const happyDelayMs = 2600;
 
-export class DocFoxActivityController implements vscode.Disposable {
+export class BuddyActivityController implements vscode.Disposable {
   private thinkingTimer?: ReturnType<typeof setTimeout>;
   private sleepingTimer?: ReturnType<typeof setTimeout>;
   private happyTimer?: ReturnType<typeof setTimeout>;
   private readonly subscriptions: vscode.Disposable[] = [];
 
-  public constructor(private readonly stateManager: DocFoxStateManager) {
+  public constructor(private readonly stateManager: BuddyStateManager) {
     this.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (isMarkdownDocument(event.document)) {
