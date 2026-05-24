@@ -25,11 +25,11 @@ A lightweight VS Code companion for Markdown copyediting workflows.
 - [x] Add Activity Bar container
 - [x] Add Luna sidebar view
 - [x] Add extension icon
-- [x] Create `src/DocFoxProvider.ts`
+- [x] Create `src/Provider.ts`
 - [x] Register webview provider
 - [x] Render sidebar HTML UI
 - [x] Display CSS fallback character
-- [x] Add sidebar controls for sounds and frame mode
+- [x] Add sidebar controls for sounds and animated sprite mode
 
 ## State System
 
@@ -61,46 +61,41 @@ Implemented states:
 - [x] Detect active Markdown error diagnostics
 - [x] Trigger `panic` when errors are detected
 
-## Frame Animation Mode
+## Animated Sprite Mode
 
-- [x] Add PNG frame assets under `assets/images`
-- [x] Add frame mode toggle
+- [x] Add animated sprite assets under `assets/images`
+- [x] Add animated sprite mode toggle
 - [x] Keep CSS fallback mode available
-- [x] Load frame files dynamically from folders
-- [x] Support non-contiguous frame numbers after deleting bad frames
-- [x] Render frames through canvas
-- [x] Add runtime green-screen chroma keying
-- [x] Add green spill suppression for edge pixels
-- [x] Use `requestAnimationFrame` for frame playback
-- [x] Add code-level frame holding instead of duplicating files
+- [x] Replace PNG frame folders with per-state GIF sprites
+- [x] Render GIF sprites directly instead of canvas frames
 
-Current frame folders:
+Current sprite files:
 
 ```text
 assets/images/
-├── blob-frames-fireworks/
-├── blob-frames-idle/
-├── blob-frames-jump/
-├── blob-frames-search/
-├── blob-frames-sleep/
-├── blob-frames-think/
-└── blob-frames-walk/
+├── happy.gif
+├── idle.gif
+├── jump.gif
+├── search.gif
+├── sleep.gif
+├── think.gif
+└── walk.gif
 ```
 
-Current frame mapping:
+Current sprite mapping:
 
 ```text
-idle      -> blob-frames-idle
-typing    -> blob-frames-think
-searching -> blob-frames-search
-thinking  -> blob-frames-think
-sleeping  -> blob-frames-sleep
-happy     -> blob-frames-fireworks
-panic     -> blob-frames-jump
+idle      -> idle.gif
+typing    -> think.gif
+searching -> search.gif
+thinking  -> think.gif
+sleeping  -> sleep.gif
+happy     -> happy.gif
+panic     -> jump.gif
 ```
 
-- [x] Add dedicated walking/searching frames
-- [x] Replace fox frame assets with Blob frame assets
+- [x] Add dedicated walking/searching sprites
+- [x] Replace fox assets with Blob assets
 
 ## Sounds
 
@@ -120,7 +115,7 @@ panic     -> blob-frames-jump
 Current local package:
 
 ```text
-docfox-0.0.17.vsix
+docfox-0.0.18.vsix
 ```
 
 ---
@@ -132,8 +127,7 @@ docfox-0.0.17.vsix
 - [ ] Reload VS Code and verify Luna appears in the Activity Bar
 - [ ] Verify sidebar opens correctly
 - [ ] Verify CSS fallback mode still works
-- [ ] Verify frame mode works after deleting bad frames
-- [ ] Verify chroma key cleanup removes remaining green edge artifacts
+- [ ] Verify animated sprite mode loads the GIF for each state
 - [ ] Verify typing flow: `typing -> thinking -> sleeping`
 - [ ] Verify clicking in Markdown triggers `searching`
 - [ ] Verify active Markdown errors trigger `panic`
@@ -148,11 +142,8 @@ docfox-0.0.17.vsix
 
 ## Animation Polish
 
-- [ ] Tune frame timing if it still feels too fast or too choppy
-- [ ] Tune `frameDurationMs` and `frameHoldCount`
-- [ ] Improve chroma key thresholds if green outlines remain
-- [ ] Consider pre-processing transparent PNGs if runtime chroma keying is not clean enough
-- [ ] Add dedicated typing frames if assets become available
+- [ ] Tune GIF export timing in Aseprite if it still feels too fast or too choppy
+- [ ] Add dedicated typing sprite if assets become available
 - [x] Add dedicated happy/fireworks frames
 
 ## UI Polish
@@ -177,9 +168,9 @@ docfox-0.0.17.vsix
 
 - User-facing name is **Luna**.
 - Internal extension/package/command prefix is still `docfox` to avoid installing a duplicate extension.
-- Main implementation file is `src/DocFoxProvider.ts`.
+- Main implementation file is `src/Provider.ts`.
 - Activity and diagnostics logic lives in `src/activityController.ts`.
 - State definitions live in `src/stateManager.ts`.
 - Demo cycling lives in `src/demoController.ts`.
-- Current installed version should be `0.0.17`.
+- Current installed version should be `0.0.18`.
 - Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.

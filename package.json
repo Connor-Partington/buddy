@@ -2,7 +2,7 @@
   "name": "docfox",
   "displayName": "Luna",
   "description": "A lightweight local VS Code companion for Markdown copyediting workflows.",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "publisher": "local",
   "engines": {
     "vscode": "^1.90.0"
@@ -82,7 +82,7 @@
       },
       {
         "command": "docfox.toggleFrameAnimations",
-        "title": "Luna: Toggle Frame Animations"
+        "title": "Luna: Toggle Animated Sprites"
       }
     ]
   },

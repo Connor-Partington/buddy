@@ -2,13 +2,13 @@ import * as vscode from 'vscode';
 
 import { DocFoxActivityController } from './activityController';
 import { DocFoxDemoController } from './demoController';
-import { DocFoxProvider } from './DocFoxProvider';
+import { Provider } from './Provider';
 import { DocFoxStateManager, docFoxStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
   let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
   let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', true);
-  const provider = new DocFoxProvider(context.extensionUri, () => {
+  const provider = new Provider(context.extensionUri, () => {
     void setSoundsEnabled(!soundsEnabled);
   }, () => {
     void setFrameAnimationsEnabled(!frameAnimationsEnabled);
@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
   const showSidebarCommand = vscode.commands.registerCommand('docfox.showSidebar', async () => {
     await vscode.commands.executeCommand('workbench.view.extension.docfox');
     try {
-      await vscode.commands.executeCommand(`${DocFoxProvider.viewType}.focus`);
+      await vscode.commands.executeCommand(`${Provider.viewType}.focus`);
     } catch {
       // Older VS Code builds may not expose generated focus commands for every view.
     }
@@ -56,11 +56,11 @@ export function activate(context: vscode.ExtensionContext) {
     frameAnimationsEnabled = enabled;
     await context.globalState.update('frameAnimationsEnabled', enabled);
     provider.setFrameAnimationsEnabled(enabled);
-    vscode.window.showInformationMessage(`Luna frame animations ${enabled ? 'enabled' : 'disabled'}.`);
+    vscode.window.showInformationMessage(`Luna animated sprites ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(DocFoxProvider.viewType, provider),
+    vscode.window.registerWebviewViewProvider(Provider.viewType, provider),
     activityController,
     demoController,
     stateSubscription,

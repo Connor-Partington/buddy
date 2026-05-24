@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { DocFoxState, DocFoxStateMessage, getDocFoxStateLabel } from './stateManager';
 
-export class DocFoxProvider implements vscode.WebviewViewProvider {
+export class Provider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'docfox.companion';
 
   private webviewView?: vscode.WebviewView;
@@ -23,8 +23,8 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
-    const frameSources = await getFrameSources(this.extensionUri, webviewView.webview);
-    webviewView.webview.html = this.getHtml(webviewView.webview, frameSources);
+    const spriteSources = getSpriteSources(this.extensionUri, webviewView.webview);
+    webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources);
     webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
       if (message.type === 'toggleSounds') {
         this.onToggleSounds();
@@ -75,7 +75,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private getHtml(webview: vscode.Webview, frameSources: Record<DocFoxState, string[]>): string {
+  private getHtml(webview: vscode.Webview, spriteSources: Record<DocFoxState, string>): string {
     const nonce = getNonce();
 
     return /* html */ `<!DOCTYPE html>
@@ -143,7 +143,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       aspect-ratio: 190 / 213;
     }
 
-    .frame-canvas {
+    .sprite-image {
       width: 100%;
       height: auto;
       max-height: 100%;
@@ -615,7 +615,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         </div>
       </div>
       <div class="frame-stage" role="img" aria-label="Luna frame animation">
-        <canvas class="frame-canvas" width="190" height="213"></canvas>
+        <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
     </section>
     <section class="status" aria-live="polite">
@@ -623,13 +623,13 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       <p class="mood">${getDocFoxStateLabel(this.state)}</p>
       <div class="toolbar">
         <button class="sound-toggle" type="button" aria-label="Toggle Luna sounds" aria-pressed="${this.soundsEnabled}"></button>
-        <button class="frame-toggle" type="button" aria-label="Toggle Luna frame animations" aria-pressed="${this.frameAnimationsEnabled}"></button>
+        <button class="frame-toggle" type="button" aria-label="Toggle Luna animated sprites" aria-pressed="${this.frameAnimationsEnabled}"></button>
       </div>
     </section>
   </main>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    const frameSources = ${JSON.stringify(frameSources)};
+    const spriteSources = ${JSON.stringify(spriteSources)};
     const labels = ${JSON.stringify({
       idle: getDocFoxStateLabel('idle'),
       typing: getDocFoxStateLabel('typing'),
@@ -642,17 +642,11 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
     const mood = document.querySelector('.mood');
     const soundToggle = document.querySelector('.sound-toggle');
     const frameToggle = document.querySelector('.frame-toggle');
-    const frameCanvas = document.querySelector('.frame-canvas');
-    const frameContext = frameCanvas?.getContext('2d');
+    const spriteImage = document.querySelector('.sprite-image');
     let audioContext;
     let soundsEnabled = ${this.soundsEnabled};
     let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let lastState = '${this.state}';
-    let animationFrameId;
-    let animationToken = 0;
-    const frameDurationMs = 160;
-    const frameHoldCount = 2;
-    const processedFrames = new Map();
 
     function getAudioContext() {
       if (!audioContext) {
@@ -714,109 +708,15 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    function loadImage(source) {
-      return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = source;
-      });
-    }
-
-    async function getProcessedFrame(source) {
-      const cached = processedFrames.get(source);
-      if (cached) {
-        return cached;
-      }
-
-      const image = await loadImage(source);
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      context.drawImage(image, 0, 0);
-
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let index = 0; index < data.length; index += 4) {
-        const red = data[index];
-        const green = data[index + 1];
-        const blue = data[index + 2];
-        const strongestNonGreen = Math.max(red, blue);
-        const greenDominance = green - strongestNonGreen;
-        const isGreenScreen = green > 95 && greenDominance > 10 && green > red * 1.05 && green > blue * 1.05;
-
-        if (isGreenScreen) {
-          data[index + 3] = 0;
-        } else if (green > strongestNonGreen && greenDominance > 4) {
-          data[index + 1] = strongestNonGreen;
-        }
-      }
-
-      context.putImageData(imageData, 0, 0);
-      processedFrames.set(source, canvas);
-      return canvas;
-    }
-
-    async function getFramesForState(state) {
-      const sources = frameSources[state] || frameSources.idle || [];
-      const frames = await Promise.all(sources.map((source) => getProcessedFrame(source)));
-      return frames.flatMap((frame) => Array.from({ length: frameHoldCount }, () => frame));
-    }
-
-    function stopFrameAnimation() {
-      animationToken += 1;
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = undefined;
-      }
-    }
-
-    function drawFrame(frame) {
-      if (!frameContext || !frameCanvas) {
+    function setSpriteForState(state) {
+      if (!spriteImage) {
         return;
       }
 
-      if (frameCanvas.width !== frame.width || frameCanvas.height !== frame.height) {
-        frameCanvas.width = frame.width;
-        frameCanvas.height = frame.height;
+      const source = spriteSources[state] || spriteSources.idle;
+      if (source && spriteImage.getAttribute('src') !== source) {
+        spriteImage.setAttribute('src', source);
       }
-      frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
-      frameContext.drawImage(frame, 0, 0);
-    }
-
-    async function startFrameAnimation(state) {
-      stopFrameAnimation();
-      if (!frameAnimationsEnabled) {
-        return;
-      }
-
-      const token = animationToken;
-      const frames = await getFramesForState(state);
-      if (token !== animationToken || frames.length === 0) {
-        return;
-      }
-
-      let frameIndex = 0;
-      let lastFrameTime = performance.now();
-      drawFrame(frames[frameIndex]);
-
-      function tick(now) {
-        if (token !== animationToken || !frameAnimationsEnabled) {
-          return;
-        }
-
-        if (now - lastFrameTime >= frameDurationMs) {
-          const frameSteps = Math.floor((now - lastFrameTime) / frameDurationMs);
-          frameIndex = (frameIndex + frameSteps) % frames.length;
-          lastFrameTime += frameSteps * frameDurationMs;
-          drawFrame(frames[frameIndex]);
-        }
-
-        animationFrameId = requestAnimationFrame(tick);
-      }
-
-      animationFrameId = requestAnimationFrame(tick);
     }
 
     function setFrameAnimationsEnabled(enabled) {
@@ -831,11 +731,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         frameAnimationsEnabled,
       });
 
-      if (enabled) {
-        void startFrameAnimation(document.body.dataset.state || 'idle');
-      } else {
-        stopFrameAnimation();
-      }
+      setSpriteForState(document.body.dataset.state || 'idle');
     }
 
     function setState(state) {
@@ -845,7 +741,7 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
         mood.textContent = labels[state] || labels.idle;
       }
       vscode.setState({ state, soundsEnabled, frameAnimationsEnabled });
-      void startFrameAnimation(state);
+      setSpriteForState(state);
       lastState = state;
     }
 
@@ -877,59 +773,26 @@ export class DocFoxProvider implements vscode.WebviewViewProvider {
   }
 }
 
-async function getFrameSources(
+function getSpriteSources(
   extensionUri: vscode.Uri,
   webview: vscode.Webview,
-): Promise<Record<DocFoxState, string[]>> {
-  const frameSets: Record<DocFoxState, string> = {
-    idle: 'blob-frames-idle',
-    typing: 'blob-frames-think',
-    searching: 'blob-frames-search',
-    thinking: 'blob-frames-think',
-    sleeping: 'blob-frames-sleep',
-    happy: 'blob-frames-fireworks',
-    panic: 'blob-frames-jump',
+): Record<DocFoxState, string> {
+  const spriteFiles: Record<DocFoxState, string> = {
+    idle: 'idle.gif',
+    typing: 'think.gif',
+    searching: 'search.gif',
+    thinking: 'think.gif',
+    sleeping: 'sleep.gif',
+    happy: 'happy.gif',
+    panic: 'jump.gif',
   };
 
-  const entries = await Promise.all(
-    Object.entries(frameSets).map(async ([state, folder]) => {
-      const folderUri = vscode.Uri.joinPath(extensionUri, 'assets', 'images', folder);
-      const frames = await getFramesInFolder(folderUri, webview);
-      return [state, frames] as const;
-    }),
-  );
-
-  return Object.fromEntries(entries) as Record<DocFoxState, string[]>;
-}
-
-async function getFramesInFolder(folderUri: vscode.Uri, webview: vscode.Webview): Promise<string[]> {
-  try {
-    const entries = await vscode.workspace.fs.readDirectory(folderUri);
-    return entries
-      .filter(([name, type]) => type === vscode.FileType.File && isFrameImage(name))
-      .sort(([first], [second]) => getFrameSortValue(first) - getFrameSortValue(second))
-      .map(([name]) => webview.asWebviewUri(vscode.Uri.joinPath(folderUri, name)).toString());
-  } catch {
-    return [];
-  }
-}
-
-function isFrameImage(name: string): boolean {
-  return (
-    /^frame_\d+\.png$/i.test(name) ||
-    /^frame-\d+\.png$/i.test(name) ||
-    /^pixel-snapper-\d+-r\d+c\d+\.png$/i.test(name) ||
-    /^generated(?:-frames)?-[a-z-]+-\d+\.png$/i.test(name)
-  );
-}
-
-function getFrameSortValue(name: string): number {
-  const gridMatch = name.match(/-r(\d+)c(\d+)\.png$/i);
-  if (gridMatch) {
-    return Number(gridMatch[1]) * 1000 + Number(gridMatch[2]);
-  }
-
-  return Number(name.match(/(\d+)\.png$/i)?.[1] ?? 0);
+  return Object.fromEntries(
+    Object.entries(spriteFiles).map(([state, file]) => [
+      state,
+      webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
+    ]),
+  ) as Record<DocFoxState, string>;
 }
 
 function getNonce(): string {
