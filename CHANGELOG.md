@@ -2,6 +2,11 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.27
+
+- Updated the Marketplace display name to `Buddy - IDE Companion` for the initial public listing.
+- Refreshed release metadata and VSIX documentation for the Marketplace upload.
+
 ## 0.0.26
 
 - Expanded Buddy reactions from Markdown-only documents to file-backed and untitled editor tabs.

@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.0.26-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.0.27-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -48,7 +48,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 Download or build a `.vsix` package, then install it with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.26.vsix
+code --install-extension buddy-ide-companion-0.0.27.vsix
 ```
 
 You can also install it from VS Code:
@@ -173,7 +173,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.26.vsix --force
+code --install-extension buddy-ide-companion-0.0.27.vsix --force
 ```
 
 ## Roadmap
