@@ -26,7 +26,12 @@ export class DocFoxActivityController implements vscode.Disposable {
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((event) => {
-        if (isMarkdownDocument(event.textEditor.document) && event.kind === vscode.TextEditorSelectionChangeKind.Mouse) {
+        if (isNavigableDocument(event.textEditor.document) && event.kind === vscode.TextEditorSelectionChangeKind.Mouse) {
+          this.handleSearching();
+        }
+      }),
+      vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+        if (isNavigableDocument(event.textEditor.document)) {
           this.handleSearching();
         }
       }),
@@ -133,6 +138,10 @@ export class DocFoxActivityController implements vscode.Disposable {
 
 function isMarkdownDocument(document: vscode.TextDocument): boolean {
   return document.languageId === 'markdown' || document.fileName.toLowerCase().endsWith('.md');
+}
+
+function isNavigableDocument(document: vscode.TextDocument): boolean {
+  return document.uri.scheme === 'file' || document.uri.scheme === 'untitled';
 }
 
 function hasActiveMarkdownErrors(): boolean {

@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
-import { DocFoxState, DocFoxStateMessage, getDocFoxStateLabel } from './stateManager';
+import { DocFoxState, DocFoxStateMessage } from './stateManager';
+
+type SpriteKey = DocFoxState | 'walk';
 
 export class Provider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'docfox.companion';
@@ -10,11 +12,7 @@ export class Provider implements vscode.WebviewViewProvider {
   private soundsEnabled = false;
   private frameAnimationsEnabled = false;
 
-  public constructor(
-    private readonly extensionUri: vscode.Uri,
-    private readonly onToggleSounds: () => void,
-    private readonly onToggleFrameAnimations: () => void,
-  ) {}
+  public constructor(private readonly extensionUri: vscode.Uri) {}
 
   public async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.webviewView = webviewView;
@@ -25,13 +23,6 @@ export class Provider implements vscode.WebviewViewProvider {
 
     const spriteSources = getSpriteSources(this.extensionUri, webviewView.webview);
     webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources);
-    webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
-      if (message.type === 'toggleSounds') {
-        this.onToggleSounds();
-      } else if (message.type === 'toggleFrameAnimations') {
-        this.onToggleFrameAnimations();
-      }
-    });
     this.postState();
     this.postSoundsEnabled();
     this.postFrameAnimationsEnabled();
@@ -75,7 +66,7 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
-  private getHtml(webview: vscode.Webview, spriteSources: Record<DocFoxState, string>): string {
+  private getHtml(webview: vscode.Webview, spriteSources: Record<SpriteKey, string>): string {
     const nonce = getNonce();
 
     return /* html */ `<!DOCTYPE html>
@@ -88,8 +79,6 @@ export class Provider implements vscode.WebviewViewProvider {
   <style nonce="${nonce}">
     :root {
       --space-blue: #90d5ff;
-      --panel: color-mix(in srgb, var(--vscode-sideBar-background) 88%, var(--space-blue));
-      --line: color-mix(in srgb, var(--vscode-sideBar-foreground) 18%, transparent);
       --fox: #ff5f8a;
       --fox-dark: #cf3f6a;
       --cream: #ff9fc0;
@@ -112,20 +101,16 @@ export class Provider implements vscode.WebviewViewProvider {
     .shell {
       min-height: 100vh;
       display: grid;
-      align-content: center;
-      gap: 18px;
+      align-content: stretch;
       padding: 18px;
     }
 
     .stage {
       display: grid;
-      place-items: center;
+      place-items: end center;
       min-height: 220px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
+      background: transparent;
       overflow: hidden;
-      transition: background-color 160ms ease, border-color 160ms ease;
     }
 
     .fox {
@@ -137,30 +122,28 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     .frame-stage {
-      display: none;
-      place-items: center;
+      display: grid;
+      place-items: end center;
       width: min(190px, 100%);
       aspect-ratio: 190 / 213;
+      align-self: end;
     }
 
     .sprite-image {
       width: 100%;
       height: auto;
       max-height: 100%;
+      align-self: end;
       object-fit: contain;
       image-rendering: pixelated;
     }
 
-    body[data-frame-animations="true"][data-state="searching"] .frame-stage {
-      animation: frame-walk-left 2.1s linear infinite;
-    }
-
-    body[data-frame-animations="true"] .fox {
+    .fox {
       display: none;
     }
 
-    body[data-frame-animations="true"] .frame-stage {
-      display: grid;
+    .frame-stage.is-walking {
+      animation: walk-right 2.4s linear;
     }
 
     .ear {
@@ -323,108 +306,6 @@ export class Provider implements vscode.WebviewViewProvider {
       animation: drift 2.4s ease-in-out infinite;
     }
 
-    .status {
-      display: grid;
-      gap: 6px;
-      text-align: center;
-    }
-
-    .toolbar {
-      display: flex;
-      justify-content: center;
-    }
-
-    .sound-toggle,
-    .frame-toggle {
-      position: relative;
-      width: 30px;
-      height: 30px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--vscode-sideBar-foreground);
-      background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--space-blue));
-      cursor: pointer;
-    }
-
-    .sound-toggle::before {
-      content: "";
-      position: absolute;
-      left: 8px;
-      top: 10px;
-      width: 7px;
-      height: 10px;
-      background: currentColor;
-      clip-path: polygon(0 30%, 42% 30%, 100% 0, 100% 100%, 42% 70%, 0 70%);
-    }
-
-    .sound-toggle::after {
-      content: "";
-      position: absolute;
-      left: 17px;
-      top: 8px;
-      width: 7px;
-      height: 14px;
-      border-right: 2px solid currentColor;
-      border-radius: 50%;
-      opacity: 0.35;
-    }
-
-    .sound-toggle[aria-pressed="true"] {
-      border-color: var(--space-blue);
-      color: var(--space-blue);
-    }
-
-    .sound-toggle[aria-pressed="true"]::after {
-      opacity: 1;
-    }
-
-    .frame-toggle {
-      margin-left: 8px;
-    }
-
-    .frame-toggle::before {
-      content: "";
-      position: absolute;
-      left: 8px;
-      top: 8px;
-      width: 14px;
-      height: 14px;
-      border: 2px solid currentColor;
-      box-shadow: 4px 4px 0 rgb(144 213 255 / 28%);
-    }
-
-    .frame-toggle::after {
-      content: "";
-      position: absolute;
-      left: 12px;
-      top: 12px;
-      width: 6px;
-      height: 6px;
-      background: currentColor;
-      opacity: 0.35;
-    }
-
-    .frame-toggle[aria-pressed="true"] {
-      border-color: var(--space-blue);
-      color: var(--space-blue);
-    }
-
-    .frame-toggle[aria-pressed="true"]::after {
-      opacity: 1;
-    }
-
-    .name {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-
-    .mood {
-      margin: 0;
-      color: var(--vscode-descriptionForeground);
-      line-height: 1.4;
-    }
 
     body[data-state="typing"] .fox {
       animation: typing-bounce 0.34s ease-in-out infinite;
@@ -588,12 +469,12 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    @keyframes frame-walk-left {
+    @keyframes walk-right {
       0% {
-        transform: translateX(48px);
+        transform: translateX(-72px);
       }
       100% {
-        transform: translateX(-48px);
+        transform: translateX(72px);
       }
     }
   </style>
@@ -618,35 +499,20 @@ export class Provider implements vscode.WebviewViewProvider {
         <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
     </section>
-    <section class="status" aria-live="polite">
-      <h1 class="name">Luna</h1>
-      <p class="mood">${getDocFoxStateLabel(this.state)}</p>
-      <div class="toolbar">
-        <button class="sound-toggle" type="button" aria-label="Toggle Luna sounds" aria-pressed="${this.soundsEnabled}"></button>
-        <button class="frame-toggle" type="button" aria-label="Toggle Luna animated sprites" aria-pressed="${this.frameAnimationsEnabled}"></button>
-      </div>
-    </section>
   </main>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
-    const labels = ${JSON.stringify({
-      idle: getDocFoxStateLabel('idle'),
-      typing: getDocFoxStateLabel('typing'),
-      searching: getDocFoxStateLabel('searching'),
-      thinking: getDocFoxStateLabel('thinking'),
-      sleeping: getDocFoxStateLabel('sleeping'),
-      happy: getDocFoxStateLabel('happy'),
-      panic: getDocFoxStateLabel('panic'),
-    })};
-    const mood = document.querySelector('.mood');
-    const soundToggle = document.querySelector('.sound-toggle');
-    const frameToggle = document.querySelector('.frame-toggle');
     const spriteImage = document.querySelector('.sprite-image');
+    const spriteStage = document.querySelector('.frame-stage');
     let audioContext;
     let soundsEnabled = ${this.soundsEnabled};
     let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let lastState = '${this.state}';
+    let currentState = '${this.state}';
+    let walkTimer;
+    let walkResetTimer;
+    const walkAnimationMs = 2400;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -698,9 +564,6 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setSoundsEnabled(enabled, playFeedback = true) {
       soundsEnabled = enabled;
-      if (soundToggle) {
-        soundToggle.setAttribute('aria-pressed', String(enabled));
-      }
       vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled });
 
       if (enabled && playFeedback) {
@@ -719,12 +582,57 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
+    function clearRandomWalk() {
+      if (walkTimer) {
+        clearTimeout(walkTimer);
+        walkTimer = undefined;
+      }
+      if (walkResetTimer) {
+        clearTimeout(walkResetTimer);
+        walkResetTimer = undefined;
+      }
+      spriteStage?.classList.remove('is-walking');
+    }
+
+    function scheduleRandomWalk() {
+      if (walkTimer || currentState !== 'idle') {
+        return;
+      }
+
+      const delay = 8000 + Math.random() * 14000;
+      walkTimer = setTimeout(() => {
+        walkTimer = undefined;
+        startRandomWalk();
+      }, delay);
+    }
+
+    function startRandomWalk() {
+      if (!spriteImage || !spriteStage || currentState !== 'idle') {
+        scheduleRandomWalk();
+        return;
+      }
+
+      const walkSource = spriteSources.walk;
+      if (!walkSource) {
+        return;
+      }
+
+      spriteStage.classList.remove('is-walking');
+      void spriteStage.offsetWidth;
+      spriteImage.setAttribute('src', walkSource);
+      spriteStage.classList.add('is-walking');
+
+      walkResetTimer = setTimeout(() => {
+        walkResetTimer = undefined;
+        spriteStage.classList.remove('is-walking');
+        setSpriteForState(currentState);
+        scheduleRandomWalk();
+      }, walkAnimationMs);
+    }
+
     function setFrameAnimationsEnabled(enabled) {
       frameAnimationsEnabled = enabled;
       document.body.dataset.frameAnimations = String(enabled);
-      if (frameToggle) {
-        frameToggle.setAttribute('aria-pressed', String(enabled));
-      }
       vscode.setState({
         state: document.body.dataset.state || 'idle',
         soundsEnabled,
@@ -736,12 +644,12 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setState(state) {
       playStateSound(state);
+      clearRandomWalk();
+      currentState = state;
       document.body.dataset.state = state;
-      if (mood) {
-        mood.textContent = labels[state] || labels.idle;
-      }
       vscode.setState({ state, soundsEnabled, frameAnimationsEnabled });
       setSpriteForState(state);
+      scheduleRandomWalk();
       lastState = state;
     }
 
@@ -756,14 +664,6 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     });
 
-    soundToggle?.addEventListener('click', () => {
-      vscode.postMessage({ type: 'toggleSounds' });
-    });
-
-    frameToggle?.addEventListener('click', () => {
-      vscode.postMessage({ type: 'toggleFrameAnimations' });
-    });
-
     setState('${this.state}');
     setSoundsEnabled(soundsEnabled, false);
     setFrameAnimationsEnabled(frameAnimationsEnabled);
@@ -776,8 +676,8 @@ export class Provider implements vscode.WebviewViewProvider {
 function getSpriteSources(
   extensionUri: vscode.Uri,
   webview: vscode.Webview,
-): Record<DocFoxState, string> {
-  const spriteFiles: Record<DocFoxState, string> = {
+): Record<SpriteKey, string> {
+  const spriteFiles: Record<SpriteKey, string> = {
     idle: 'idle.gif',
     typing: 'think.gif',
     searching: 'search.gif',
@@ -785,6 +685,7 @@ function getSpriteSources(
     sleeping: 'sleep.gif',
     happy: 'happy.gif',
     panic: 'jump.gif',
+    walk: 'walk.gif',
   };
 
   return Object.fromEntries(
@@ -792,7 +693,7 @@ function getSpriteSources(
       state,
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
     ]),
-  ) as Record<DocFoxState, string>;
+  ) as Record<SpriteKey, string>;
 }
 
 function getNonce(): string {

@@ -29,7 +29,9 @@ A lightweight VS Code companion for Markdown copyediting workflows.
 - [x] Register webview provider
 - [x] Render sidebar HTML UI
 - [x] Display CSS fallback character
-- [x] Add sidebar controls for sounds and animated sprite mode
+- [x] Remove visible sidebar controls and status text
+- [x] Make the sidebar stage transparent
+- [x] Align Luna to the bottom of the stage
 
 ## State System
 
@@ -57,14 +59,15 @@ Implemented states:
 - [x] Switch to `thinking` after 1 second of quiet
 - [x] Switch to `sleeping` after another 5.5 seconds
 - [x] Detect mouse selection changes in Markdown files
-- [x] Trigger `searching` when clicking around a Markdown file
+- [x] Trigger `searching` when clicking around an editor file
+- [x] Trigger `searching` when scrolling an editor file
 - [x] Detect active Markdown error diagnostics
 - [x] Trigger `panic` when errors are detected
 
 ## Animated Sprite Mode
 
 - [x] Add animated sprite assets under `assets/images`
-- [x] Add animated sprite mode toggle
+- [x] Add animated sprite mode command
 - [x] Keep CSS fallback mode available
 - [x] Replace PNG frame folders with per-state GIF sprites
 - [x] Render GIF sprites directly instead of canvas frames
@@ -99,7 +102,7 @@ panic     -> jump.gif
 
 ## Sounds
 
-- [x] Add optional sound toggle
+- [x] Add optional sound command
 - [x] Keep sounds off by default
 - [x] Persist sound preference in VS Code global state
 - [x] Generate subtle sounds with Web Audio
@@ -111,11 +114,11 @@ panic     -> jump.gif
 - [x] Build versioned VSIX files
 - [x] Install with VS Code CLI and `--force`
 - [x] Remove older ignored VSIX packages after install
-
+ 
 Current local package:
 
 ```text
-docfox-0.0.18.vsix
+docfox-0.0.19.vsix
 ```
 
 ---
@@ -129,10 +132,10 @@ docfox-0.0.18.vsix
 - [ ] Verify CSS fallback mode still works
 - [ ] Verify animated sprite mode loads the GIF for each state
 - [ ] Verify typing flow: `typing -> thinking -> sleeping`
-- [ ] Verify clicking in Markdown triggers `searching`
+- [ ] Verify clicking or scrolling in an editor file triggers `searching`
 - [ ] Verify active Markdown errors trigger `panic`
 - [ ] Verify `Luna: Preview Animations`
-- [ ] Verify sounds toggle and generated sounds
+- [ ] Verify sound command and generated sounds
 
 ## Markdown Awareness
 
@@ -149,7 +152,7 @@ docfox-0.0.18.vsix
 ## UI Polish
 
 - [x] Apply Space Blue accent `#90D5FF`
-- [x] Add rounded sidebar stage
+- [x] Add transparent sidebar stage
 - [x] Add smooth CSS fallback transitions
 - [ ] Improve icon affordances/tooltips if needed
 - [ ] Confirm layout at narrow sidebar widths
@@ -172,5 +175,5 @@ docfox-0.0.18.vsix
 - Activity and diagnostics logic lives in `src/activityController.ts`.
 - State definitions live in `src/stateManager.ts`.
 - Demo cycling lives in `src/demoController.ts`.
-- Current installed version should be `0.0.18`.
+- Current installed version should be `0.0.19`.
 - Rebuild/reinstall after asset changes because installed VSIX contains a copied asset set.
