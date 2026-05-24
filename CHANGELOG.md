@@ -2,6 +2,12 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.26
+
+- Expanded Buddy reactions from Markdown-only documents to file-backed and untitled editor tabs.
+- Updated active diagnostics reactions to work with the current supported editor document.
+- Replaced the custom local install script with the standard Extension Development Host, VSIX package, and VS Code CLI install workflow.
+
 ## 0.0.25
 
 - Updated the extension identity and user-facing companion name to Buddy.
@@ -15,4 +21,4 @@ All notable changes to Buddy will be documented in this file.
 - Added animated GIF sprite rendering with per-state assets.
 - Added optional local sound effects.
 - Added local VSIX packaging and install workflow.
-- Added Markdown-aware typing, navigation, save, inactivity, and diagnostics reactions.
+- Added typing, navigation, save, inactivity, and diagnostics reactions.

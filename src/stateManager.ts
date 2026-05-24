@@ -8,7 +8,7 @@ export type BuddyStateMessage = {
 };
 
 const stateLabels: Record<BuddyState, string> = {
-  idle: 'Ready for Markdown.',
+  idle: 'Ready when you are.',
   typing: 'Keeping pace with your draft.',
   searching: 'Following your cursor.',
   thinking: 'Thinking through the pause.',

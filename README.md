@@ -7,7 +7,7 @@ Buddy is local-first, lightweight, and designed as the foundation for a broader 
 ## Features
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and panic states.
-- Markdown-aware reactions while you write, navigate, save, and encounter diagnostics.
+- Editor-aware reactions while you write, navigate, save, and encounter diagnostics.
 - Optional sound effects generated locally with the Web Audio API.
 - Animated sprite mode with a CSS fallback renderer.
 - Command Palette controls for showing Buddy, previewing animations, toggling sounds, and testing states.
@@ -20,7 +20,7 @@ Buddy is local-first, lightweight, and designed as the foundation for a broader 
 Download or build a `.vsix` package, then install it in VS Code:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.25.vsix
+code --install-extension buddy-ide-companion-0.0.26.vsix
 ```
 
 You can also install manually from VS Code:
@@ -32,38 +32,44 @@ You can also install manually from VS Code:
 
 ### From Source
 
-Install dependencies and compile:
+Install dependencies:
 
 ```bash
 npm install
-npm run compile
 ```
 
-Run Buddy in an Extension Development Host:
+For day-to-day development, run Buddy in an Extension Development Host:
 
 ```text
 Press F5 in VS Code
 ```
 
-Package a local build:
+You can also keep TypeScript compiling in the background:
 
 ```bash
-npx @vscode/vsce package
+npm run watch
 ```
 
-For a one-command local workflow, this project includes a helper that bumps the patch version, compiles, packages, installs, and cleans up older local VSIX files:
+Before sharing a build, compile and package a VSIX:
 
 ```bash
-npm run install:local
+npm run compile
+npm run package
 ```
 
-If the VS Code CLI is not in the standard macOS app location or on `PATH`, pass it explicitly:
+Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-CODE_BIN="/path/to/code" npm run install:local
+code --install-extension buddy-ide-companion-0.0.26.vsix --force
 ```
 
-The local install helper also removes the legacy local prototype extension ID if it is present, so Buddy does not appear twice in the Activity Bar after the rename.
+If you still have the old local prototype installed from before the rename, remove it once:
+
+```bash
+code --uninstall-extension local.docfox
+```
+
+Published Marketplace installs update through VS Code. VSIX installs are manual and can be updated by installing a newer VSIX with the same extension ID.
 
 ## Commands
 
@@ -82,13 +88,13 @@ The local install helper also removes the legacy local prototype extension ID if
 
 ## How Buddy Reacts
 
-Buddy currently pays attention to Markdown editing activity:
+Buddy pays attention to editing activity in file-backed and untitled editor tabs:
 
 ```text
 typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
 ```
 
-Clicking or scrolling in supported editor files triggers `searching`. Saving a Markdown document triggers `happy`. Active Markdown diagnostics trigger `panic`.
+Clicking or scrolling in supported editor files triggers `searching`. Saving a document triggers `happy`. Active editor diagnostics trigger `panic`.
 
 ## Assets
 

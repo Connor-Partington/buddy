@@ -16,12 +16,12 @@ export class BuddyActivityController implements vscode.Disposable {
   public constructor(private readonly stateManager: BuddyStateManager) {
     this.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
-        if (isMarkdownDocument(event.document)) {
+        if (isSupportedDocument(event.document)) {
           this.handleTyping();
         }
       }),
       vscode.workspace.onDidSaveTextDocument((document) => {
-        if (isMarkdownDocument(document)) {
+        if (isSupportedDocument(document)) {
           this.handleSave();
         }
       }),
@@ -53,7 +53,7 @@ export class BuddyActivityController implements vscode.Disposable {
   }
 
   private handleTyping(): void {
-    if (hasActiveMarkdownErrors()) {
+    if (hasActiveDocumentErrors()) {
       this.setPanic();
       return;
     }
@@ -68,7 +68,7 @@ export class BuddyActivityController implements vscode.Disposable {
       return;
     }
 
-    if (hasActiveMarkdownErrors()) {
+    if (hasActiveDocumentErrors()) {
       this.setPanic();
       return;
     }
@@ -87,7 +87,7 @@ export class BuddyActivityController implements vscode.Disposable {
         return;
       }
 
-      if (hasActiveMarkdownErrors()) {
+      if (hasActiveDocumentErrors()) {
         this.setPanic();
       } else {
         this.setIdle();
@@ -96,7 +96,7 @@ export class BuddyActivityController implements vscode.Disposable {
   }
 
   private updatePanicState(): void {
-    if (hasActiveMarkdownErrors()) {
+    if (hasActiveDocumentErrors()) {
       this.setPanic();
     } else if (this.stateManager.state === 'panic') {
       this.clearTimers();
@@ -156,17 +156,17 @@ export class BuddyActivityController implements vscode.Disposable {
   }
 }
 
-function isMarkdownDocument(document: vscode.TextDocument): boolean {
-  return document.languageId === 'markdown' || document.fileName.toLowerCase().endsWith('.md');
-}
-
-function isNavigableDocument(document: vscode.TextDocument): boolean {
+function isSupportedDocument(document: vscode.TextDocument): boolean {
   return document.uri.scheme === 'file' || document.uri.scheme === 'untitled';
 }
 
-function hasActiveMarkdownErrors(): boolean {
+function isNavigableDocument(document: vscode.TextDocument): boolean {
+  return isSupportedDocument(document);
+}
+
+function hasActiveDocumentErrors(): boolean {
   const activeDocument = vscode.window.activeTextEditor?.document;
-  if (!activeDocument || !isMarkdownDocument(activeDocument)) {
+  if (!activeDocument || !isSupportedDocument(activeDocument)) {
     return false;
   }
 

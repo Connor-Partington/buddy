@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "MIT",
@@ -22,7 +22,7 @@
   ],
   "activationEvents": [
     "onCommand:buddy.showSidebar",
-    "onLanguage:markdown",
+    "onStartupFinished",
     "onView:buddy.companion"
   ],
   "main": "./out/extension.js",
@@ -99,8 +99,9 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "install:local": "scripts/install-latest.sh",
     "watch": "tsc -watch -p ./",
+    "package": "vsce package --allow-missing-repository",
+    "publish": "vsce publish",
     "lint": "eslint src --ext ts",
     "test": "npm run compile"
   },
@@ -109,6 +110,7 @@
     "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
+    "@vscode/vsce": "^3.9.1",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5"
   }
