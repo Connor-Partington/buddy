@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.0.27-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.0.28-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -10,11 +10,11 @@ An animated IDE companion for VS Code that reacts to your coding flow from the A
 
 | Idle | Think | Search | Sleep |
 | --- | --- | --- | --- |
-| ![Buddy idle animation](assets/images/idle.gif) | ![Buddy thinking animation](assets/images/think.gif) | ![Buddy searching animation](assets/images/search.gif) | ![Buddy sleeping animation](assets/images/sleep.gif) |
+| ![Buddy idle animation](assets/images/idle-trim.gif) | ![Buddy thinking animation](assets/images/think-trim.gif) | ![Buddy searching animation](assets/images/search-trim.gif) | ![Buddy sleeping animation](assets/images/sleep-trim.gif) |
 
-| Happy | Jump | Walk |
-| --- | --- | --- |
-| ![Buddy happy animation](assets/images/happy.gif) | ![Buddy panic animation](assets/images/jump.gif) | ![Buddy walking animation](assets/images/walk.gif) |
+| Happy | Love | Jump | Walk |
+| --- | --- | --- | --- |
+| ![Buddy happy animation](assets/images/happy-trim.gif) | ![Buddy love animation](assets/images/love-trim.gif) | ![Buddy panic animation](assets/images/jump-trim.gif) | ![Buddy walking animation](assets/images/walk-trim.gif) |
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work without sending your code anywhere.
 
@@ -48,7 +48,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 Download or build a `.vsix` package, then install it with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.27.vsix
+code --install-extension buddy-ide-companion-0.0.28.vsix
 ```
 
 You can also install it from VS Code:
@@ -111,33 +111,44 @@ Buddy pays attention to editing activity in file-backed and untitled editor tabs
 typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
 ```
 
-Clicking or scrolling in supported editor files triggers `searching`. Saving a document triggers `happy`. Active editor diagnostics trigger `panic`.
+Clicking or scrolling in supported editor files triggers `searching`. Clicking Buddy shows `love-trim.gif`. Saving a document triggers `happy`. Active editor diagnostics trigger `panic`.
 
 ## Assets
 
 Animated sprites live in `assets/images`:
 
 ```text
+happy-trim.gif
 happy.gif
+idle-trim.gif
 idle.gif
+jump-trim.gif
 jump.gif
+love-trim.gif
+love.gif
+search-trim.gif
 search.gif
+sleep-trim.gif
 sleep.gif
+think-trim.gif
 think.gif
+walk-trim.gif
 walk.gif
 ```
+
+Buddy uses the `*-trim.gif` sprites at runtime. The full-size originals remain in the folder for editing and reference.
 
 Current state mapping:
 
 | State | Sprite |
 | --- | --- |
-| `idle` | `idle.gif` |
-| `typing` | `think.gif` |
-| `searching` | `search.gif` |
-| `thinking` | `think.gif` |
-| `sleeping` | `sleep.gif` |
-| `happy` | `happy.gif` |
-| `panic` | `jump.gif` |
+| `idle` | `idle-trim.gif` |
+| `typing` | `think-trim.gif` |
+| `searching` | `search-trim.gif` |
+| `thinking` | `think-trim.gif` |
+| `sleeping` | `sleep-trim.gif` |
+| `happy` | `happy-trim.gif` |
+| `panic` | `jump-trim.gif` |
 
 ## Privacy
 
@@ -173,7 +184,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.27.vsix --force
+code --install-extension buddy-ide-companion-0.0.28.vsix --force
 ```
 
 ## Roadmap

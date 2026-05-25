@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk';
+type SpriteKey = BuddyState | 'walk' | 'love';
 
 export class Provider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'buddy.companion';
@@ -130,6 +130,12 @@ export class Provider implements vscode.WebviewViewProvider {
       transform: translateX(var(--walk-x, 0px));
       transition: transform var(--walk-duration, 0ms) linear;
       will-change: transform;
+      cursor: pointer;
+    }
+
+    .frame-stage:focus-visible {
+      outline: 1px solid var(--vscode-focusBorder);
+      outline-offset: 3px;
     }
 
     .sprite-image {
@@ -488,7 +494,7 @@ export class Provider implements vscode.WebviewViewProvider {
           <div class="nose"></div>
         </div>
       </div>
-      <div class="frame-stage" role="img" aria-label="Buddy frame animation">
+      <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love">
         <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
     </section>
@@ -507,10 +513,12 @@ export class Provider implements vscode.WebviewViewProvider {
     let stateBeforeWalk = '${this.state}';
     let walkTimer;
     let walkTransitionTimer;
+    let clickReactionTimer;
     let walkX = 0;
     let walkDirection = 1;
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
+    const loveGifDurationMs = 1300;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -632,6 +640,13 @@ export class Provider implements vscode.WebviewViewProvider {
       captureWalkPosition();
     }
 
+    function clearClickReaction() {
+      if (clickReactionTimer) {
+        clearTimeout(clickReactionTimer);
+        clickReactionTimer = undefined;
+      }
+    }
+
     function scheduleRandomWalk() {
       if (walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
@@ -699,6 +714,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setState(state) {
       playStateSound(state);
+      clearClickReaction();
       clearRandomWalk();
       currentState = state;
       document.body.dataset.state = state;
@@ -707,6 +723,25 @@ export class Provider implements vscode.WebviewViewProvider {
       scheduleRandomWalk();
       lastState = state;
     }
+
+    function triggerBuddyClick() {
+      clearClickReaction();
+      clearRandomWalk();
+      setSpriteForState('love');
+      clickReactionTimer = setTimeout(() => {
+        clickReactionTimer = undefined;
+        setSpriteForState(currentState);
+        scheduleRandomWalk();
+      }, loveGifDurationMs);
+    }
+
+    spriteStage?.addEventListener('click', triggerBuddyClick);
+    spriteStage?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        triggerBuddyClick();
+      }
+    });
 
     window.addEventListener('message', (event) => {
       const message = event.data;
@@ -735,14 +770,15 @@ function getSpriteSources(
   webview: vscode.Webview,
 ): Record<SpriteKey, string> {
   const spriteFiles: Record<SpriteKey, string> = {
-    idle: 'idle.gif',
-    typing: 'think.gif',
-    searching: 'search.gif',
-    thinking: 'think.gif',
-    sleeping: 'sleep.gif',
-    happy: 'happy.gif',
-    panic: 'jump.gif',
-    walk: 'walk.gif',
+    idle: 'idle-trim.gif',
+    typing: 'think-trim.gif',
+    searching: 'search-trim.gif',
+    thinking: 'think-trim.gif',
+    sleeping: 'sleep-trim.gif',
+    happy: 'happy-trim.gif',
+    panic: 'jump-trim.gif',
+    walk: 'walk-trim.gif',
+    love: 'love-trim.gif',
   };
 
   return Object.fromEntries(

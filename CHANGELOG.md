@@ -2,6 +2,12 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.28
+
+- Added a click reaction that shows `love-trim.gif` when Buddy is clicked.
+- Switched runtime sprite rendering and README previews to trimmed GIF assets.
+- Kept the full-size original GIF assets in `assets/images` for editing and reference.
+
 ## 0.0.27
 
 - Updated the Marketplace display name to `Buddy - IDE Companion` for the initial public listing.
