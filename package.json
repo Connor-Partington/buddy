@@ -111,7 +111,7 @@
     "test": "npm run compile"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
+    "@types/node": "^25.9.1",
     "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
