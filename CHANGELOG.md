@@ -2,6 +2,13 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.29
+
+- Tightened Buddy's sprite frame to match trimmed GIF bounds and reduce invisible padding.
+- Kept Buddy bottom-aligned while resizing the sidebar panel.
+- Preserved Buddy's current horizontal position when the click love animation plays.
+- Changed the project license from MIT to LGPL v2.0.
+
 ## 0.0.28
 
 - Added a click reaction that shows `love-trim.gif` when Buddy is clicked.

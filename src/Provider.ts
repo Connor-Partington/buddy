@@ -4,6 +4,20 @@ import { BuddyState, BuddyStateMessage } from './stateManager';
 
 type SpriteKey = BuddyState | 'walk' | 'love';
 
+const baseSpriteCanvasWidth = 64;
+const baseSpriteDisplayWidth = 190;
+const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
+  idle: { width: 22, height: 18 },
+  typing: { width: 21, height: 33 },
+  searching: { width: 16, height: 16 },
+  thinking: { width: 21, height: 33 },
+  sleeping: { width: 29, height: 26 },
+  happy: { width: 20, height: 35 },
+  panic: { width: 26, height: 46 },
+  walk: { width: 22, height: 18 },
+  love: { width: 18, height: 28 },
+};
+
 export class Provider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'buddy.companion';
 
@@ -68,6 +82,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
   private getHtml(webview: vscode.Webview, spriteSources: Record<SpriteKey, string>): string {
     const nonce = getNonce();
+    const spriteDisplaySizes = getSpriteDisplaySizes();
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -90,8 +105,9 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     body {
-      min-height: 100vh;
+      height: 100vh;
       margin: 0;
+      overflow: hidden;
       color: var(--vscode-sideBar-foreground);
       background: var(--vscode-sideBar-background);
       font-family: var(--vscode-font-family);
@@ -99,7 +115,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     .shell {
-      min-height: 100vh;
+      height: 100vh;
       display: grid;
       align-content: stretch;
       padding: 0;
@@ -108,7 +124,9 @@ export class Provider implements vscode.WebviewViewProvider {
     .stage {
       display: grid;
       place-items: end center;
-      min-height: 220px;
+      height: 100vh;
+      min-height: 0;
+      padding: 8px 0;
       background: transparent;
       overflow: hidden;
     }
@@ -124,8 +142,8 @@ export class Provider implements vscode.WebviewViewProvider {
     .frame-stage {
       display: grid;
       place-items: end center;
-      width: min(190px, 100%);
-      aspect-ratio: 190 / 213;
+      width: min(var(--sprite-display-width, ${spriteDisplaySizes[this.state].width}), 100%, calc((100vh - 16px) * var(--sprite-aspect-ratio, ${spriteDisplaySizes[this.state].aspectRatio})));
+      aspect-ratio: var(--sprite-aspect-ratio, ${spriteDisplaySizes[this.state].aspectRatio});
       align-self: end;
       transform: translateX(var(--walk-x, 0px));
       transition: transform var(--walk-duration, 0ms) linear;
@@ -141,7 +159,6 @@ export class Provider implements vscode.WebviewViewProvider {
     .sprite-image {
       width: 100%;
       height: auto;
-      max-height: 100%;
       align-self: end;
       object-fit: contain;
       image-rendering: pixelated;
@@ -494,7 +511,7 @@ export class Provider implements vscode.WebviewViewProvider {
           <div class="nose"></div>
         </div>
       </div>
-      <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love">
+      <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love" style="--sprite-display-width: ${spriteDisplaySizes[this.state].width}; --sprite-aspect-ratio: ${spriteDisplaySizes[this.state].aspectRatio};">
         <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
     </section>
@@ -502,6 +519,7 @@ export class Provider implements vscode.WebviewViewProvider {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
+    const spriteDisplaySizes = ${JSON.stringify(spriteDisplaySizes)};
     const stage = document.querySelector('.stage');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
@@ -578,11 +596,14 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setSpriteForState(state) {
-      if (!spriteImage) {
+      if (!spriteImage || !spriteStage) {
         return;
       }
 
       const source = spriteSources[state] || spriteSources.idle;
+      const displaySize = spriteDisplaySizes[state] || spriteDisplaySizes.idle;
+      spriteStage.style.setProperty('--sprite-display-width', displaySize.width);
+      spriteStage.style.setProperty('--sprite-aspect-ratio', displaySize.aspectRatio);
       if (source && spriteImage.getAttribute('src') !== source) {
         spriteImage.setAttribute('src', source);
       }
@@ -620,6 +641,38 @@ export class Provider implements vscode.WebviewViewProvider {
       }
 
       applyWalkPosition(0);
+    }
+
+    function getSpriteCenterX() {
+      if (!spriteImage) {
+        return undefined;
+      }
+
+      const rect = spriteImage.getBoundingClientRect();
+      return rect.left + rect.width / 2;
+    }
+
+    function preserveSpriteCenter(callback) {
+      const previousCenter = getSpriteCenterX();
+      callback();
+
+      if (previousCenter === undefined) {
+        return;
+      }
+
+      const adjustPosition = () => {
+        const nextCenter = getSpriteCenterX();
+        if (nextCenter === undefined) {
+          return;
+        }
+
+        walkX += previousCenter - nextCenter;
+        applyWalkPosition(0);
+        clampWalkPosition();
+      };
+
+      requestAnimationFrame(adjustPosition);
+      spriteImage?.addEventListener('load', adjustPosition, { once: true });
     }
 
     function clampWalkPosition() {
@@ -685,7 +738,7 @@ export class Provider implements vscode.WebviewViewProvider {
       stateBeforeWalk = currentState;
       currentState = 'idle';
       document.body.dataset.state = 'idle';
-      spriteImage.setAttribute('src', walkSource);
+      setSpriteForState('walk');
       walkX = targetX;
       applyWalkPosition(durationMs);
 
@@ -726,11 +779,15 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function triggerBuddyClick() {
       clearClickReaction();
-      clearRandomWalk();
-      setSpriteForState('love');
+      preserveSpriteCenter(() => {
+        clearRandomWalk();
+        setSpriteForState('love');
+      });
       clickReactionTimer = setTimeout(() => {
         clickReactionTimer = undefined;
-        setSpriteForState(currentState);
+        preserveSpriteCenter(() => {
+          setSpriteForState(currentState);
+        });
         scheduleRandomWalk();
       }, loveGifDurationMs);
     }
@@ -787,6 +844,18 @@ function getSpriteSources(
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
     ]),
   ) as Record<SpriteKey, string>;
+}
+
+function getSpriteDisplaySizes(): Record<SpriteKey, { width: string; aspectRatio: string }> {
+  return Object.fromEntries(
+    Object.entries(spriteTrimSizes).map(([state, size]) => [
+      state,
+      {
+        width: `${(size.width / baseSpriteCanvasWidth) * baseSpriteDisplayWidth}px`,
+        aspectRatio: String(size.width / size.height),
+      },
+    ]),
+  ) as Record<SpriteKey, { width: string; aspectRatio: string }>;
 }
 
 function getNonce(): string {
