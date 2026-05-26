@@ -1,4 +1,4 @@
-export const buddyStates = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'] as const;
+export const buddyStates = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'jump'] as const;
 
 export type BuddyState = (typeof buddyStates)[number];
 
@@ -14,7 +14,7 @@ const stateLabels: Record<BuddyState, string> = {
   thinking: 'Thinking through the pause.',
   sleeping: 'Resting until the next edit.',
   happy: 'Nice save.',
-  panic: 'Something needs attention.',
+  jump: 'Command received.',
 };
 
 export class BuddyStateManager {

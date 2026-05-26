@@ -18,7 +18,7 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   thinking: { width: 21, height: 33 },
   sleeping: { width: 29, height: 26 },
   happy: { width: 20, height: 35 },
-  panic: { width: 26, height: 46 },
+  jump: { width: 26, height: 46 },
   walk: { width: 22, height: 18 },
   love: { width: 18, height: 28 },
 };
@@ -403,16 +403,6 @@ export class Provider implements vscode.WebviewViewProvider {
       animation: none;
     }
 
-    body[data-state="panic"] .fox {
-      animation: panic-shake 0.18s steps(2, end) infinite;
-      filter: saturate(1.25);
-    }
-
-    body[data-state="panic"] .eye {
-      animation: none;
-      height: 15px;
-    }
-
     @keyframes breathe {
       0%, 100% {
         transform: translateY(0) scaleY(1);
@@ -482,15 +472,6 @@ export class Provider implements vscode.WebviewViewProvider {
       }
       50% {
         transform: translateY(-9px) rotate(1deg);
-      }
-    }
-
-    @keyframes panic-shake {
-      0%, 100% {
-        transform: translateX(-3px) rotate(-2deg);
-      }
-      50% {
-        transform: translateX(3px) rotate(2deg);
       }
     }
 
@@ -882,7 +863,7 @@ function getSpriteSources(
     thinking: 'think-trim.gif',
     sleeping: 'sleep-trim.gif',
     happy: 'happy-trim.gif',
-    panic: 'jump-trim.gif',
+    jump: 'jump-trim.gif',
     walk: 'walk-trim.gif',
     love: 'love-trim.gif',
   };

@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.0.29",
+  "version": "0.0.30",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",
@@ -80,8 +80,8 @@
         "title": "Buddy: Set State Happy"
       },
       {
-        "command": "buddy.setState.panic",
-        "title": "Buddy: Set State Panic"
+        "command": "buddy.setState.jump",
+        "title": "Buddy: Set State Jump"
       },
       {
         "command": "buddy.previewAnimations",

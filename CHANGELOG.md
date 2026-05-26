@@ -2,9 +2,14 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.30
+
+- Added a `jump` state that triggers when an integrated terminal command starts.
+- Removed the `panic` state and diagnostics-triggered reaction.
+- Added `Buddy: Toggle Size` to switch Buddy between the current default size and a smaller size.
+
 ## 0.0.29
 
-- Added `Buddy: Toggle Size` to switch Buddy between the current default size and a smaller size.
 - Tightened Buddy's sprite frame to match trimmed GIF bounds and reduce invisible padding.
 - Kept Buddy bottom-aligned while resizing the sidebar panel.
 - Preserved Buddy's current horizontal position when the click love animation plays.

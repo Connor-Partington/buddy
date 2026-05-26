@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyState, BuddyStateManager } from './stateManager';
 
-const previewStates: BuddyState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'panic'];
+const previewStates: BuddyState[] = ['idle', 'typing', 'searching', 'thinking', 'sleeping', 'happy', 'jump'];
 const previewStepMs = 1200;
 
 export class BuddyDemoController implements vscode.Disposable {

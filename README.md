@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.0.29-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.0.30-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
@@ -14,7 +14,7 @@ An animated IDE companion for VS Code that reacts to your coding flow from the A
 
 | Happy | Love | Jump | Walk |
 | --- | --- | --- | --- |
-| ![Buddy happy animation](assets/images/happy-trim.gif) | ![Buddy love animation](assets/images/love-trim.gif) | ![Buddy panic animation](assets/images/jump-trim.gif) | ![Buddy walking animation](assets/images/walk-trim.gif) |
+| ![Buddy happy animation](assets/images/happy-trim.gif) | ![Buddy love animation](assets/images/love-trim.gif) | ![Buddy jump animation](assets/images/jump-trim.gif) | ![Buddy walking animation](assets/images/walk-trim.gif) |
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work without sending your code anywhere.
 
@@ -34,8 +34,8 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 ## Features
 
-- Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and panic states.
-- Editor-aware reactions while you write, navigate, save, and encounter diagnostics.
+- Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
+- Editor-aware reactions while you write, navigate, save, and run terminal commands.
 - Optional local sound effects generated with the Web Audio API.
 - Animated sprite rendering with a CSS fallback.
 - Command Palette controls for showing Buddy, previewing animations, toggling sounds, and testing states.
@@ -48,7 +48,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 Download or build a `.vsix` package, then install it with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.29.vsix
+code --install-extension buddy-ide-companion-0.0.30.vsix
 ```
 
 You can also install it from VS Code:
@@ -77,7 +77,7 @@ Ctrl+Shift+P on Windows/Linux
 Cmd+Shift+P on macOS
 ```
 
-Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run into diagnostics.
+Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
 Try these first:
 
@@ -103,7 +103,7 @@ Try these first:
 | `Buddy: Set State Thinking` | Shows the thinking state. |
 | `Buddy: Set State Sleeping` | Shows the sleeping state. |
 | `Buddy: Set State Happy` | Shows the happy state. |
-| `Buddy: Set State Panic` | Shows the panic state. |
+| `Buddy: Set State Jump` | Shows the jump state. |
 
 ## How Buddy Reacts
 
@@ -113,7 +113,7 @@ Buddy pays attention to editing activity in file-backed and untitled editor tabs
 typing -> 1s quiet -> thinking -> 5.5s quiet -> sleeping
 ```
 
-Clicking or scrolling in supported editor files triggers `searching`. Clicking Buddy shows `love-trim.gif`. Saving a document triggers `happy`. Active editor diagnostics trigger `panic`.
+Clicking or scrolling in supported editor files triggers `searching`. Running a command in an integrated terminal with shell integration triggers `jump`. Clicking Buddy shows `love-trim.gif`. Saving a document triggers `happy`.
 
 ## Assets
 
@@ -150,7 +150,7 @@ Current state mapping:
 | `thinking` | `think-trim.gif` |
 | `sleeping` | `sleep-trim.gif` |
 | `happy` | `happy-trim.gif` |
-| `panic` | `jump-trim.gif` |
+| `jump` | `jump-trim.gif` |
 
 ## Privacy
 
@@ -186,7 +186,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.0.29.vsix --force
+code --install-extension buddy-ide-companion-0.0.30.vsix --force
 ```
 
 ## Roadmap

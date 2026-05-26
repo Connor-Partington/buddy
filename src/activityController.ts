@@ -6,11 +6,13 @@ const thinkingDelayMs = 1000;
 const searchingDelayMs = 1400;
 const sleepingDelayMs = 5500;
 const happyDelayMs = 2600;
+const jumpDelayMs = 900;
 
 export class BuddyActivityController implements vscode.Disposable {
   private thinkingTimer?: ReturnType<typeof setTimeout>;
   private sleepingTimer?: ReturnType<typeof setTimeout>;
   private happyTimer?: ReturnType<typeof setTimeout>;
+  private jumpTimer?: ReturnType<typeof setTimeout>;
   private readonly subscriptions: vscode.Disposable[] = [];
 
   public constructor(private readonly stateManager: BuddyStateManager) {
@@ -35,15 +37,13 @@ export class BuddyActivityController implements vscode.Disposable {
           this.handleSearching();
         }
       }),
-      vscode.languages.onDidChangeDiagnostics(() => {
-        this.updatePanicState();
-      }),
-      vscode.window.onDidChangeActiveTextEditor(() => {
-        this.updatePanicState();
+      vscode.window.onDidStartTerminalShellExecution((event) => {
+        if (event.execution.commandLine.value.trim()) {
+          this.handleTerminalCommand();
+        }
       }),
     );
 
-    this.updatePanicState();
     this.scheduleIdleSleep();
   }
 
@@ -53,11 +53,6 @@ export class BuddyActivityController implements vscode.Disposable {
   }
 
   private handleTyping(): void {
-    if (hasActiveDocumentErrors()) {
-      this.setPanic();
-      return;
-    }
-
     this.clearTimers();
     this.stateManager.setState('typing');
     this.scheduleThinking(thinkingDelayMs);
@@ -65,11 +60,6 @@ export class BuddyActivityController implements vscode.Disposable {
 
   private handleSearching(): void {
     if (this.stateManager.state === 'typing') {
-      return;
-    }
-
-    if (hasActiveDocumentErrors()) {
-      this.setPanic();
       return;
     }
 
@@ -87,28 +77,21 @@ export class BuddyActivityController implements vscode.Disposable {
         return;
       }
 
-      if (hasActiveDocumentErrors()) {
-        this.setPanic();
-      } else {
-        this.setIdle();
-      }
+      this.setIdle();
     }, happyDelayMs);
   }
 
-  private updatePanicState(): void {
-    if (hasActiveDocumentErrors()) {
-      this.setPanic();
-    } else if (this.stateManager.state === 'panic') {
-      this.clearTimers();
-      this.setIdle();
-    } else if (this.stateManager.state === 'idle') {
-      this.scheduleIdleSleep();
-    }
-  }
-
-  private setPanic(): void {
+  private handleTerminalCommand(): void {
     this.clearTimers();
-    this.stateManager.setState('panic');
+    this.stateManager.setState('jump');
+
+    this.jumpTimer = setTimeout(() => {
+      if (this.stateManager.state !== 'jump') {
+        return;
+      }
+
+      this.setIdle();
+    }, jumpDelayMs);
   }
 
   private setIdle(): void {
@@ -153,6 +136,11 @@ export class BuddyActivityController implements vscode.Disposable {
       clearTimeout(this.happyTimer);
       this.happyTimer = undefined;
     }
+
+    if (this.jumpTimer) {
+      clearTimeout(this.jumpTimer);
+      this.jumpTimer = undefined;
+    }
   }
 }
 
@@ -162,15 +150,4 @@ function isSupportedDocument(document: vscode.TextDocument): boolean {
 
 function isNavigableDocument(document: vscode.TextDocument): boolean {
   return isSupportedDocument(document);
-}
-
-function hasActiveDocumentErrors(): boolean {
-  const activeDocument = vscode.window.activeTextEditor?.document;
-  if (!activeDocument || !isSupportedDocument(activeDocument)) {
-    return false;
-  }
-
-  return vscode.languages
-    .getDiagnostics(activeDocument.uri)
-    .some((diagnostic) => diagnostic.severity === vscode.DiagnosticSeverity.Error);
 }
