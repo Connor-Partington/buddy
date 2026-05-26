@@ -3,9 +3,14 @@ import * as vscode from 'vscode';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
 type SpriteKey = BuddyState | 'walk' | 'love';
+export type BuddySize = 'default' | 'small';
 
 const baseSpriteCanvasWidth = 64;
 const baseSpriteDisplayWidth = 190;
+const buddySizeScales: Record<BuddySize, number> = {
+  default: 1,
+  small: 0.72,
+};
 const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   idle: { width: 22, height: 18 },
   typing: { width: 21, height: 33 },
@@ -25,6 +30,7 @@ export class Provider implements vscode.WebviewViewProvider {
   private state: BuddyState = 'idle';
   private soundsEnabled = false;
   private frameAnimationsEnabled = false;
+  private buddySize: BuddySize = 'default';
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -40,6 +46,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postState();
     this.postSoundsEnabled();
     this.postFrameAnimationsEnabled();
+    this.postBuddySize();
   }
 
   public setState(state: BuddyState): void {
@@ -55,6 +62,11 @@ export class Provider implements vscode.WebviewViewProvider {
   public setFrameAnimationsEnabled(enabled: boolean): void {
     this.frameAnimationsEnabled = enabled;
     this.postFrameAnimationsEnabled();
+  }
+
+  public setBuddySize(size: BuddySize): void {
+    this.buddySize = size;
+    this.postBuddySize();
   }
 
   private postState(): void {
@@ -80,9 +92,16 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postBuddySize(): void {
+    void this.webviewView?.webview.postMessage({
+      type: 'setBuddySize',
+      size: this.buddySize,
+    });
+  }
+
   private getHtml(webview: vscode.Webview, spriteSources: Record<SpriteKey, string>): string {
     const nonce = getNonce();
-    const spriteDisplaySizes = getSpriteDisplaySizes();
+    const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -519,6 +538,8 @@ export class Provider implements vscode.WebviewViewProvider {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
+    const baseSpriteDisplaySizes = ${JSON.stringify(getSpriteDisplaySizes())};
+    const buddySizeScales = ${JSON.stringify(buddySizeScales)};
     const spriteDisplaySizes = ${JSON.stringify(spriteDisplaySizes)};
     const stage = document.querySelector('.stage');
     const spriteImage = document.querySelector('.sprite-image');
@@ -526,6 +547,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let audioContext;
     let soundsEnabled = ${this.soundsEnabled};
     let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
+    let buddySize = '${this.buddySize}';
     let lastState = '${this.state}';
     let currentState = '${this.state}';
     let stateBeforeWalk = '${this.state}';
@@ -588,11 +610,21 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setSoundsEnabled(enabled, playFeedback = true) {
       soundsEnabled = enabled;
-      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled });
+      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled, frameAnimationsEnabled, buddySize });
 
       if (enabled && playFeedback) {
         playTone(720, 0.06, 0, 'sine', 0.018);
       }
+    }
+
+    function getSpriteDisplaySize(state) {
+      const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
+      const scale = buddySizeScales[buddySize] || buddySizeScales.default;
+
+      return {
+        width: (parseFloat(displaySize.width) * scale) + 'px',
+        aspectRatio: displaySize.aspectRatio,
+      };
     }
 
     function setSpriteForState(state) {
@@ -601,7 +633,7 @@ export class Provider implements vscode.WebviewViewProvider {
       }
 
       const source = spriteSources[state] || spriteSources.idle;
-      const displaySize = spriteDisplaySizes[state] || spriteDisplaySizes.idle;
+      const displaySize = getSpriteDisplaySize(state);
       spriteStage.style.setProperty('--sprite-display-width', displaySize.width);
       spriteStage.style.setProperty('--sprite-aspect-ratio', displaySize.aspectRatio);
       if (source && spriteImage.getAttribute('src') !== source) {
@@ -760,9 +792,23 @@ export class Provider implements vscode.WebviewViewProvider {
         state: document.body.dataset.state || 'idle',
         soundsEnabled,
         frameAnimationsEnabled,
+        buddySize,
       });
 
       setSpriteForState(document.body.dataset.state || 'idle');
+    }
+
+    function setBuddySize(size) {
+      preserveSpriteCenter(() => {
+        buddySize = buddySizeScales[size] ? size : 'default';
+        vscode.setState({
+          state: document.body.dataset.state || 'idle',
+          soundsEnabled,
+          frameAnimationsEnabled,
+          buddySize,
+        });
+        setSpriteForState(document.body.dataset.state || 'idle');
+      });
     }
 
     function setState(state) {
@@ -771,7 +817,7 @@ export class Provider implements vscode.WebviewViewProvider {
       clearRandomWalk();
       currentState = state;
       document.body.dataset.state = state;
-      vscode.setState({ state, soundsEnabled, frameAnimationsEnabled });
+      vscode.setState({ state, soundsEnabled, frameAnimationsEnabled, buddySize });
       setSpriteForState(state);
       scheduleRandomWalk();
       lastState = state;
@@ -808,12 +854,15 @@ export class Provider implements vscode.WebviewViewProvider {
         setSoundsEnabled(message.enabled);
       } else if (message.type === 'setFrameAnimationsEnabled') {
         setFrameAnimationsEnabled(message.enabled);
+      } else if (message.type === 'setBuddySize') {
+        setBuddySize(message.size);
       }
     });
 
     setState('${this.state}');
     setSoundsEnabled(soundsEnabled, false);
     setFrameAnimationsEnabled(frameAnimationsEnabled);
+    setBuddySize(buddySize);
     clampWalkPosition();
     window.addEventListener('resize', clampWalkPosition);
   </script>
@@ -846,12 +895,14 @@ function getSpriteSources(
   ) as Record<SpriteKey, string>;
 }
 
-function getSpriteDisplaySizes(): Record<SpriteKey, { width: string; aspectRatio: string }> {
+function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {
+  const scale = buddySizeScales[size] ?? buddySizeScales.default;
+
   return Object.fromEntries(
     Object.entries(spriteTrimSizes).map(([state, size]) => [
       state,
       {
-        width: `${(size.width / baseSpriteCanvasWidth) * baseSpriteDisplayWidth}px`,
+        width: `${(size.width / baseSpriteCanvasWidth) * baseSpriteDisplayWidth * scale}px`,
         aspectRatio: String(size.width / size.height),
       },
     ]),

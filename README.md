@@ -85,6 +85,7 @@ Try these first:
 - `Buddy: Preview Animations` to cycle through the available animation states.
 - `Buddy: Toggle Sounds` to turn local sound effects on or off.
 - `Buddy: Toggle Animated Sprites` to switch animated sprite rendering on or off.
+- `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
 
 ## Commands
 
@@ -95,6 +96,7 @@ Try these first:
 | `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
 | `Buddy: Toggle Sounds` | Enables or disables local sound effects. |
 | `Buddy: Toggle Animated Sprites` | Enables or disables animated sprite rendering. |
+| `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
 | `Buddy: Set State Idle` | Shows the idle state. |
 | `Buddy: Set State Typing` | Shows the typing state. |
 | `Buddy: Set State Searching` | Shows the searching state. |

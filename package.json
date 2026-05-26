@@ -98,6 +98,10 @@
       {
         "command": "buddy.toggleFrameAnimations",
         "title": "Buddy: Toggle Animated Sprites"
+      },
+      {
+        "command": "buddy.toggleSize",
+        "title": "Buddy: Toggle Size"
       }
     ]
   },
