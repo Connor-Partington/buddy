@@ -60,14 +60,6 @@ You can also install it from VS Code:
 
 VSIX installs are manual. To update Buddy, install a newer VSIX with the same extension ID.
 
-### Remove the old prototype
-
-If you still have the old local prototype installed from before the rename, remove it once:
-
-```bash
-code --uninstall-extension local.docfox
-```
-
 ## Using Buddy
 
 After installing Buddy, open the Command Palette:
