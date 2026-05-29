@@ -111,16 +111,17 @@
     "watch": "tsc -watch -p ./",
     "package": "vsce package --allow-missing-repository --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "publish": "vsce publish --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "test": "npm run compile"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.12.7",
     "@types/vscode": "^1.90.0",
-    "@typescript-eslint/eslint-plugin": "^7.7.1",
-    "@typescript-eslint/parser": "^7.7.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
     "@vscode/vsce": "^3.9.1",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.5"
+    "eslint": "^10.4.0",
+    "typescript": "^6.0.3"
   }
 }
