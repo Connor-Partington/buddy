@@ -11,7 +11,11 @@
     "strict": true,
     "moduleResolution": "node16",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": [
+      "node",
+      "vscode"
+    ]
   },
   "include": [
     "src"
