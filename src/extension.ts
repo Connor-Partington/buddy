@@ -6,7 +6,6 @@ import { Provider, type BuddySize } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
-  let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
   const provider = new Provider(context.extensionUri);
   const stateManager = new BuddyStateManager();
@@ -34,22 +33,12 @@ export function activate(context: vscode.ExtensionContext) {
       // Older VS Code builds may not expose generated focus commands for every view.
     }
   });
-  const toggleSoundsCommand = vscode.commands.registerCommand('buddy.toggleSounds', () => {
-    void setSoundsEnabled(!soundsEnabled);
-  });
   const toggleSizeCommand = vscode.commands.registerCommand('buddy.toggleSize', () => {
     void setBuddySize(buddySize === 'default' ? 'small' : 'default');
   });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     provider.spawnCookie();
   });
-
-  async function setSoundsEnabled(enabled: boolean): Promise<void> {
-    soundsEnabled = enabled;
-    await context.globalState.update('soundsEnabled', enabled);
-    provider.setSoundsEnabled(enabled);
-    vscode.window.showInformationMessage(`Buddy sounds ${enabled ? 'enabled' : 'disabled'}.`);
-  }
 
   async function setBuddySize(size: BuddySize): Promise<void> {
     buddySize = size;
@@ -66,14 +55,12 @@ export function activate(context: vscode.ExtensionContext) {
     disposable,
     previewCommand,
     showSidebarCommand,
-    toggleSoundsCommand,
     toggleSizeCommand,
     spawnCookieCommand,
     ...stateCommands,
   );
 
   provider.setState(stateManager.state);
-  provider.setSoundsEnabled(soundsEnabled);
   provider.setBuddySize(buddySize);
 }
 

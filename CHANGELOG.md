@@ -2,6 +2,13 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.0.31
+
+- Added a cookie title-bar action that lets you feed Buddy.
+- Added cookie drop, walking, eating, and love reaction animations.
+- Removed local sound effects and the sound toggle command.
+- Updated README installation and feature documentation.
+
 ## 0.0.30
 
 - Added a `jump` state that triggers when an integrated terminal command starts.

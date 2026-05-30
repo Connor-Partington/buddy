@@ -31,7 +31,6 @@ export class Provider implements vscode.WebviewViewProvider {
 
   private webviewView?: vscode.WebviewView;
   private state: BuddyState = 'idle';
-  private soundsEnabled = false;
   private buddySize: BuddySize = 'default';
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
@@ -47,18 +46,12 @@ export class Provider implements vscode.WebviewViewProvider {
     const imageSources = getImageSources(this.extensionUri, webviewView.webview);
     webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources, imageSources);
     this.postState();
-    this.postSoundsEnabled();
     this.postBuddySize();
   }
 
   public setState(state: BuddyState): void {
     this.state = state;
     this.postState();
-  }
-
-  public setSoundsEnabled(enabled: boolean): void {
-    this.soundsEnabled = enabled;
-    this.postSoundsEnabled();
   }
 
   public setBuddySize(size: BuddySize): void {
@@ -79,13 +72,6 @@ export class Provider implements vscode.WebviewViewProvider {
     };
 
     this.postMessage(message);
-  }
-
-  private postSoundsEnabled(): void {
-    this.postMessage({
-      type: 'setSoundsEnabled',
-      enabled: this.soundsEnabled,
-    });
   }
 
   private postBuddySize(): void {
@@ -577,8 +563,6 @@ export class Provider implements vscode.WebviewViewProvider {
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const cookieTreat = document.querySelector('.cookie-treat');
-    let audioContext;
-    let soundsEnabled = ${this.soundsEnabled};
     let buddySize = '${this.buddySize}';
     let lastState = '${this.state}';
     let currentState = '${this.state}';
@@ -599,63 +583,6 @@ export class Provider implements vscode.WebviewViewProvider {
     const loveGifDurationMs = 1300;
     const cookieDropMs = 580;
     const eatGifDurationMs = 2000;
-
-    function getAudioContext() {
-      if (!audioContext) {
-        audioContext = new AudioContext();
-      }
-
-      if (audioContext.state === 'suspended') {
-        void audioContext.resume();
-      }
-
-      return audioContext;
-    }
-
-    function playTone(frequency, duration, startOffset = 0, type = 'sine', gainValue = 0.026) {
-      const context = getAudioContext();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const startTime = context.currentTime + startOffset;
-      const endTime = startTime + duration;
-
-      oscillator.type = type;
-      oscillator.frequency.setValueAtTime(frequency, startTime);
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(startTime);
-      oscillator.stop(endTime + 0.02);
-    }
-
-    function playStateSound(state) {
-      if (!soundsEnabled || state === lastState) {
-        return;
-      }
-
-      if (state === 'typing') {
-        playTone(520, 0.035, 0, 'square', 0.014);
-      } else if (state === 'searching') {
-        playTone(360, 0.08, 0, 'triangle', 0.018);
-        playTone(540, 0.08, 0.07, 'triangle', 0.016);
-      } else if (state === 'thinking') {
-        playTone(660, 0.05, 0, 'sine', 0.02);
-      } else if (state === 'happy') {
-        playTone(640, 0.08, 0, 'sine', 0.024);
-        playTone(860, 0.1, 0.09, 'sine', 0.024);
-      }
-    }
-
-    function setSoundsEnabled(enabled, playFeedback = true) {
-      soundsEnabled = enabled;
-      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled, buddySize });
-
-      if (enabled && playFeedback) {
-        playTone(720, 0.06, 0, 'sine', 0.018);
-      }
-    }
 
     function getSpriteDisplaySize(state) {
       const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
@@ -975,8 +902,6 @@ export class Provider implements vscode.WebviewViewProvider {
       cookieActive = false;
       cookiePhase = 'eating';
       setCookieState('eaten');
-      playTone(520, 0.05, 0, 'triangle', 0.018);
-      playTone(760, 0.07, 0.06, 'triangle', 0.018);
       currentState = 'idle';
       document.body.dataset.state = 'idle';
       setSpriteForState('eat');
@@ -1002,7 +927,6 @@ export class Provider implements vscode.WebviewViewProvider {
         buddySize = buddySizeScales[size] ? size : 'default';
         vscode.setState({
           state: document.body.dataset.state || 'idle',
-          soundsEnabled,
           buddySize,
         });
         setSpriteForState(document.body.dataset.state || 'idle');
@@ -1013,17 +937,16 @@ export class Provider implements vscode.WebviewViewProvider {
     function setState(state) {
       if (isCookieInteractionActive()) {
         stateBeforeWalk = state;
-        vscode.setState({ state, soundsEnabled, buddySize });
+        vscode.setState({ state, buddySize });
         lastState = state;
         return;
       }
 
-      playStateSound(state);
       clearClickReaction();
       clearRandomWalk();
       currentState = state;
       document.body.dataset.state = state;
-      vscode.setState({ state, soundsEnabled, buddySize });
+      vscode.setState({ state, buddySize });
       setSpriteForState(state);
       scheduleRandomWalk();
       lastState = state;
@@ -1059,8 +982,6 @@ export class Provider implements vscode.WebviewViewProvider {
       const message = event.data;
       if (message.type === 'setState') {
         setState(message.state);
-      } else if (message.type === 'setSoundsEnabled') {
-        setSoundsEnabled(message.enabled);
       } else if (message.type === 'setBuddySize') {
         setBuddySize(message.size);
       } else if (message.type === 'spawnCookie') {
@@ -1069,7 +990,6 @@ export class Provider implements vscode.WebviewViewProvider {
     });
 
     setState('${this.state}');
-    setSoundsEnabled(soundsEnabled, false);
     setBuddySize(buddySize);
     updateCookieSize();
     clampWalkPosition();
