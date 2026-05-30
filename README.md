@@ -52,7 +52,7 @@ An animated IDE companion for VS Code that reacts to your coding flow from the A
   </tr>
 </table>
 
-Buddy is local-first, lightweight, and built to add a little personality to focused work without sending your code anywhere.
+Buddy is local-first, lightweight, and built to add a little personality to focused work.
 
 ## Table of Contents
 
