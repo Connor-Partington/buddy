@@ -8,13 +8,49 @@ An animated IDE companion for VS Code that reacts to your coding flow from the A
 
 ## Preview
 
-| Idle | Think | Search | Sleep |
-| --- | --- | --- | --- |
-| ![Buddy idle animation](assets/images/idle-trim.gif) | ![Buddy thinking animation](assets/images/think-trim.gif) | ![Buddy searching animation](assets/images/search-trim.gif) | ![Buddy sleeping animation](assets/images/sleep-trim.gif) |
+<table>
+  <tr>
+    <th>Idle</th>
+    <th>Think</th>
+    <th>Search</th>
+    <th>Sleep</th>
+    <th>Happy</th>
+    <th>Love</th>
+    <th>Jump</th>
+    <th>Walk</th>
+  </tr>
+  <tr>
+    <td align="center" valign="bottom"><img src="assets/images/idle-trim.gif" alt="Buddy idle animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/think-trim.gif" alt="Buddy thinking animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/search-trim.gif" alt="Buddy searching animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/sleep-trim.gif" alt="Buddy sleeping animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/happy-trim.gif" alt="Buddy happy animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/love-trim.gif" alt="Buddy love animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/jump-trim.gif" alt="Buddy jump animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/walk-trim.gif" alt="Buddy walking animation"></td>
+  </tr>
+</table>
 
-| Happy | Love | Jump | Walk |
-| --- | --- | --- | --- |
-| ![Buddy happy animation](assets/images/happy-trim.gif) | ![Buddy love animation](assets/images/love-trim.gif) | ![Buddy jump animation](assets/images/jump-trim.gif) | ![Buddy walking animation](assets/images/walk-trim.gif) |
+<table>
+  <tr>
+    <th>Cookie</th>
+    <th>Eat</th>
+    <th>Death</th>
+    <th>Soul</th>
+    <th>Heart</th>
+    <th>Empty Heart</th>
+    <th>Filling Heart</th>
+  </tr>
+  <tr>
+    <td align="center" valign="bottom"><img src="assets/images/cookie-trim.gif" alt="Buddy cookie treat animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/eat-trim.gif" alt="Buddy eating animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/death-trim.gif" alt="Buddy death animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/soul-trim.gif" alt="Buddy soul animation"></td>
+    <td align="center" valign="bottom"><img src="assets/images/heart-trim.gif" alt="Buddy full heart"></td>
+    <td align="center" valign="bottom"><img src="assets/images/heart-empty-trim.gif" alt="Buddy empty heart"></td>
+    <td align="center" valign="bottom"><img src="assets/images/heart-fill-trim.gif" alt="Buddy filling heart animation"></td>
+  </tr>
+</table>
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work without sending your code anywhere.
 
