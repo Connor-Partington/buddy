@@ -606,19 +606,22 @@ export class Provider implements vscode.WebviewViewProvider {
 
     @keyframes soul-wander {
       0%, 100% {
-        transform: translateX(calc(var(--walk-x, 0px) - 26px));
+        transform: translateX(var(--walk-x, 0px));
       }
-      50% {
-        transform: translateX(calc(var(--walk-x, 0px) + 26px));
+      25% {
+        transform: translateX(var(--soul-left-x, var(--walk-x, 0px)));
+      }
+      75% {
+        transform: translateX(var(--soul-right-x, var(--walk-x, 0px)));
       }
     }
 
     @keyframes soul-bob {
       0%, 100% {
-        translate: 0 -7px;
+        translate: 0 -18px;
       }
       50% {
-        translate: 0 7px;
+        translate: 0 -6px;
       }
     }
 
@@ -757,6 +760,20 @@ export class Provider implements vscode.WebviewViewProvider {
       spriteStage.style.setProperty('--walk-duration', durationMs + 'ms');
       spriteStage.style.setProperty('--walk-x', walkX + 'px');
       spriteStage.style.setProperty('--sprite-direction', String(walkDirection));
+      updateSoulWanderBounds();
+    }
+
+    function updateSoulWanderBounds() {
+      if (!spriteStage || deathPhase !== 'soul') {
+        return;
+      }
+
+      const limit = getWalkLimit(true);
+      const wanderDistance = Math.min(26, limit);
+      const leftX = Math.max(-limit, walkX - wanderDistance);
+      const rightX = Math.min(limit, walkX + wanderDistance);
+      spriteStage.style.setProperty('--soul-left-x', leftX + 'px');
+      spriteStage.style.setProperty('--soul-right-x', rightX + 'px');
     }
 
     function applyCookiePosition() {
@@ -819,6 +836,7 @@ export class Provider implements vscode.WebviewViewProvider {
     function setDeathPhase(phase) {
       deathPhase = phase;
       document.body.dataset.deathPhase = phase;
+      updateSoulWanderBounds();
     }
 
     function clearDeathTimer() {
@@ -925,6 +943,19 @@ export class Provider implements vscode.WebviewViewProvider {
 
       requestAnimationFrame(adjustPosition);
       spriteImage?.addEventListener('load', adjustPosition, { once: true });
+    }
+
+    function waitForSpriteImage(callback) {
+      if (!spriteImage || spriteImage.complete) {
+        requestAnimationFrame(callback);
+        return;
+      }
+
+      const handleReady = () => {
+        requestAnimationFrame(callback);
+      };
+      spriteImage.addEventListener('load', handleReady, { once: true });
+      spriteImage.addEventListener('error', handleReady, { once: true });
     }
 
     function clampWalkPosition(captureCurrentPosition = false) {
@@ -1085,7 +1116,14 @@ export class Provider implements vscode.WebviewViewProvider {
       applyWalkPosition(0);
       void spriteStage.offsetWidth;
 
-      requestAnimationFrame(() => {
+      waitForSpriteImage(() => {
+        if (!cookieActive || cookiePhase !== 'walking') {
+          return;
+        }
+
+        applyWalkPosition(0);
+        void spriteStage.offsetWidth;
+
         const distance = Math.abs(cookieX - walkX);
         const durationMs = Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000));
         const completeCookieWalk = () => {
