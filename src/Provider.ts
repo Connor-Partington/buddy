@@ -25,7 +25,7 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   walk: { width: 22, height: 18 },
   love: { width: 18, height: 28 },
   eat: { width: 18, height: 18 },
-  death: { width: 18, height: 16 },
+  death: { width: 22, height: 18 },
   soul: { width: 16, height: 16 },
 };
 
@@ -200,6 +200,10 @@ export class Provider implements vscode.WebviewViewProvider {
       animation: soul-wander 8s ease-in-out infinite;
       filter: drop-shadow(0 0 10px rgb(144 213 255 / 34%));
       margin-bottom: 24px;
+    }
+
+    body[data-death-phase="rising"] .sprite-image {
+      animation: soul-rise 1.1s ease-out both;
     }
 
     body[data-death-phase="soul"] .sprite-image {
@@ -602,10 +606,10 @@ export class Provider implements vscode.WebviewViewProvider {
 
     @keyframes soul-wander {
       0%, 100% {
-        transform: translateX(-26px);
+        transform: translateX(calc(var(--walk-x, 0px) - 26px));
       }
       50% {
-        transform: translateX(26px);
+        transform: translateX(calc(var(--walk-x, 0px) + 26px));
       }
     }
 
@@ -615,6 +619,20 @@ export class Provider implements vscode.WebviewViewProvider {
       }
       50% {
         translate: 0 7px;
+      }
+    }
+
+    @keyframes soul-rise {
+      0% {
+        translate: 0 18px;
+        opacity: 0;
+      }
+      22% {
+        opacity: 1;
+      }
+      100% {
+        translate: 0 -18px;
+        opacity: 1;
       }
     }
 
@@ -681,6 +699,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const cookieDropMs = 580;
     const eatGifDurationMs = 2000;
     const deathGifDurationMs = 950;
+    const soulRiseDurationMs = 1100;
     const heartFillDurationMs = 1100;
 
     function getSpriteDisplaySize(state) {
@@ -813,21 +832,35 @@ export class Provider implements vscode.WebviewViewProvider {
       clearDeathTimer();
 
       if (!shouldPlayDeathAnimation) {
+        preserveSpriteCenter(() => {
+          setSpriteForState('soul');
+        });
         setDeathPhase('soul');
-        setSpriteForState('soul');
         return;
       }
 
       setDeathPhase('dying');
-      setSpriteForState('death');
+      preserveSpriteCenter(() => {
+        setSpriteForState('death');
+      });
       deathTimer = setTimeout(() => {
         deathTimer = undefined;
         if (!isDead) {
           return;
         }
 
-        setDeathPhase('soul');
-        setSpriteForState('soul');
+        preserveSpriteCenter(() => {
+          setSpriteForState('soul');
+        });
+        setDeathPhase('rising');
+        deathTimer = setTimeout(() => {
+          deathTimer = undefined;
+          if (!isDead) {
+            return;
+          }
+
+          setDeathPhase('soul');
+        }, soulRiseDurationMs);
       }, deathGifDurationMs);
     }
 
