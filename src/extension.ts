@@ -7,7 +7,6 @@ import { BuddyStateManager, buddyStates } from './stateManager';
 
 export function activate(context: vscode.ExtensionContext) {
   let soundsEnabled = context.globalState.get<boolean>('soundsEnabled', false);
-  let frameAnimationsEnabled = context.globalState.get<boolean>('frameAnimationsEnabled', true);
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
   const provider = new Provider(context.extensionUri);
   const stateManager = new BuddyStateManager();
@@ -38,11 +37,11 @@ export function activate(context: vscode.ExtensionContext) {
   const toggleSoundsCommand = vscode.commands.registerCommand('buddy.toggleSounds', () => {
     void setSoundsEnabled(!soundsEnabled);
   });
-  const toggleFrameAnimationsCommand = vscode.commands.registerCommand('buddy.toggleFrameAnimations', () => {
-    void setFrameAnimationsEnabled(!frameAnimationsEnabled);
-  });
   const toggleSizeCommand = vscode.commands.registerCommand('buddy.toggleSize', () => {
     void setBuddySize(buddySize === 'default' ? 'small' : 'default');
+  });
+  const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
+    provider.spawnCookie();
   });
 
   async function setSoundsEnabled(enabled: boolean): Promise<void> {
@@ -50,13 +49,6 @@ export function activate(context: vscode.ExtensionContext) {
     await context.globalState.update('soundsEnabled', enabled);
     provider.setSoundsEnabled(enabled);
     vscode.window.showInformationMessage(`Buddy sounds ${enabled ? 'enabled' : 'disabled'}.`);
-  }
-
-  async function setFrameAnimationsEnabled(enabled: boolean): Promise<void> {
-    frameAnimationsEnabled = enabled;
-    await context.globalState.update('frameAnimationsEnabled', enabled);
-    provider.setFrameAnimationsEnabled(enabled);
-    vscode.window.showInformationMessage(`Buddy animated sprites ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   async function setBuddySize(size: BuddySize): Promise<void> {
@@ -75,14 +67,13 @@ export function activate(context: vscode.ExtensionContext) {
     previewCommand,
     showSidebarCommand,
     toggleSoundsCommand,
-    toggleFrameAnimationsCommand,
     toggleSizeCommand,
+    spawnCookieCommand,
     ...stateCommands,
   );
 
   provider.setState(stateManager.state);
   provider.setSoundsEnabled(soundsEnabled);
-  provider.setFrameAnimationsEnabled(frameAnimationsEnabled);
   provider.setBuddySize(buddySize);
 }
 

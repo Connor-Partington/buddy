@@ -3,10 +3,12 @@ import * as vscode from 'vscode';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
 type SpriteKey = BuddyState | 'walk' | 'love';
+type ImageKey = 'cookie';
 export type BuddySize = 'default' | 'small';
 
 const baseSpriteCanvasWidth = 64;
 const baseSpriteDisplayWidth = 190;
+const baseCookieDisplayWidth = 28;
 const buddySizeScales: Record<BuddySize, number> = {
   default: 1,
   small: 0.72,
@@ -29,7 +31,6 @@ export class Provider implements vscode.WebviewViewProvider {
   private webviewView?: vscode.WebviewView;
   private state: BuddyState = 'idle';
   private soundsEnabled = false;
-  private frameAnimationsEnabled = false;
   private buddySize: BuddySize = 'default';
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
@@ -42,10 +43,10 @@ export class Provider implements vscode.WebviewViewProvider {
     };
 
     const spriteSources = getSpriteSources(this.extensionUri, webviewView.webview);
-    webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources);
+    const imageSources = getImageSources(this.extensionUri, webviewView.webview);
+    webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources, imageSources);
     this.postState();
     this.postSoundsEnabled();
-    this.postFrameAnimationsEnabled();
     this.postBuddySize();
   }
 
@@ -59,14 +60,15 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postSoundsEnabled();
   }
 
-  public setFrameAnimationsEnabled(enabled: boolean): void {
-    this.frameAnimationsEnabled = enabled;
-    this.postFrameAnimationsEnabled();
-  }
-
   public setBuddySize(size: BuddySize): void {
     this.buddySize = size;
     this.postBuddySize();
+  }
+
+  public spawnCookie(): void {
+    this.postMessage({
+      type: 'spawnCookie',
+    });
   }
 
   private postState(): void {
@@ -75,31 +77,32 @@ export class Provider implements vscode.WebviewViewProvider {
       state: this.state,
     };
 
-    void this.webviewView?.webview.postMessage(message);
+    this.postMessage(message);
   }
 
   private postSoundsEnabled(): void {
-    void this.webviewView?.webview.postMessage({
+    this.postMessage({
       type: 'setSoundsEnabled',
       enabled: this.soundsEnabled,
     });
   }
 
-  private postFrameAnimationsEnabled(): void {
-    void this.webviewView?.webview.postMessage({
-      type: 'setFrameAnimationsEnabled',
-      enabled: this.frameAnimationsEnabled,
-    });
-  }
-
   private postBuddySize(): void {
-    void this.webviewView?.webview.postMessage({
+    this.postMessage({
       type: 'setBuddySize',
       size: this.buddySize,
     });
   }
 
-  private getHtml(webview: vscode.Webview, spriteSources: Record<SpriteKey, string>): string {
+  private postMessage(message: unknown): void {
+    void this.webviewView?.webview.postMessage(message);
+  }
+
+  private getHtml(
+    webview: vscode.Webview,
+    spriteSources: Record<SpriteKey, string>,
+    imageSources: Record<ImageKey, string>,
+  ): string {
     const nonce = getNonce();
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
 
@@ -143,6 +146,7 @@ export class Provider implements vscode.WebviewViewProvider {
     .stage {
       display: grid;
       place-items: end center;
+      position: relative;
       height: 100vh;
       min-height: 0;
       padding: 8px 0;
@@ -183,6 +187,51 @@ export class Provider implements vscode.WebviewViewProvider {
       image-rendering: pixelated;
       transform: scaleX(var(--sprite-direction, 1));
       transform-origin: center bottom;
+    }
+
+    .cookie-treat {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      width: var(--cookie-size, ${baseCookieDisplayWidth}px);
+      height: auto;
+      image-rendering: pixelated;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(calc(var(--cookie-x, 0px) - 50%)) translateY(-56px) scale(1);
+      transform-origin: center bottom;
+      transition: none;
+      z-index: 1;
+    }
+
+    .cookie-treat[hidden],
+    .cookie-treat[data-state="ready"] {
+      display: block;
+    }
+
+    .cookie-treat[data-state="ready"] {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(calc(var(--cookie-x, 0px) - 50%)) translateY(-56px) scale(1);
+    }
+
+    .cookie-treat[data-state="dropping"],
+    .cookie-treat[data-state="landed"] {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(calc(var(--cookie-x, 0px) - 50%)) translateY(0) scale(1);
+    }
+
+    .cookie-treat[data-state="dropping"] {
+      transition: opacity 80ms ease, transform 560ms cubic-bezier(0.18, 0.82, 0.26, 1);
+    }
+
+    .cookie-treat[data-state="eaten"] {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(calc(var(--cookie-x, 0px) - 50%)) translateY(0) scale(0.72);
+      transition: opacity 80ms ease, transform 120ms ease;
     }
 
     .fox {
@@ -495,7 +544,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
   </style>
 </head>
-<body data-state="${this.state}" data-frame-animations="${this.frameAnimationsEnabled}">
+<body data-state="${this.state}">
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
@@ -514,6 +563,7 @@ export class Provider implements vscode.WebviewViewProvider {
       <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love" style="--sprite-display-width: ${spriteDisplaySizes[this.state].width}; --sprite-aspect-ratio: ${spriteDisplaySizes[this.state].aspectRatio};">
         <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
       </div>
+      <img class="cookie-treat" alt="" src="${imageSources.cookie}" hidden />
     </section>
   </main>
   <script nonce="${nonce}">
@@ -525,9 +575,9 @@ export class Provider implements vscode.WebviewViewProvider {
     const stage = document.querySelector('.stage');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
+    const cookieTreat = document.querySelector('.cookie-treat');
     let audioContext;
     let soundsEnabled = ${this.soundsEnabled};
-    let frameAnimationsEnabled = ${this.frameAnimationsEnabled};
     let buddySize = '${this.buddySize}';
     let lastState = '${this.state}';
     let currentState = '${this.state}';
@@ -535,11 +585,17 @@ export class Provider implements vscode.WebviewViewProvider {
     let walkTimer;
     let walkTransitionTimer;
     let clickReactionTimer;
+    let cookieDropTimer;
+    let cookieEatTimer;
     let walkX = 0;
     let walkDirection = 1;
+    let cookieX = 0;
+    let cookieActive = false;
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
     const loveGifDurationMs = 1300;
+    const cookieDropMs = 580;
+    const cookieCelebrationMs = 700;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -591,7 +647,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setSoundsEnabled(enabled, playFeedback = true) {
       soundsEnabled = enabled;
-      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled, frameAnimationsEnabled, buddySize });
+      vscode.setState({ state: document.body.dataset.state || 'idle', soundsEnabled, buddySize });
 
       if (enabled && playFeedback) {
         playTone(720, 0.06, 0, 'sine', 0.018);
@@ -608,6 +664,11 @@ export class Provider implements vscode.WebviewViewProvider {
       };
     }
 
+    function getCookieDisplaySize() {
+      const scale = buddySizeScales[buddySize] || buddySizeScales.default;
+      return Math.round(${baseCookieDisplayWidth} * scale) + 'px';
+    }
+
     function setSpriteForState(state) {
       if (!spriteImage || !spriteStage) {
         return;
@@ -620,6 +681,14 @@ export class Provider implements vscode.WebviewViewProvider {
       if (source && spriteImage.getAttribute('src') !== source) {
         spriteImage.setAttribute('src', source);
       }
+    }
+
+    function updateCookieSize() {
+      if (!cookieTreat) {
+        return;
+      }
+
+      cookieTreat.style.setProperty('--cookie-size', getCookieDisplaySize());
     }
 
     function getWalkLimit(useVisibleWalkWidth = false) {
@@ -640,6 +709,19 @@ export class Provider implements vscode.WebviewViewProvider {
       spriteStage.style.setProperty('--walk-duration', durationMs + 'ms');
       spriteStage.style.setProperty('--walk-x', walkX + 'px');
       spriteStage.style.setProperty('--sprite-direction', String(walkDirection));
+    }
+
+    function applyCookiePosition() {
+      cookieTreat?.style.setProperty('--cookie-x', cookieX + 'px');
+    }
+
+    function setCookieState(state) {
+      if (!cookieTreat) {
+        return;
+      }
+
+      cookieTreat.dataset.state = state;
+      cookieTreat.hidden = false;
     }
 
     function captureWalkPosition() {
@@ -713,6 +795,18 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
+    function clearCookieEatTimer() {
+      if (cookieDropTimer) {
+        clearTimeout(cookieDropTimer);
+        cookieDropTimer = undefined;
+      }
+
+      if (cookieEatTimer) {
+        clearTimeout(cookieEatTimer);
+        cookieEatTimer = undefined;
+      }
+    }
+
     function scheduleRandomWalk() {
       if (walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
@@ -766,17 +860,84 @@ export class Provider implements vscode.WebviewViewProvider {
       }, durationMs);
     }
 
-    function setFrameAnimationsEnabled(enabled) {
-      frameAnimationsEnabled = enabled;
-      document.body.dataset.frameAnimations = String(enabled);
-      vscode.setState({
-        state: document.body.dataset.state || 'idle',
-        soundsEnabled,
-        frameAnimationsEnabled,
-        buddySize,
+    function spawnCookie() {
+      if (!cookieTreat) {
+        return;
+      }
+
+      if (cookieActive || cookieEatTimer) {
+        return;
+      }
+
+      clearClickReaction();
+      clearCookieEatTimer();
+      clearRandomWalk();
+      const limit = getWalkLimit(true);
+      cookieX = walkX <= 0 ? Math.max(0, limit - 12) : -Math.max(0, limit - 12);
+      cookieActive = true;
+      applyCookiePosition();
+      setCookieState('ready');
+      void cookieTreat.offsetWidth;
+
+      requestAnimationFrame(() => {
+        setCookieState('dropping');
+        cookieDropTimer = setTimeout(() => {
+          cookieDropTimer = undefined;
+          setCookieState('landed');
+          startCookieWalk();
+        }, cookieDropMs);
+      });
+    }
+
+    function startCookieWalk() {
+      if (!spriteStage || !spriteImage || !cookieActive) {
+        return;
+      }
+
+      const distance = Math.abs(cookieX - walkX);
+      const durationMs = Math.max(450, Math.round((distance / walkSpeedPxPerSecond) * 1000));
+      stateBeforeWalk = currentState;
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      walkDirection = cookieX >= walkX ? 1 : -1;
+      preserveSpriteCenter(() => {
+        setSpriteForState('walk');
+      });
+      applyWalkPosition(0);
+      void spriteStage.offsetWidth;
+
+      requestAnimationFrame(() => {
+        walkX = cookieX;
+        applyWalkPosition(durationMs);
       });
 
-      setSpriteForState(document.body.dataset.state || 'idle');
+      walkTransitionTimer = setTimeout(() => {
+        walkTransitionTimer = undefined;
+        eatCookie();
+      }, durationMs + 16);
+    }
+
+    function eatCookie() {
+      if (!cookieTreat) {
+        return;
+      }
+
+      cookieActive = false;
+      setCookieState('eaten');
+      playTone(520, 0.05, 0, 'triangle', 0.018);
+      playTone(760, 0.07, 0.06, 'triangle', 0.018);
+      currentState = 'happy';
+      document.body.dataset.state = 'happy';
+      setSpriteForState('happy');
+      applyWalkPosition(0);
+
+      cookieEatTimer = setTimeout(() => {
+        cookieEatTimer = undefined;
+        currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
+        document.body.dataset.state = currentState;
+        setSpriteForState(currentState);
+        scheduleRandomWalk();
+      }, cookieCelebrationMs);
     }
 
     function setBuddySize(size) {
@@ -785,20 +946,27 @@ export class Provider implements vscode.WebviewViewProvider {
         vscode.setState({
           state: document.body.dataset.state || 'idle',
           soundsEnabled,
-          frameAnimationsEnabled,
           buddySize,
         });
         setSpriteForState(document.body.dataset.state || 'idle');
+        updateCookieSize();
       });
     }
 
     function setState(state) {
+      if (cookieActive || cookieEatTimer) {
+        stateBeforeWalk = state;
+        vscode.setState({ state, soundsEnabled, buddySize });
+        lastState = state;
+        return;
+      }
+
       playStateSound(state);
       clearClickReaction();
       clearRandomWalk();
       currentState = state;
       document.body.dataset.state = state;
-      vscode.setState({ state, soundsEnabled, frameAnimationsEnabled, buddySize });
+      vscode.setState({ state, soundsEnabled, buddySize });
       setSpriteForState(state);
       scheduleRandomWalk();
       lastState = state;
@@ -826,26 +994,32 @@ export class Provider implements vscode.WebviewViewProvider {
         triggerBuddyClick();
       }
     });
-
     window.addEventListener('message', (event) => {
       const message = event.data;
       if (message.type === 'setState') {
         setState(message.state);
       } else if (message.type === 'setSoundsEnabled') {
         setSoundsEnabled(message.enabled);
-      } else if (message.type === 'setFrameAnimationsEnabled') {
-        setFrameAnimationsEnabled(message.enabled);
       } else if (message.type === 'setBuddySize') {
         setBuddySize(message.size);
+      } else if (message.type === 'spawnCookie') {
+        spawnCookie();
       }
     });
 
     setState('${this.state}');
     setSoundsEnabled(soundsEnabled, false);
-    setFrameAnimationsEnabled(frameAnimationsEnabled);
     setBuddySize(buddySize);
+    updateCookieSize();
     clampWalkPosition();
-    window.addEventListener('resize', clampWalkPosition);
+    window.addEventListener('resize', () => {
+      clampWalkPosition();
+      if (cookieActive) {
+        const limit = getWalkLimit(true);
+        cookieX = Math.min(limit, Math.max(-limit, cookieX));
+        applyCookiePosition();
+      }
+    });
   </script>
 </body>
 </html>`;
@@ -874,6 +1048,22 @@ function getSpriteSources(
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
     ]),
   ) as Record<SpriteKey, string>;
+}
+
+function getImageSources(
+  extensionUri: vscode.Uri,
+  webview: vscode.Webview,
+): Record<ImageKey, string> {
+  const imageFiles: Record<ImageKey, string> = {
+    cookie: 'cookie-trim.gif',
+  };
+
+  return Object.fromEntries(
+    Object.entries(imageFiles).map(([key, file]) => [
+      key,
+      webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
+    ]),
+  ) as Record<ImageKey, string>;
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {

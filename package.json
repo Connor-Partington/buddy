@@ -26,6 +26,7 @@
     "fun"
   ],
   "activationEvents": [
+    "onCommand:buddy.spawnCookie",
     "onCommand:buddy.showSidebar",
     "onStartupFinished",
     "onView:buddy.companion"
@@ -96,14 +97,27 @@
         "title": "Buddy: Toggle Sounds"
       },
       {
-        "command": "buddy.toggleFrameAnimations",
-        "title": "Buddy: Toggle Animated Sprites"
-      },
-      {
         "command": "buddy.toggleSize",
         "title": "Buddy: Toggle Size"
+      },
+      {
+        "command": "buddy.spawnCookie",
+        "title": "Buddy: Spawn Cookie",
+        "icon": {
+          "light": "media/cookie-light.svg",
+          "dark": "media/cookie-dark.svg"
+        }
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "buddy.spawnCookie",
+          "when": "view == buddy.companion",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
