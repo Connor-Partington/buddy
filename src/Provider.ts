@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
+import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk' | 'love' | 'eat';
-type ImageKey = 'cookie';
+type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul';
+type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
 export type BuddySize = 'default' | 'small';
 
 const baseSpriteCanvasWidth = 64;
@@ -24,6 +25,8 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   walk: { width: 22, height: 18 },
   love: { width: 18, height: 28 },
   eat: { width: 18, height: 18 },
+  death: { width: 18, height: 16 },
+  soul: { width: 16, height: 16 },
 };
 
 export class Provider implements vscode.WebviewViewProvider {
@@ -32,6 +35,9 @@ export class Provider implements vscode.WebviewViewProvider {
   private webviewView?: vscode.WebviewView;
   private state: BuddyState = 'idle';
   private buddySize: BuddySize = 'default';
+  private health: BuddyHealth = { hearts: maxBuddyHearts, isDead: false };
+  private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<void>();
+  public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -41,12 +47,18 @@ export class Provider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [this.extensionUri],
     };
+    webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
+      if (message.type === 'cookieEaten') {
+        this.onDidFeedCookieEmitter.fire();
+      }
+    });
 
     const spriteSources = getSpriteSources(this.extensionUri, webviewView.webview);
     const imageSources = getImageSources(this.extensionUri, webviewView.webview);
     webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources, imageSources);
     this.postState();
     this.postBuddySize();
+    this.postHealth();
   }
 
   public setState(state: BuddyState): void {
@@ -59,9 +71,21 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postBuddySize();
   }
 
+  public setHealth(health: BuddyHealth): void {
+    this.health = health;
+    this.postHealth();
+  }
+
   public spawnCookie(): void {
     this.postMessage({
       type: 'spawnCookie',
+    });
+  }
+
+  public playHeartFill(heartIndex: number): void {
+    this.postMessage({
+      type: 'playHeartFill',
+      heartIndex,
     });
   }
 
@@ -81,6 +105,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postHealth(): void {
+    this.postMessage({
+      type: 'setHealth',
+      health: this.health,
+    });
+  }
+
   private postMessage(message: unknown): void {
     void this.webviewView?.webview.postMessage(message);
   }
@@ -92,6 +123,7 @@ export class Provider implements vscode.WebviewViewProvider {
   ): string {
     const nonce = getNonce();
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
+    const health = this.health;
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -139,6 +171,45 @@ export class Provider implements vscode.WebviewViewProvider {
       padding: 8px 0;
       background: transparent;
       overflow: hidden;
+    }
+
+    .health-meter {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .heart {
+      display: block;
+      width: 18px;
+      height: auto;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 1px 0 rgb(0 0 0 / 24%));
+    }
+
+    .heart.is-empty {
+      filter: none;
+    }
+
+    body[data-death-phase="soul"] .frame-stage {
+      animation: soul-wander 8s ease-in-out infinite;
+      filter: drop-shadow(0 0 10px rgb(144 213 255 / 34%));
+      margin-bottom: 24px;
+    }
+
+    body[data-death-phase="soul"] .sprite-image {
+      animation: soul-bob 2.2s ease-in-out infinite;
+    }
+
+    body[data-dead="true"] .cookie-treat {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     .fox {
@@ -529,11 +600,32 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
+    @keyframes soul-wander {
+      0%, 100% {
+        transform: translateX(-26px);
+      }
+      50% {
+        transform: translateX(26px);
+      }
+    }
+
+    @keyframes soul-bob {
+      0%, 100% {
+        translate: 0 -7px;
+      }
+      50% {
+        translate: 0 7px;
+      }
+    }
+
   </style>
 </head>
-<body data-state="${this.state}">
+<body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}">
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
+      <div class="health-meter" aria-label="Buddy health">
+        ${renderHearts(health.hearts, imageSources)}
+      </div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
@@ -556,10 +648,12 @@ export class Provider implements vscode.WebviewViewProvider {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
+    const imageSources = ${JSON.stringify(imageSources)};
     const baseSpriteDisplaySizes = ${JSON.stringify(getSpriteDisplaySizes())};
     const buddySizeScales = ${JSON.stringify(buddySizeScales)};
     const spriteDisplaySizes = ${JSON.stringify(spriteDisplaySizes)};
     const stage = document.querySelector('.stage');
+    const healthMeter = document.querySelector('.health-meter');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const cookieTreat = document.querySelector('.cookie-treat');
@@ -573,16 +667,21 @@ export class Provider implements vscode.WebviewViewProvider {
     let clickReactionTimer;
     let cookieDropTimer;
     let cookieEatTimer;
+    let deathTimer;
     let walkX = 0;
     let walkDirection = 1;
     let cookieX = 0;
     let cookieActive = false;
     let cookiePhase = 'idle';
+    let isDead = ${JSON.stringify(health.isDead)};
+    let deathPhase = isDead ? 'soul' : 'alive';
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
     const loveGifDurationMs = 1300;
     const cookieDropMs = 580;
     const eatGifDurationMs = 2000;
+    const deathGifDurationMs = 950;
+    const heartFillDurationMs = 1100;
 
     function getSpriteDisplaySize(state) {
       const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
@@ -652,6 +751,101 @@ export class Provider implements vscode.WebviewViewProvider {
 
       cookieTreat.dataset.state = state;
       cookieTreat.hidden = false;
+    }
+
+    function renderHearts(hearts) {
+      if (!healthMeter) {
+        return;
+      }
+
+      healthMeter.replaceChildren();
+      for (let index = 0; index < ${maxBuddyHearts}; index += 1) {
+        const heart = document.createElement('img');
+        const isEmpty = index >= hearts;
+        heart.className = 'heart' + (isEmpty ? ' is-empty' : '');
+        heart.setAttribute('src', isEmpty ? imageSources.heartEmpty : imageSources.heart);
+        heart.setAttribute('alt', '');
+        heart.setAttribute('aria-hidden', 'true');
+        healthMeter.appendChild(heart);
+      }
+    }
+
+    function setHealth(health) {
+      const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
+      const wasDead = isDead;
+      isDead = Boolean(health?.isDead || hearts <= 0);
+      document.body.dataset.dead = String(isDead);
+      healthMeter?.setAttribute('aria-label', isDead ? 'Buddy has no hearts left' : 'Buddy has ' + hearts + ' hearts');
+      renderHearts(hearts);
+
+      if (isDead) {
+        clearClickReaction();
+        clearCookieEatTimer();
+        clearRandomWalk();
+        cookieActive = false;
+        cookiePhase = 'idle';
+        playDeathSequence(!wasDead);
+      } else {
+        clearDeathTimer();
+        setDeathPhase('alive');
+        if (isCookieInteractionActive()) {
+          return;
+        }
+
+        setSpriteForState(currentState);
+        scheduleRandomWalk();
+      }
+    }
+
+    function setDeathPhase(phase) {
+      deathPhase = phase;
+      document.body.dataset.deathPhase = phase;
+    }
+
+    function clearDeathTimer() {
+      if (deathTimer) {
+        clearTimeout(deathTimer);
+        deathTimer = undefined;
+      }
+    }
+
+    function playDeathSequence(shouldPlayDeathAnimation) {
+      clearDeathTimer();
+
+      if (!shouldPlayDeathAnimation) {
+        setDeathPhase('soul');
+        setSpriteForState('soul');
+        return;
+      }
+
+      setDeathPhase('dying');
+      setSpriteForState('death');
+      deathTimer = setTimeout(() => {
+        deathTimer = undefined;
+        if (!isDead) {
+          return;
+        }
+
+        setDeathPhase('soul');
+        setSpriteForState('soul');
+      }, deathGifDurationMs);
+    }
+
+    function playHeartFill(heartIndex) {
+      if (!healthMeter) {
+        return;
+      }
+
+      const heart = healthMeter.querySelectorAll('.heart')[heartIndex];
+      if (!(heart instanceof HTMLImageElement)) {
+        return;
+      }
+
+      heart.classList.remove('is-empty');
+      heart.setAttribute('src', imageSources.heartFill);
+      setTimeout(() => {
+        heart.setAttribute('src', imageSources.heart);
+      }, heartFillDurationMs);
     }
 
     function captureWalkPosition() {
@@ -757,7 +951,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function scheduleRandomWalk() {
-      if (walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
 
@@ -771,7 +965,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function startRandomWalk() {
-      if (!spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
         scheduleRandomWalk();
         return;
       }
@@ -814,7 +1008,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      if (isCookieInteractionActive()) {
+      if (isDead || isCookieInteractionActive()) {
         return;
       }
 
@@ -909,6 +1103,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
       cookieEatTimer = setTimeout(() => {
         cookiePhase = 'loving';
+        vscode.postMessage({ type: 'cookieEaten' });
         setSpriteForState('love');
 
         cookieEatTimer = setTimeout(() => {
@@ -935,6 +1130,11 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setState(state) {
+      if (isDead) {
+        lastState = state;
+        return;
+      }
+
       if (isCookieInteractionActive()) {
         stateBeforeWalk = state;
         vscode.setState({ state, buddySize });
@@ -953,7 +1153,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function triggerBuddyClick() {
-      if (isCookieInteractionActive()) {
+      if (isDead || isCookieInteractionActive()) {
         return;
       }
 
@@ -984,6 +1184,10 @@ export class Provider implements vscode.WebviewViewProvider {
         setState(message.state);
       } else if (message.type === 'setBuddySize') {
         setBuddySize(message.size);
+      } else if (message.type === 'setHealth') {
+        setHealth(message.health);
+      } else if (message.type === 'playHeartFill') {
+        playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
         spawnCookie();
       }
@@ -991,6 +1195,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
     setState('${this.state}');
     setBuddySize(buddySize);
+    setHealth(${JSON.stringify(health)});
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
@@ -1026,6 +1231,8 @@ function getSpriteSources(
     walk: 'walk-trim.gif',
     love: 'love-trim.gif',
     eat: 'eat-trim.gif',
+    death: 'death-trim.gif',
+    soul: 'soul-trim.gif',
   };
 
   return Object.fromEntries(
@@ -1042,6 +1249,9 @@ function getImageSources(
 ): Record<ImageKey, string> {
   const imageFiles: Record<ImageKey, string> = {
     cookie: 'cookie-trim.gif',
+    heart: 'heart-trim.gif',
+    heartEmpty: 'heart-empty-trim.gif',
+    heartFill: 'heart-fill-trim.gif',
   };
 
   return Object.fromEntries(
@@ -1050,6 +1260,15 @@ function getImageSources(
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'assets', 'images', file)).toString(),
     ]),
   ) as Record<ImageKey, string>;
+}
+
+function renderHearts(hearts: number, imageSources: Record<ImageKey, string>): string {
+  return Array.from({ length: maxBuddyHearts }, (_, index) => {
+    const isEmpty = index >= hearts;
+    const className = isEmpty ? 'heart is-empty' : 'heart';
+    const source = isEmpty ? imageSources.heartEmpty : imageSources.heart;
+    return `<img class="${className}" src="${source}" alt="" aria-hidden="true" />`;
+  }).join('');
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {

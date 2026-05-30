@@ -1,0 +1,121 @@
+import * as vscode from 'vscode';
+
+export const maxBuddyHearts = 3;
+export const buddyHeartLossIntervalMs = 3 * 60 * 60 * 1000;
+
+export type BuddyHealth = {
+  hearts: number;
+  isDead: boolean;
+};
+
+const heartsKey = 'buddyHealth.hearts';
+
+export class BuddyHealthManager implements vscode.Disposable {
+  private hearts: number;
+  private heartLossTimer?: ReturnType<typeof setTimeout>;
+  private remainingHeartLossMs = buddyHeartLossIntervalMs;
+  private heartLossTimerStartedAt?: number;
+  private readonly listeners = new Set<(health: BuddyHealth) => void>();
+
+  public constructor(private readonly globalState: vscode.Memento) {
+    this.hearts = normalizeHearts(globalState.get<number>(heartsKey, maxBuddyHearts));
+  }
+
+  public get health(): BuddyHealth {
+    return {
+      hearts: this.hearts,
+      isDead: this.hearts <= 0,
+    };
+  }
+
+  public startActiveHeartLoss(): void {
+    if (this.heartLossTimer || this.health.isDead) {
+      return;
+    }
+
+    this.heartLossTimerStartedAt = Date.now();
+    this.heartLossTimer = setTimeout(() => {
+      void this.loseHeart();
+    }, this.remainingHeartLossMs);
+  }
+
+  public pauseActiveHeartLoss(): void {
+    if (!this.heartLossTimer || this.heartLossTimerStartedAt === undefined) {
+      return;
+    }
+
+    clearTimeout(this.heartLossTimer);
+    this.heartLossTimer = undefined;
+    this.remainingHeartLossMs = Math.max(1000, this.remainingHeartLossMs - (Date.now() - this.heartLossTimerStartedAt));
+    this.heartLossTimerStartedAt = undefined;
+  }
+
+  public async loseHeart(): Promise<void> {
+    this.clearHeartLossTimer();
+    await this.setHearts(this.hearts - 1);
+    this.remainingHeartLossMs = buddyHeartLossIntervalMs;
+
+    if (!this.health.isDead && vscode.window.state.focused) {
+      this.startActiveHeartLoss();
+    }
+  }
+
+  public async feedCookie(): Promise<number | undefined> {
+    const restoredHeartIndex = this.hearts < maxBuddyHearts ? this.hearts : undefined;
+    await this.setHearts(this.hearts + 1);
+
+    return restoredHeartIndex;
+  }
+
+  public async revive(): Promise<void> {
+    await this.setHearts(maxBuddyHearts);
+    this.remainingHeartLossMs = buddyHeartLossIntervalMs;
+
+    if (vscode.window.state.focused) {
+      this.startActiveHeartLoss();
+    }
+  }
+
+  public onDidChangeHealth(listener: (health: BuddyHealth) => void): vscode.Disposable {
+    this.listeners.add(listener);
+
+    return {
+      dispose: () => {
+        this.listeners.delete(listener);
+      },
+    };
+  }
+
+  public dispose(): void {
+    this.clearHeartLossTimer();
+    this.listeners.clear();
+  }
+
+  private async setHearts(hearts: number): Promise<void> {
+    const nextHearts = normalizeHearts(hearts);
+    if (nextHearts === this.hearts) {
+      return;
+    }
+
+    this.hearts = nextHearts;
+    await this.globalState.update(heartsKey, this.hearts);
+    this.listeners.forEach((listener) => listener(this.health));
+  }
+
+  private clearHeartLossTimer(): void {
+    if (this.heartLossTimer) {
+      clearTimeout(this.heartLossTimer);
+      this.heartLossTimer = undefined;
+    }
+
+    this.heartLossTimerStartedAt = undefined;
+  }
+}
+
+function normalizeHearts(hearts: number | undefined): number {
+  if (typeof hearts !== 'number' || !Number.isFinite(hearts)) {
+    return maxBuddyHearts;
+  }
+
+  return Math.min(maxBuddyHearts, Math.max(0, Math.round(hearts)));
+}

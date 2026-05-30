@@ -2,17 +2,39 @@ import * as vscode from 'vscode';
 
 import { BuddyActivityController } from './activityController';
 import { BuddyDemoController } from './demoController';
+import { BuddyHealthManager } from './healthManager';
 import { Provider, type BuddySize } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
   const provider = new Provider(context.extensionUri);
   const stateManager = new BuddyStateManager();
+  const healthManager = new BuddyHealthManager(context.globalState);
   const activityController = new BuddyActivityController(stateManager);
   const demoController = new BuddyDemoController(stateManager);
   const stateSubscription = stateManager.onDidChangeState((state) => {
     provider.setState(state);
+  });
+  const feedCookieSubscription = provider.onDidFeedCookie(() => {
+    void healthManager.feedCookie().then((restoredHeartIndex) => {
+      if (restoredHeartIndex !== undefined) {
+        provider.playHeartFill(restoredHeartIndex);
+      }
+    });
+  });
+  const healthSubscription = healthManager.onDidChangeHealth((health) => {
+    provider.setHealth(health);
+    if (health.isDead) {
+      vscode.window.showWarningMessage('Buddy has no hearts left.');
+    }
+  });
+  const windowStateSubscription = vscode.window.onDidChangeWindowState((windowState) => {
+    if (windowState.focused) {
+      healthManager.startActiveHeartLoss();
+    } else {
+      healthManager.pauseActiveHeartLoss();
+    }
   });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
@@ -39,6 +61,14 @@ export function activate(context: vscode.ExtensionContext) {
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     provider.spawnCookie();
   });
+  const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
+    await healthManager.loseHeart();
+  });
+  const reviveCommand = vscode.commands.registerCommand('buddy.revive', async () => {
+    await healthManager.revive();
+    stateManager.setState('idle');
+    vscode.window.showInformationMessage('Buddy has been revived.');
+  });
 
   async function setBuddySize(size: BuddySize): Promise<void> {
     buddySize = size;
@@ -51,17 +81,27 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(Provider.viewType, provider),
     activityController,
     demoController,
+    healthManager,
     stateSubscription,
+    feedCookieSubscription,
+    healthSubscription,
+    windowStateSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
     toggleSizeCommand,
     spawnCookieCommand,
+    removeHeartCommand,
+    reviveCommand,
     ...stateCommands,
   );
 
+  if (vscode.window.state.focused) {
+    healthManager.startActiveHeartLoss();
+  }
   provider.setState(stateManager.state);
   provider.setBuddySize(buddySize);
+  provider.setHealth(healthManager.health);
 }
 
 export function deactivate() {}

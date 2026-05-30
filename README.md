@@ -31,6 +31,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 ## Features
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
+- Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy runs out of hearts.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
 - Feed Buddy a cookie from the panel title bar.
 - Command Palette controls for showing Buddy, previewing animations, and testing states.
@@ -67,6 +68,8 @@ Try these first:
 - `Buddy: Preview Animations` to cycle through the available animation states.
 - Use the cookie icon in the Buddy panel title bar to feed Buddy.
 - `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
+- `Buddy: Remove Heart` to simulate health loss and death during development.
+- `Buddy: Revive` to restore Buddy after all three hearts are gone.
 
 ## Commands
 
@@ -75,7 +78,9 @@ Try these first:
 | `Buddy: Show Sidebar` | Opens the Buddy Activity Bar view. |
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
 | `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
-| `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over and eat. |
+| `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
+| `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
+| `Buddy: Revive` | Restores Buddy to three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
 | `Buddy: Set State Idle` | Shows the idle state. |
 | `Buddy: Set State Typing` | Shows the typing state. |

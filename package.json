@@ -27,6 +27,8 @@
   ],
   "activationEvents": [
     "onCommand:buddy.spawnCookie",
+    "onCommand:buddy.removeHeart",
+    "onCommand:buddy.revive",
     "onCommand:buddy.showSidebar",
     "onStartupFinished",
     "onView:buddy.companion"
@@ -103,6 +105,14 @@
           "light": "media/cookie-light.svg",
           "dark": "media/cookie-dark.svg"
         }
+      },
+      {
+        "command": "buddy.revive",
+        "title": "Buddy: Revive"
+      },
+      {
+        "command": "buddy.removeHeart",
+        "title": "Buddy: Remove Heart"
       }
     ],
     "menus": {
