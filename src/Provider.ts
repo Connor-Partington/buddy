@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk' | 'love';
+type SpriteKey = BuddyState | 'walk' | 'love' | 'eat';
 type ImageKey = 'cookie';
 export type BuddySize = 'default' | 'small';
 
@@ -23,6 +23,7 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   jump: { width: 26, height: 46 },
   walk: { width: 22, height: 18 },
   love: { width: 18, height: 28 },
+  eat: { width: 18, height: 18 },
 };
 
 export class Provider implements vscode.WebviewViewProvider {
@@ -592,11 +593,12 @@ export class Provider implements vscode.WebviewViewProvider {
     let walkDirection = 1;
     let cookieX = 0;
     let cookieActive = false;
+    let cookiePhase = 'idle';
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
     const loveGifDurationMs = 1300;
     const cookieDropMs = 580;
-    const cookieCelebrationMs = 700;
+    const eatGifDurationMs = 2000;
 
     function getAudioContext() {
       if (!audioContext) {
@@ -781,12 +783,7 @@ export class Provider implements vscode.WebviewViewProvider {
       applyWalkPosition(0);
     }
 
-    function clearRandomWalk() {
-      if (walkTimer) {
-        clearTimeout(walkTimer);
-        walkTimer = undefined;
-      }
-
+    function clearWalkTransition() {
       if (walkTransitionTimer) {
         clearTimeout(walkTransitionTimer);
         walkTransitionTimer = undefined;
@@ -796,6 +793,15 @@ export class Provider implements vscode.WebviewViewProvider {
         walkTransitionCleanup();
         walkTransitionCleanup = undefined;
       }
+    }
+
+    function clearRandomWalk() {
+      if (walkTimer) {
+        clearTimeout(walkTimer);
+        walkTimer = undefined;
+      }
+
+      clearWalkTransition();
 
       captureWalkPosition();
     }
@@ -820,7 +826,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function isCookieInteractionActive() {
-      return cookieActive || Boolean(cookieDropTimer) || Boolean(cookieEatTimer);
+      return cookiePhase !== 'idle';
     }
 
     function scheduleRandomWalk() {
@@ -891,6 +897,7 @@ export class Provider implements vscode.WebviewViewProvider {
       const limit = getWalkLimit(true);
       cookieX = walkX <= 0 ? Math.max(0, limit - 12) : -Math.max(0, limit - 12);
       cookieActive = true;
+      cookiePhase = 'dropping';
       applyCookiePosition();
       setCookieState('ready');
       void cookieTreat.offsetWidth;
@@ -905,12 +912,16 @@ export class Provider implements vscode.WebviewViewProvider {
       });
     }
 
-    function startCookieWalk() {
+    function startCookieWalk(preserveReturnState = false) {
       if (!spriteStage || !spriteImage || !cookieActive) {
         return;
       }
 
-      stateBeforeWalk = currentState;
+      clearWalkTransition();
+      if (!preserveReturnState) {
+        stateBeforeWalk = currentState;
+      }
+      cookiePhase = 'walking';
       currentState = 'idle';
       document.body.dataset.state = 'idle';
       walkDirection = cookieX >= walkX ? 1 : -1;
@@ -924,7 +935,7 @@ export class Provider implements vscode.WebviewViewProvider {
         const distance = Math.abs(cookieX - walkX);
         const durationMs = Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000));
         const completeCookieWalk = () => {
-          if (!cookieActive) {
+          if (!cookieActive || cookiePhase !== 'walking') {
             return;
           }
 
@@ -962,21 +973,28 @@ export class Provider implements vscode.WebviewViewProvider {
       }
 
       cookieActive = false;
+      cookiePhase = 'eating';
       setCookieState('eaten');
       playTone(520, 0.05, 0, 'triangle', 0.018);
       playTone(760, 0.07, 0.06, 'triangle', 0.018);
-      currentState = 'happy';
-      document.body.dataset.state = 'happy';
-      setSpriteForState('happy');
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      setSpriteForState('eat');
       applyWalkPosition(0);
 
       cookieEatTimer = setTimeout(() => {
-        cookieEatTimer = undefined;
-        currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
-        document.body.dataset.state = currentState;
-        setSpriteForState(currentState);
-        scheduleRandomWalk();
-      }, cookieCelebrationMs);
+        cookiePhase = 'loving';
+        setSpriteForState('love');
+
+        cookieEatTimer = setTimeout(() => {
+          cookieEatTimer = undefined;
+          cookiePhase = 'idle';
+          currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
+          document.body.dataset.state = currentState;
+          setSpriteForState(currentState);
+          scheduleRandomWalk();
+        }, loveGifDurationMs);
+      }, eatGifDurationMs);
     }
 
     function setBuddySize(size) {
@@ -1056,11 +1074,15 @@ export class Provider implements vscode.WebviewViewProvider {
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
+      const shouldResumeCookieWalk = cookiePhase === 'walking';
       clampWalkPosition(true);
       if (cookieActive) {
         const limit = getWalkLimit(true);
         cookieX = Math.min(limit, Math.max(-limit, cookieX));
         applyCookiePosition();
+      }
+      if (shouldResumeCookieWalk) {
+        startCookieWalk(true);
       }
     });
   </script>
@@ -1083,6 +1105,7 @@ function getSpriteSources(
     jump: 'jump-trim.gif',
     walk: 'walk-trim.gif',
     love: 'love-trim.gif',
+    eat: 'eat-trim.gif',
   };
 
   return Object.fromEntries(
