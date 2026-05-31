@@ -2,6 +2,10 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.4.0
+
+- Added locally saved level-up card PNGs when Buddy gains a level while the panel is open.
+
 ## 0.3.0
 
 - Added a persistent XP counter with levels up to 100.

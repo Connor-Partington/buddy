@@ -4,7 +4,7 @@ import { BuddyActivityController } from './activityController';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager } from './healthManager';
-import { Provider, type BuddySize } from './Provider';
+import { Provider, type BuddySize, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 
@@ -44,6 +44,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const introSubscription = provider.onDidPlayIntro(() => {
     void context.globalState.update('buddyIntro.hasPlayed', true);
   });
+  const levelUpCardSubscription = provider.onDidCaptureLevelUpCard((capture) => {
+    void saveLevelUpCard(context, capture).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      vscode.window.showWarningMessage(`Buddy could not save the level-up card: ${message}`);
+    });
+  });
+  const levelUpCardFailureSubscription = provider.onDidFailLevelUpCardCapture((failure) => {
+    console.warn(`Buddy failed to capture level ${failure.level} card: ${failure.error}`);
+  });
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
     provider.setHealth(health);
     if (health.isDead) {
@@ -54,6 +63,11 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setXp(change.xp);
     if (change.leveledUp) {
       vscode.window.showInformationMessage(`Buddy reached level ${change.xp.level}.`);
+      void provider.captureLevelUpCard(change.xp.level).then((didPost) => {
+        if (!didPost) {
+          vscode.window.showInformationMessage('Open the Buddy sidebar to save level-up cards.');
+        }
+      });
     }
   });
   const windowStateSubscription = vscode.window.onDidChangeWindowState((windowState) => {
@@ -165,6 +179,8 @@ export async function activate(context: vscode.ExtensionContext) {
     stateSubscription,
     feedCookieSubscription,
     introSubscription,
+    levelUpCardSubscription,
+    levelUpCardFailureSubscription,
     healthSubscription,
     xpSubscription,
     windowStateSubscription,
@@ -193,6 +209,26 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelUpCardCapture): Promise<void> {
+  const base64 = capture.dataUri.replace(/^data:image\/png;base64,/, '');
+  if (!base64 || base64 === capture.dataUri) {
+    throw new Error('Buddy level-up card capture did not contain PNG data.');
+  }
+
+  const cardsDirectory = vscode.Uri.joinPath(context.globalStorageUri, 'level-up-cards');
+  await vscode.workspace.fs.createDirectory(cardsDirectory);
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const fileUri = vscode.Uri.joinPath(cardsDirectory, `buddy-level-${capture.level}-${timestamp}.png`);
+  await vscode.workspace.fs.writeFile(fileUri, Buffer.from(base64, 'base64'));
+
+  const openAction = 'Open Image';
+  const selected = await vscode.window.showInformationMessage(`Buddy level ${capture.level} card saved.`, openAction);
+  if (selected === openAction) {
+    await vscode.commands.executeCommand('vscode.open', fileUri);
+  }
+}
 
 function normalizeBuddySize(size: string | undefined): BuddySize {
   return size === 'small' ? 'small' : 'default';

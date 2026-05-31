@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
@@ -71,6 +71,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, and successful terminal `git push` work.
+- Locally saved level-up card PNGs when Buddy levels up while the panel is open.
 - Dash behavior when Buddy goes after cookies.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
@@ -105,7 +106,7 @@ Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy wi
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
 
-Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful `git push` from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP.
+Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful `git push` from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
 
 ## Actions
 
@@ -168,7 +169,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.2.0.vsix --force
+code --install-extension buddy-ide-companion-0.4.0.vsix --force
 ```
 
 ## License

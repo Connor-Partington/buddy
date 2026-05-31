@@ -7,6 +7,20 @@ import { BuddyXp, maxBuddyLevel } from './xpManager';
 type SpriteKey = BuddyState | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
+export type LevelUpCardCapture = {
+  dataUri: string;
+  level: number;
+};
+export type LevelUpCardCaptureFailure = {
+  error: string;
+  level: number;
+};
+
+type WebviewMessage =
+  | { type?: 'cookieEaten' }
+  | { type?: 'introPlayed' }
+  | { type?: 'levelUpCardCaptured'; dataUri?: string; level?: number }
+  | { type?: 'levelUpCardFailed'; error?: string; level?: number };
 
 const baseSpriteCanvasWidth = 64;
 const baseSpriteDisplayWidth = 190;
@@ -47,6 +61,10 @@ export class Provider implements vscode.WebviewViewProvider {
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
   private readonly onDidPlayIntroEmitter = new vscode.EventEmitter<void>();
   public readonly onDidPlayIntro = this.onDidPlayIntroEmitter.event;
+  private readonly onDidCaptureLevelUpCardEmitter = new vscode.EventEmitter<LevelUpCardCapture>();
+  public readonly onDidCaptureLevelUpCard = this.onDidCaptureLevelUpCardEmitter.event;
+  private readonly onDidFailLevelUpCardCaptureEmitter = new vscode.EventEmitter<LevelUpCardCaptureFailure>();
+  public readonly onDidFailLevelUpCardCapture = this.onDidFailLevelUpCardCaptureEmitter.event;
 
   public constructor(
     private readonly extensionUri: vscode.Uri,
@@ -61,12 +79,22 @@ export class Provider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [this.extensionUri],
     };
-    webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
+    webviewView.webview.onDidReceiveMessage((message: WebviewMessage) => {
       if (message.type === 'cookieEaten') {
         this.onDidFeedCookieEmitter.fire();
       } else if (message.type === 'introPlayed') {
         this.shouldPlayIntro = false;
         this.onDidPlayIntroEmitter.fire();
+      } else if (message.type === 'levelUpCardCaptured' && typeof message.dataUri === 'string') {
+        this.onDidCaptureLevelUpCardEmitter.fire({
+          dataUri: message.dataUri,
+          level: normalizeLevel(message.level),
+        });
+      } else if (message.type === 'levelUpCardFailed') {
+        this.onDidFailLevelUpCardCaptureEmitter.fire({
+          error: typeof message.error === 'string' ? message.error : 'Unknown capture error',
+          level: normalizeLevel(message.level),
+        });
       }
     });
     webviewView.onDidChangeVisibility(() => {
@@ -119,6 +147,14 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  public captureLevelUpCard(level: number): Thenable<boolean> {
+    return this.postMessage({
+      type: 'captureLevelUpCard',
+      level,
+      xp: this.xp,
+    });
+  }
+
   private postState(): void {
     const message: BuddyStateMessage = {
       type: 'setState',
@@ -159,8 +195,8 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
-  private postMessage(message: unknown): void {
-    void this.webviewView?.webview.postMessage(message);
+  private postMessage(message: unknown): Thenable<boolean> {
+    return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
 
   private syncWebviewState(): void {
@@ -996,6 +1032,8 @@ export class Provider implements vscode.WebviewViewProvider {
       'NOM NOM NOM',
     ];
     const introMessage = "HEY, I'M BUDDY";
+    const levelUpCardWidth = 960;
+    const levelUpCardHeight = 540;
 
     function getSpriteDisplaySize(state) {
       const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
@@ -1598,6 +1636,215 @@ export class Provider implements vscode.WebviewViewProvider {
         }, { once: true });
         spriteStage.appendChild(xpBurst);
       }
+    }
+
+    function captureLevelUpCard(level, xp = currentXp) {
+      const capturedLevel = Math.max(1, Number(level) || Number(xp?.level) || 1);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = levelUpCardWidth;
+        canvas.height = levelUpCardHeight;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          throw new Error('Canvas is not available');
+        }
+
+        loadLevelUpBuddyImage()
+          .then((buddyImage) => {
+            drawLevelUpCard(context, capturedLevel, xp || currentXp, buddyImage);
+            vscode.postMessage({
+              type: 'levelUpCardCaptured',
+              level: capturedLevel,
+              dataUri: canvas.toDataURL('image/png'),
+            });
+          })
+          .catch((error) => {
+            vscode.postMessage({
+              type: 'levelUpCardFailed',
+              level: capturedLevel,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+      } catch (error) {
+        vscode.postMessage({
+          type: 'levelUpCardFailed',
+          level: capturedLevel,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    function loadLevelUpBuddyImage() {
+      return new Promise((resolve) => {
+        const source = spriteSources.happy || spriteSources.idle;
+        if (!source) {
+          resolve(undefined);
+          return;
+        }
+
+        const image = new Image();
+        image.addEventListener('load', () => resolve(image), { once: true });
+        image.addEventListener('error', () => resolve(undefined), { once: true });
+        image.src = source;
+      });
+    }
+
+    function drawLevelUpCard(context, level, xp, buddyImage) {
+      const styles = getComputedStyle(document.documentElement);
+      const foreground = getCanvasColor(styles, '--vscode-sideBar-foreground', '#23262d');
+      const muted = getCanvasColor(styles, '--vscode-descriptionForeground', '#5f6470');
+      const panel = getCanvasColor(styles, '--vscode-sideBar-background', '#f6f8fb');
+      const border = getCanvasColor(styles, '--vscode-editorWidget-border', '#9aa4b2');
+      const accent = getCanvasColor(styles, '--vscode-button-background', '#2f7dff');
+      const progress = xp?.isMaxLevel ? 1 : Math.max(0, Math.min(1, Number(xp?.progress) || 0));
+
+      context.clearRect(0, 0, levelUpCardWidth, levelUpCardHeight);
+      context.fillStyle = panel;
+      context.fillRect(0, 0, levelUpCardWidth, levelUpCardHeight);
+
+      drawCardPattern(context, accent, border);
+      drawRoundedRect(context, 54, 54, levelUpCardWidth - 108, levelUpCardHeight - 108, 28, 'rgba(255, 255, 255, 0.72)', border);
+      drawRoundedRect(context, 80, 80, levelUpCardWidth - 160, levelUpCardHeight - 160, 22, panel, 'rgba(0, 0, 0, 0.16)');
+
+      context.fillStyle = accent;
+      context.font = '700 34px "Courier New", monospace';
+      context.fillText('BUDDY LEVEL UP', 130, 154);
+
+      context.fillStyle = foreground;
+      context.font = '900 92px "Courier New", monospace';
+      context.fillText('LEVEL ' + level, 128, 254);
+
+      context.fillStyle = muted;
+      context.font = '700 28px "Courier New", monospace';
+      const progressText = xp?.isMaxLevel ? 'Max level reached' : (Number(xp?.currentLevelXp) || 0) + '/' + (Number(xp?.nextLevelXp) || 0) + ' XP to next level';
+      context.fillText(progressText, 132, 312);
+
+      drawRoundedRect(context, 132, 342, 430, 30, 15, 'rgba(0, 0, 0, 0.14)');
+      drawRoundedRect(context, 138, 348, Math.max(18, 418 * progress), 18, 9, accent);
+
+      context.fillStyle = accent;
+      context.font = '700 20px "Courier New", monospace';
+      context.fillText(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(), 132, 422);
+
+      drawBuddyCardSprite(context, buddyImage, accent);
+      drawSparkles(context, accent, foreground);
+    }
+
+    function getCanvasColor(styles, property, fallback) {
+      const value = styles.getPropertyValue(property).trim();
+      return value || fallback;
+    }
+
+    function drawCardPattern(context, accent, border) {
+      context.save();
+      context.globalAlpha = 0.14;
+      context.fillStyle = accent;
+      for (let y = -40; y < levelUpCardHeight; y += 56) {
+        for (let x = -40; x < levelUpCardWidth; x += 56) {
+          context.fillRect(x + ((y / 56) % 2) * 28, y, 18, 18);
+        }
+      }
+      context.globalAlpha = 0.16;
+      context.strokeStyle = border;
+      context.lineWidth = 2;
+      for (let x = -levelUpCardHeight; x < levelUpCardWidth; x += 72) {
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x + levelUpCardHeight, levelUpCardHeight);
+        context.stroke();
+      }
+      context.restore();
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius, fill, stroke) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+      if (fill) {
+        context.fillStyle = fill;
+        context.fill();
+      }
+      if (stroke) {
+        context.strokeStyle = stroke;
+        context.lineWidth = 3;
+        context.stroke();
+      }
+    }
+
+    function drawBuddyCardSprite(context, buddyImage, accent) {
+      drawRoundedRect(context, 654, 388, 190, 24, 12, 'rgba(0, 0, 0, 0.16)');
+
+      if (!buddyImage?.naturalWidth || !buddyImage?.naturalHeight) {
+        drawPixelBuddyFallback(context, 656, 156, 8, accent);
+        return;
+      }
+
+      const maxWidth = 230;
+      const maxHeight = 290;
+      const scale = Math.min(maxWidth / buddyImage.naturalWidth, maxHeight / buddyImage.naturalHeight);
+      const width = Math.round(buddyImage.naturalWidth * scale);
+      const height = Math.round(buddyImage.naturalHeight * scale);
+      const x = Math.round(748 - width / 2);
+      const y = Math.round(386 - height);
+      context.save();
+      context.imageSmoothingEnabled = false;
+      context.drawImage(buddyImage, x, y, width, height);
+      context.restore();
+    }
+
+    function drawPixelBuddyFallback(context, x, y, scale, accent) {
+      const px = (column, row, width, height, color) => {
+        context.fillStyle = color;
+        context.fillRect(x + column * scale, y + row * scale, width * scale, height * scale);
+      };
+      const pink = '#ff5f8a';
+      const pinkDark = '#cf3f6a';
+      const cream = '#ffcfdd';
+      const ink = '#23262d';
+      const white = '#ffffff';
+
+      px(3, 0, 3, 2, pinkDark);
+      px(12, 0, 3, 2, pinkDark);
+      px(2, 2, 5, 3, pink);
+      px(11, 2, 5, 3, pink);
+      px(4, 4, 10, 3, pink);
+      px(2, 7, 14, 8, pink);
+      px(4, 10, 10, 5, cream);
+      px(5, 9, 2, 2, ink);
+      px(11, 9, 2, 2, ink);
+      px(8, 12, 2, 1, ink);
+      px(6, 15, 6, 2, pinkDark);
+      px(3, 17, 12, 4, pink);
+      px(1, 19, 4, 2, pinkDark);
+      px(13, 19, 4, 2, pinkDark);
+      px(5, 21, 3, 2, ink);
+      px(10, 21, 3, 2, ink);
+      px(13, 2, 1, 1, white);
+      px(3, 26, 12, 2, accent);
+    }
+
+    function drawSparkles(context, accent, foreground) {
+      const sparkle = (x, y, size, color) => {
+        context.fillStyle = color;
+        context.fillRect(x, y + size, size, size);
+        context.fillRect(x + size, y, size, size);
+        context.fillRect(x + size, y + size, size, size);
+        context.fillRect(x + size, y + size * 2, size, size);
+        context.fillRect(x + size * 2, y + size, size, size);
+      };
+
+      sparkle(622, 114, 10, accent);
+      sparkle(846, 158, 8, foreground);
+      sparkle(610, 356, 7, foreground);
+      sparkle(812, 392, 11, accent);
     }
 
     function setHealth(health, options = {}) {
@@ -2314,6 +2561,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setHealth(message.health, message.options);
       } else if (message.type === 'setXp') {
         setXp(message.xp);
+      } else if (message.type === 'captureLevelUpCard') {
+        captureLevelUpCard(message.level, message.xp);
       } else if (message.type === 'playHeartFill') {
         playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
@@ -2439,6 +2688,14 @@ function getXpLabel(xp: BuddyXp): string {
   }
 
   return `Buddy is level ${xp.level} with ${xp.currentLevelXp} of ${xp.nextLevelXp} XP`;
+}
+
+function normalizeLevel(level: number | undefined): number {
+  if (typeof level !== 'number' || !Number.isFinite(level)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(maxBuddyLevel, Math.round(level)));
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {
