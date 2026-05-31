@@ -70,6 +70,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - First-open spawn animation with a Buddy greeting and heart reveal.
 - Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
+- Persistent XP counter with levels up to 100, including progress for saves, successful terminal `git commit`, and successful terminal `git push` work.
 - Dash behavior when Buddy goes after cookies.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
@@ -103,6 +104,8 @@ Cmd+Shift+P on macOS
 Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
+
+Buddy also tracks XP across sessions. Saving a supported local file earns 5 XP, a successful `git commit` from the integrated terminal earns 50 XP, and a successful `git push` from the integrated terminal earns 75 XP. Each level takes 100 XP, with level 100 as the cap.
 
 Try these first:
 

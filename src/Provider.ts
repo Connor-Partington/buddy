@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
+import { BuddyXp, maxBuddyLevel } from './xpManager';
 
 type SpriteKey = BuddyState | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
@@ -40,6 +41,7 @@ export class Provider implements vscode.WebviewViewProvider {
   private state: BuddyState = 'idle';
   private buddySize: BuddySize = 'default';
   private health: BuddyHealth = { hearts: maxBuddyHearts, isDead: false, aliveSince: Date.now(), aliveDays: 1 };
+  private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
   private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<void>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
@@ -93,6 +95,11 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postHealth();
   }
 
+  public setXp(xp: BuddyXp): void {
+    this.xp = xp;
+    this.postXp();
+  }
+
   public spawnCookie(): void {
     this.postMessage({
       type: 'spawnCookie',
@@ -135,6 +142,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postXp(): void {
+    this.postMessage({
+      type: 'setXp',
+      xp: this.xp,
+    });
+  }
+
   private postMessage(message: unknown): void {
     void this.webviewView?.webview.postMessage(message);
   }
@@ -143,6 +157,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postHealth();
     this.postState();
     this.postBuddySize();
+    this.postXp();
   }
 
   private getHtml(
@@ -153,6 +168,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const nonce = getNonce();
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
     const health = this.health;
+    const xp = this.xp;
     const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
     const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
 
@@ -246,6 +262,51 @@ export class Provider implements vscode.WebviewViewProvider {
       text-align: center;
       text-transform: uppercase;
       pointer-events: none;
+    }
+
+    .xp-meter {
+      position: absolute;
+      top: 34px;
+      left: 8px;
+      z-index: 3;
+      width: min(112px, calc(100vw - 16px));
+      display: grid;
+      gap: 3px;
+      padding: 3px 5px;
+      border: 1px solid var(--vscode-editorWidget-border, rgb(128 128 128 / 48%));
+      border-radius: 4px;
+      color: var(--vscode-sideBar-foreground);
+      background: var(--vscode-sideBar-background);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.1;
+      pointer-events: none;
+    }
+
+    .xp-meter__label {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+      text-transform: uppercase;
+    }
+
+    .xp-meter__track {
+      height: 4px;
+      overflow: hidden;
+      border: 1px solid rgb(0 0 0 / 24%);
+      border-radius: 2px;
+      background: var(--vscode-editorWidget-background, rgb(128 128 128 / 18%));
+    }
+
+    .xp-meter__fill {
+      display: block;
+      width: calc(var(--xp-progress, 0) * 100%);
+      height: 100%;
+      background: linear-gradient(90deg, #ff5f8a, #90d5ff);
+      transition: width 180ms ease-out;
     }
 
     body[data-intro-phase="spawning"] .frame-stage,
@@ -762,6 +823,13 @@ export class Provider implements vscode.WebviewViewProvider {
       <div class="health-meter" aria-label="Buddy health">
         ${renderHearts(0, imageSources)}
       </div>
+      <div class="xp-meter" aria-live="polite" aria-label="${getXpLabel(xp)}" style="--xp-progress: ${xp.progress};">
+        <div class="xp-meter__label">
+          <span class="xp-meter__level">${getXpLevelText(xp)}</span>
+          <span class="xp-meter__value">${getXpProgressText(xp)}</span>
+        </div>
+        <div class="xp-meter__track" aria-hidden="true"><span class="xp-meter__fill"></span></div>
+      </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -793,6 +861,9 @@ export class Provider implements vscode.WebviewViewProvider {
     const stage = document.querySelector('.stage');
     const healthMeter = document.querySelector('.health-meter');
     const lifeCounter = document.querySelector('.life-counter');
+    const xpMeter = document.querySelector('.xp-meter');
+    const xpLevel = document.querySelector('.xp-meter__level');
+    const xpValue = document.querySelector('.xp-meter__value');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const speechBubble = document.querySelector('.speech-bubble');
@@ -832,6 +903,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let previousHearts = ${JSON.stringify(health.hearts)};
     let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
     let currentLifeCounterText = ${JSON.stringify(getAliveDayCounterText(health))};
+    let currentXp = ${JSON.stringify(xp)};
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
     let activeSpeechMessage = 'TAKE A BREAK?';
@@ -1407,6 +1479,43 @@ export class Provider implements vscode.WebviewViewProvider {
         clearInterval(lifeCounterTimer);
         lifeCounterTimer = undefined;
       }
+    }
+
+    function setXp(xp) {
+      const level = Math.max(1, Math.min(${maxBuddyLevel}, Number(xp?.level) || 1));
+      const currentLevelXp = Math.max(0, Number(xp?.currentLevelXp) || 0);
+      const nextLevelXp = Math.max(1, Number(xp?.nextLevelXp) || 100);
+      const isMaxLevel = Boolean(xp?.isMaxLevel || level >= ${maxBuddyLevel});
+      const progress = isMaxLevel ? 1 : Math.max(0, Math.min(1, Number(xp?.progress) || 0));
+      currentXp = {
+        totalXp: Math.max(0, Number(xp?.totalXp) || 0),
+        level,
+        currentLevelXp: isMaxLevel ? nextLevelXp : Math.min(currentLevelXp, nextLevelXp),
+        nextLevelXp,
+        progress,
+        isMaxLevel,
+      };
+
+      if (xpMeter) {
+        xpMeter.style.setProperty('--xp-progress', String(currentXp.progress));
+        xpMeter.setAttribute('aria-label', getXpAriaLabel(currentXp));
+      }
+
+      if (xpLevel) {
+        xpLevel.textContent = 'Lv ' + currentXp.level;
+      }
+
+      if (xpValue) {
+        xpValue.textContent = currentXp.isMaxLevel ? 'Max' : currentXp.currentLevelXp + '/' + currentXp.nextLevelXp;
+      }
+    }
+
+    function getXpAriaLabel(xp) {
+      if (xp.isMaxLevel) {
+        return 'Buddy is at max level ' + xp.level;
+      }
+
+      return 'Buddy is level ' + xp.level + ' with ' + xp.currentLevelXp + ' of ' + xp.nextLevelXp + ' XP';
     }
 
     function setHealth(health, options = {}) {
@@ -2093,6 +2202,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setBuddySize(message.size);
       } else if (message.type === 'setHealth') {
         setHealth(message.health);
+      } else if (message.type === 'setXp') {
+        setXp(message.xp);
       } else if (message.type === 'playHeartFill') {
         playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
@@ -2108,6 +2219,7 @@ export class Provider implements vscode.WebviewViewProvider {
       setHealth(${JSON.stringify(health)}, { animateHeartFill: true });
     }
     updateLifeCounter(true);
+    setXp(${JSON.stringify(xp)});
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();
@@ -2200,6 +2312,22 @@ function getAliveDaysLabel(health: BuddyHealth): string {
   const days = health.isDead ? 0 : health.aliveDays;
 
   return days === 1 ? 'Buddy has been alive for 1 day' : `Buddy has been alive for ${days} days`;
+}
+
+function getXpLevelText(xp: BuddyXp): string {
+  return `Lv ${xp.level}`;
+}
+
+function getXpProgressText(xp: BuddyXp): string {
+  return xp.isMaxLevel ? 'Max' : `${xp.currentLevelXp}/${xp.nextLevelXp}`;
+}
+
+function getXpLabel(xp: BuddyXp): string {
+  if (xp.isMaxLevel) {
+    return `Buddy is at max level ${xp.level}`;
+  }
+
+  return `Buddy is level ${xp.level} with ${xp.currentLevelXp} of ${xp.nextLevelXp} XP`;
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {

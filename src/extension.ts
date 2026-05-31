@@ -5,13 +5,17 @@ import { BuddyDemoController } from './demoController';
 import { BuddyHealthManager } from './healthManager';
 import { Provider, type BuddySize } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
+import { BuddyXpManager } from './xpManager';
 
 export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>('buddyIntro.hasPlayed', false));
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState);
-  const activityController = new BuddyActivityController(stateManager);
+  const xpManager = new BuddyXpManager(context.globalState);
+  const activityController = new BuddyActivityController(stateManager, (award) => {
+    void xpManager.awardXp(award);
+  });
   const demoController = new BuddyDemoController(stateManager);
   const stateSubscription = stateManager.onDidChangeState((state) => {
     provider.setState(state);
@@ -35,6 +39,12 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setHealth(health);
     if (health.isDead) {
       vscode.window.showWarningMessage('Buddy is dead.');
+    }
+  });
+  const xpSubscription = xpManager.onDidChangeXp((change) => {
+    provider.setXp(change.xp);
+    if (change.leveledUp) {
+      vscode.window.showInformationMessage(`Buddy reached level ${change.xp.level}.`);
     }
   });
   const windowStateSubscription = vscode.window.onDidChangeWindowState((windowState) => {
@@ -107,10 +117,12 @@ export async function activate(context: vscode.ExtensionContext) {
     activityController,
     demoController,
     healthManager,
+    xpManager,
     stateSubscription,
     feedCookieSubscription,
     introSubscription,
     healthSubscription,
+    xpSubscription,
     windowStateSubscription,
     disposable,
     previewCommand,
@@ -130,6 +142,7 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setState(stateManager.state);
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
+  provider.setXp(xpManager.xp);
 }
 
 export function deactivate() {}

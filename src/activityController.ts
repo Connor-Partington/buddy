@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { BuddyStateManager } from './stateManager';
+import { BuddyXpAward, BuddyXpSource } from './xpManager';
 
 const thinkingDelayMs = 1000;
 const searchingDelayMs = 1400;
@@ -13,9 +14,13 @@ export class BuddyActivityController implements vscode.Disposable {
   private sleepingTimer?: ReturnType<typeof setTimeout>;
   private happyTimer?: ReturnType<typeof setTimeout>;
   private jumpTimer?: ReturnType<typeof setTimeout>;
+  private readonly pendingTerminalXpActions = new WeakMap<vscode.TerminalShellExecution, BuddyXpSource>();
   private readonly subscriptions: vscode.Disposable[] = [];
 
-  public constructor(private readonly stateManager: BuddyStateManager) {
+  public constructor(
+    private readonly stateManager: BuddyStateManager,
+    private readonly onXpAward?: (award: BuddyXpAward) => void,
+  ) {
     this.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (isSupportedDocument(event.document)) {
@@ -25,6 +30,7 @@ export class BuddyActivityController implements vscode.Disposable {
       vscode.workspace.onDidSaveTextDocument((document) => {
         if (isSupportedDocument(document)) {
           this.handleSave();
+          this.awardXp({ source: 'save', amount: 5 });
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((event) => {
@@ -38,9 +44,14 @@ export class BuddyActivityController implements vscode.Disposable {
         }
       }),
       vscode.window.onDidStartTerminalShellExecution((event) => {
-        if (event.execution.commandLine.value.trim()) {
+        const commandLine = event.execution.commandLine.value.trim();
+        if (commandLine) {
           this.handleTerminalCommand();
+          this.trackTerminalXp(event.execution, commandLine);
         }
+      }),
+      vscode.window.onDidEndTerminalShellExecution((event) => {
+        this.handleTerminalXp(event.execution, event.exitCode);
       }),
     );
 
@@ -92,6 +103,32 @@ export class BuddyActivityController implements vscode.Disposable {
 
       this.setIdle();
     }, jumpDelayMs);
+  }
+
+  private trackTerminalXp(execution: vscode.TerminalShellExecution, commandLine: string): void {
+    const source = getGitXpSource(commandLine);
+    if (source) {
+      this.pendingTerminalXpActions.set(execution, source);
+    }
+  }
+
+  private handleTerminalXp(execution: vscode.TerminalShellExecution, exitCode: number | undefined): void {
+    const source = this.pendingTerminalXpActions.get(execution);
+    this.pendingTerminalXpActions.delete(execution);
+
+    if (!source || exitCode !== 0) {
+      return;
+    }
+
+    if (source === 'gitCommit') {
+      this.awardXp({ source, amount: 50 });
+    } else if (source === 'gitPush') {
+      this.awardXp({ source, amount: 75 });
+    }
+  }
+
+  private awardXp(award: BuddyXpAward): void {
+    this.onXpAward?.(award);
   }
 
   private setIdle(): void {
@@ -150,4 +187,17 @@ function isSupportedDocument(document: vscode.TextDocument): boolean {
 
 function isNavigableDocument(document: vscode.TextDocument): boolean {
   return isSupportedDocument(document);
+}
+
+function getGitXpSource(commandLine: string): BuddyXpSource | undefined {
+  const normalizedCommand = commandLine.trim().toLowerCase();
+  if (/^(?:\w+=\S+\s+)*(?:command\s+)?git(?:\s+-c\s+\S+(?:=\S+)?)*\s+commit(?:\s|$)/.test(normalizedCommand)) {
+    return 'gitCommit';
+  }
+
+  if (/^(?:\w+=\S+\s+)*(?:command\s+)?git(?:\s+-c\s+\S+(?:=\S+)?)*\s+push(?:\s|$)/.test(normalizedCommand)) {
+    return 'gitPush';
+  }
+
+  return undefined;
 }
