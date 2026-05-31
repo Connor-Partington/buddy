@@ -6,12 +6,17 @@ export const buddyHeartLossIntervalMs = 3 * 60 * 60 * 1000;
 export type BuddyHealth = {
   hearts: number;
   isDead: boolean;
+  aliveSince?: number;
+  aliveDays: number;
 };
 
 const heartsKey = 'buddyHealth.hearts';
+const aliveSinceKey = 'buddyHealth.aliveSince';
+const oneDayMs = 24 * 60 * 60 * 1000;
 
 export class BuddyHealthManager implements vscode.Disposable {
   private hearts: number;
+  private aliveSince?: number;
   private heartLossTimer?: ReturnType<typeof setTimeout>;
   private remainingHeartLossMs = buddyHeartLossIntervalMs;
   private heartLossTimerStartedAt?: number;
@@ -19,12 +24,22 @@ export class BuddyHealthManager implements vscode.Disposable {
 
   public constructor(private readonly globalState: vscode.Memento) {
     this.hearts = normalizeHearts(globalState.get<number>(heartsKey, maxBuddyHearts));
+    this.aliveSince = normalizeTimestamp(globalState.get<number>(aliveSinceKey));
+
+    if (!this.health.isDead && this.aliveSince === undefined) {
+      this.aliveSince = Date.now();
+      void this.globalState.update(aliveSinceKey, this.aliveSince);
+    }
   }
 
   public get health(): BuddyHealth {
+    const isDead = this.hearts <= 0;
+
     return {
       hearts: this.hearts,
-      isDead: this.hearts <= 0,
+      isDead,
+      aliveSince: isDead ? undefined : this.aliveSince,
+      aliveDays: isDead ? 0 : getAliveDays(this.aliveSince),
     };
   }
 
@@ -103,7 +118,18 @@ export class BuddyHealthManager implements vscode.Disposable {
       return;
     }
 
+    const wasDead = this.health.isDead;
     this.hearts = nextHearts;
+    const isDead = this.health.isDead;
+
+    if (!wasDead && isDead) {
+      this.aliveSince = undefined;
+      await this.globalState.update(aliveSinceKey, undefined);
+    } else if (wasDead && !isDead) {
+      this.aliveSince = Date.now();
+      await this.globalState.update(aliveSinceKey, this.aliveSince);
+    }
+
     await this.globalState.update(heartsKey, this.hearts);
     this.listeners.forEach((listener) => listener(this.health));
   }
@@ -124,4 +150,20 @@ function normalizeHearts(hearts: number | undefined): number {
   }
 
   return Math.min(maxBuddyHearts, Math.max(0, Math.round(hearts)));
+}
+
+function normalizeTimestamp(timestamp: number | undefined): number | undefined {
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now()) {
+    return undefined;
+  }
+
+  return timestamp;
+}
+
+function getAliveDays(aliveSince: number | undefined): number {
+  if (aliveSince === undefined) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor((Date.now() - aliveSince) / oneDayMs) + 1);
 }

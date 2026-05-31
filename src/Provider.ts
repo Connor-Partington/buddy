@@ -39,7 +39,7 @@ export class Provider implements vscode.WebviewViewProvider {
   private webviewView?: vscode.WebviewView;
   private state: BuddyState = 'idle';
   private buddySize: BuddySize = 'default';
-  private health: BuddyHealth = { hearts: maxBuddyHearts, isDead: false };
+  private health: BuddyHealth = { hearts: maxBuddyHearts, isDead: false, aliveSince: Date.now(), aliveDays: 1 };
   private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<void>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
@@ -225,6 +225,27 @@ export class Provider implements vscode.WebviewViewProvider {
 
     .heart.is-empty {
       filter: none;
+    }
+
+    .life-counter {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 3;
+      min-width: 48px;
+      padding: 2px 6px;
+      border: 1px solid var(--vscode-editorWidget-border, rgb(128 128 128 / 48%));
+      border-radius: 4px;
+      color: var(--vscode-descriptionForeground, var(--vscode-sideBar-foreground));
+      background: var(--vscode-sideBar-background);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      text-transform: uppercase;
+      pointer-events: none;
     }
 
     body[data-intro-phase="spawning"] .frame-stage,
@@ -741,6 +762,7 @@ export class Provider implements vscode.WebviewViewProvider {
       <div class="health-meter" aria-label="Buddy health">
         ${renderHearts(shouldPlayIntro ? 0 : health.hearts, imageSources)}
       </div>
+      <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
@@ -770,6 +792,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const spriteDisplaySizes = ${JSON.stringify(spriteDisplaySizes)};
     const stage = document.querySelector('.stage');
     const healthMeter = document.querySelector('.health-meter');
+    const lifeCounter = document.querySelector('.life-counter');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const speechBubble = document.querySelector('.speech-bubble');
@@ -787,6 +810,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let cookieEatTimer;
     let deathTimer;
     let reviveTimer;
+    let lifeCounterTimer;
     let introTimer;
     let introHeartTimer;
     let breakPromptTimer;
@@ -805,6 +829,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let isBreakPromptActive = false;
     let currentHearts = ${JSON.stringify(health.hearts)};
     let previousHearts = ${JSON.stringify(health.hearts)};
+    let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
     let activeSpeechMessage = 'TAKE A BREAK?';
@@ -829,6 +854,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const breakPromptScrambleMs = 1800;
     const breakPromptVisibleMs = 9000;
     const statusPromptVisibleMs = 3200;
+    const oneDayMs = 24 * 60 * 60 * 1000;
     const breakPromptMessages = [
       'TAKE A BREAK?',
       'SAVE AND STRETCH?',
@@ -1273,18 +1299,60 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
+    function getAliveDays(aliveSince) {
+      if (typeof aliveSince !== 'number' || !Number.isFinite(aliveSince)) {
+        return 0;
+      }
+
+      return Math.max(1, Math.floor((Date.now() - aliveSince) / oneDayMs) + 1);
+    }
+
+    function updateLifeCounter() {
+      if (!lifeCounter) {
+        return;
+      }
+
+      const days = isDead ? 0 : getAliveDays(currentAliveSince);
+      lifeCounter.textContent = 'Day ' + days;
+      lifeCounter.setAttribute(
+        'aria-label',
+        days === 1 ? 'Buddy has been alive for 1 day' : 'Buddy has been alive for ' + days + ' days',
+      );
+    }
+
+    function scheduleLifeCounterTick() {
+      clearLifeCounterTick();
+
+      if (isDead) {
+        return;
+      }
+
+      lifeCounterTimer = setInterval(updateLifeCounter, 60 * 1000);
+    }
+
+    function clearLifeCounterTick() {
+      if (lifeCounterTimer) {
+        clearInterval(lifeCounterTimer);
+        lifeCounterTimer = undefined;
+      }
+    }
+
     function setHealth(health) {
       const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
       const wasDead = isDead;
       const healthDidChange = hearts !== currentHearts || Boolean(health?.isDead || hearts <= 0) !== isDead;
       const lostHeart = hearts < previousHearts;
+      const aliveSince = Number(health?.aliveSince);
       currentHearts = hearts;
       previousHearts = hearts;
       isDead = Boolean(health?.isDead || hearts <= 0);
+      currentAliveSince = Number.isFinite(aliveSince) ? aliveSince : isDead ? null : currentAliveSince || Date.now();
       document.body.dataset.dead = String(isDead);
       healthMeter?.setAttribute('aria-label', isDead ? 'Buddy has no hearts left' : 'Buddy has ' + hearts + ' hearts');
+      updateLifeCounter();
 
       if (isIntroPlaying && !isDead) {
+        scheduleLifeCounterTick();
         return;
       }
 
@@ -1295,6 +1363,7 @@ export class Provider implements vscode.WebviewViewProvider {
         isIntroPlaying = false;
         document.body.dataset.introPhase = 'done';
         clearBreakPromptTimer();
+        clearLifeCounterTick();
         hideBreakPrompt();
         clearReviveTimer();
         isReviving = false;
@@ -1318,6 +1387,7 @@ export class Provider implements vscode.WebviewViewProvider {
         }
 
         setDeathPhase('alive');
+        scheduleLifeCounterTick();
         if (lostHeart) {
           heartLostMessageCount += 1;
           if (shouldShowEveryOtherStatusMessage(heartLostMessageCount)) {
@@ -1960,6 +2030,8 @@ export class Provider implements vscode.WebviewViewProvider {
     } else {
       setHealth(${JSON.stringify(health)});
     }
+    updateLifeCounter();
+    scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
@@ -2041,6 +2113,16 @@ function renderHearts(hearts: number, imageSources: Record<ImageKey, string>): s
     const source = isEmpty ? imageSources.heartEmpty : imageSources.heart;
     return `<img class="${className}" src="${source}" alt="" aria-hidden="true" />`;
   }).join('');
+}
+
+function getAliveDayCounterText(health: BuddyHealth): string {
+  return `Day ${health.isDead ? 0 : health.aliveDays}`;
+}
+
+function getAliveDaysLabel(health: BuddyHealth): string {
+  const days = health.isDead ? 0 : health.aliveDays;
+
+  return days === 1 ? 'Buddy has been alive for 1 day' : `Buddy has been alive for ${days} days`;
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {
