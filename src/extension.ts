@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { BuddyActivityController } from './activityController';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
-import { BuddyHealthManager } from './healthManager';
+import { BuddyHealthManager, maxBuddyHearts } from './healthManager';
 import { Provider, type BuddySize, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
@@ -11,9 +11,24 @@ import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
 const xpMultiplierOptions = [0.5, 1, 1.5, 2, 3];
+const demoStepMs = 1200;
+const demoStateStepMs: Partial<Record<(typeof buddyStates)[number], number>> = {
+  typing: 2200,
+  thinking: 2200,
+  sleeping: 2200,
+  happy: 1400,
+};
+const demoHeartLossMs = 5600;
+const demoCookieMs = 6000;
+const demoReturnToCenterMs = 2200;
+const demoBreakPromptMs = 5000;
+const demoDeathHeartLossMs = 5600;
+const demoDeathBeforeReviveMs = 6000;
+const demoTriggerFileName = '.buddy-demo-trigger';
 
 export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
+  let isDemoRunning = false;
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>('buddyIntro.hasPlayed', false));
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState);
@@ -169,12 +184,101 @@ export async function activate(context: vscode.ExtensionContext) {
     stateManager.setState('idle');
     vscode.window.showInformationMessage('Buddy has been revived.');
   });
+  const runDemoCommand = vscode.commands.registerCommand('buddy.runDemo', async () => {
+    await runFeatureDemo();
+  });
+  const demoTriggerWatchers = vscode.workspace.workspaceFolders?.map((workspaceFolder) => {
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(workspaceFolder, demoTriggerFileName),
+    );
+    const runTriggeredDemo = () => {
+      void runFeatureDemo();
+    };
+
+    watcher.onDidCreate(runTriggeredDemo);
+    watcher.onDidChange(runTriggeredDemo);
+
+    return watcher;
+  }) ?? [];
+  const uriHandler = vscode.window.registerUriHandler({
+    handleUri: async (uri) => {
+      if (uri.path === '/demo') {
+        await runFeatureDemo();
+      }
+    },
+  });
 
   async function setBuddySize(size: BuddySize): Promise<void> {
     buddySize = size;
     await context.globalState.update('buddySize', size);
     provider.setBuddySize(size);
     vscode.window.showInformationMessage(`Buddy size set to ${size}.`);
+  }
+
+  async function runFeatureDemo(): Promise<void> {
+    if (isDemoRunning) {
+      vscode.window.showInformationMessage('Buddy feature demo is already running.');
+      return;
+    }
+
+    isDemoRunning = true;
+    await vscode.commands.executeCommand('buddy.showSidebar');
+    vscode.window.showInformationMessage('Buddy feature demo started.');
+
+    try {
+      if (healthManager.health.isDead || healthManager.health.hearts < maxBuddyHearts) {
+        await healthManager.revive();
+        await delay(demoStepMs);
+      }
+
+      stateManager.setState('idle');
+      await delay(demoStepMs);
+
+      for (const state of buddyStates) {
+        stateManager.setState(state);
+        await delay(demoStateStepMs[state] ?? demoStepMs);
+      }
+
+      stateManager.setState('idle');
+      await healthManager.loseHeart();
+      await delay(demoHeartLossMs);
+
+      provider.spawnCookie();
+      await delay(demoCookieMs);
+
+      provider.returnToCenter();
+      await delay(demoReturnToCenterMs);
+
+      provider.toggleBreakPrompt();
+      await delay(demoBreakPromptMs);
+
+      stateManager.setState('idle');
+      await delay(demoStepMs);
+
+      for (let index = 0; index < 3; index += 1) {
+        await xpManager.awardXp({ source: 'test', amount: testXpAwardAmount });
+        await delay(Math.round(demoStepMs * 0.8));
+      }
+
+      while (healthManager.health.hearts > 1) {
+        await healthManager.loseHeart();
+        await delay(demoDeathHeartLossMs);
+      }
+
+      if (!healthManager.health.isDead) {
+        await healthManager.loseHeart();
+      }
+
+      await delay(demoDeathBeforeReviveMs);
+
+      await healthManager.revive();
+      stateManager.setState('idle');
+      await delay(demoStepMs * 2);
+
+      vscode.window.showInformationMessage('Buddy feature demo finished.');
+    } finally {
+      isDemoRunning = false;
+    }
   }
 
   context.subscriptions.push(
@@ -204,6 +308,9 @@ export async function activate(context: vscode.ExtensionContext) {
     setXpMultiplierCommand,
     killCommand,
     reviveCommand,
+    runDemoCommand,
+    ...demoTriggerWatchers,
+    uriHandler,
     ...stateCommands,
   );
 
@@ -217,6 +324,12 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelUpCardCapture): Promise<void> {
   const base64 = capture.dataUri.replace(/^data:image\/png;base64,/, '');

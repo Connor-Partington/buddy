@@ -26,12 +26,14 @@
     "fun"
   ],
   "activationEvents": [
+    "onUri",
     "onCommand:buddy.kill",
     "onCommand:buddy.spawnCookie",
     "onCommand:buddy.toggleBreakPrompt",
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.addXp",
     "onCommand:buddy.resetXp",
+    "onCommand:buddy.runDemo",
     "onCommand:buddy.setXpMultiplier",
     "onCommand:buddy.revive",
     "onCommand:buddy.showSidebar",
@@ -148,6 +150,10 @@
         "title": "Buddy: Reset XP"
       },
       {
+        "command": "buddy.runDemo",
+        "title": "Buddy: Run Feature Demo"
+      },
+      {
         "command": "buddy.setXpMultiplier",
         "title": "Buddy: Set XP Multiplier"
       }
@@ -181,6 +187,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "demo": "node scripts/run-demo.js",
     "package": "vsce package --allow-missing-repository --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "publish": "vsce publish --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "lint": "eslint src",

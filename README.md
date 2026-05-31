@@ -8,49 +8,9 @@ An animated IDE companion for VS Code that reacts to your coding flow from the A
 
 ## Preview
 
-<table>
-  <tr>
-    <th>Idle</th>
-    <th>Think</th>
-    <th>Search</th>
-    <th>Sleep</th>
-    <th>Happy</th>
-    <th>Love</th>
-    <th>Jump</th>
-    <th>Walk</th>
-  </tr>
-  <tr>
-    <td align="center" valign="bottom"><img src="assets/images/idle-trim.gif" alt="Buddy idle animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/think-trim.gif" alt="Buddy thinking animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/search-trim.gif" alt="Buddy searching animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/sleep-trim.gif" alt="Buddy sleeping animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/happy-trim.gif" alt="Buddy happy animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/love-trim.gif" alt="Buddy love animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/jump-trim.gif" alt="Buddy jump animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/walk-trim.gif" alt="Buddy walking animation"></td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <th>Cookie</th>
-    <th>Eat</th>
-    <th>Death</th>
-    <th>Soul</th>
-    <th>Heart</th>
-    <th>Empty Heart</th>
-    <th>Filling Heart</th>
-  </tr>
-  <tr>
-    <td align="center" valign="bottom"><img src="assets/images/cookie-trim.gif" alt="Buddy cookie treat animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/eat-trim.gif" alt="Buddy eating animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/death-trim.gif" alt="Buddy death animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/soul-trim.gif" alt="Buddy soul animation"></td>
-    <td align="center" valign="bottom"><img src="assets/images/heart-trim.gif" alt="Buddy full heart"></td>
-    <td align="center" valign="bottom"><img src="assets/images/heart-empty-trim.gif" alt="Buddy empty heart"></td>
-    <td align="center" valign="bottom"><img src="assets/images/heart-fill-trim.gif" alt="Buddy filling heart animation"></td>
-  </tr>
-</table>
+<p align="left">
+  <img src="assets/images/buddy-demo.gif" alt="Buddy feature demo" style="width: 100%; max-width: 720px; height: auto;">
+</p>
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
 
@@ -106,7 +66,7 @@ Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy wi
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
 
-Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful `git push` from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
+Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful push from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
 
 ## Actions
 
@@ -127,6 +87,7 @@ Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, 
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |
 | `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |
+| `Buddy: Run Feature Demo` | Opens the Buddy sidebar and runs the automated recording demo sequence. |
 | `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
@@ -171,6 +132,14 @@ Install or update that VSIX locally with the VS Code CLI:
 ```bash
 code --install-extension buddy-ide-companion-0.4.0.vsix --force
 ```
+
+To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:
+
+```bash
+npm run demo
+```
+
+The demo opens the Buddy sidebar and automatically runs through state changes, one-heart loss, cookie recovery, the break prompt, XP bursts, death, and revive. Keep the Extension Development Host focused while it plays.
 
 ## License
 

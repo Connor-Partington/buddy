@@ -6,6 +6,7 @@ All notable changes to Buddy will be documented in this file.
 
 - Added locally saved level-up card PNGs when Buddy gains a level while the panel is open.
 - Added level-scaled XP loss when Buddy dies, including level-downs when the penalty drops total XP below the current level.
+- Added an automated feature demo command and `npm run demo` helper for recording Buddy's sidebar behavior, including heart loss and cookie recovery.
 
 ## 0.3.0
 

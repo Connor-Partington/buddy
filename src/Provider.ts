@@ -134,6 +134,12 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  public returnToCenter(): void {
+    this.postMessage({
+      type: 'returnToCenter',
+    });
+  }
+
   public playHeartFill(heartIndex: number): void {
     this.postMessage({
       type: 'playHeartFill',
@@ -2312,6 +2318,79 @@ export class Provider implements vscode.WebviewViewProvider {
       }, durationMs);
     }
 
+    function returnToCenter() {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive() || !spriteImage || !spriteStage) {
+        return;
+      }
+
+      clearClickReaction();
+      dismissBreakPrompt();
+      clearRandomWalk();
+      currentState = 'idle';
+      stateBeforeWalk = 'idle';
+      document.body.dataset.state = 'idle';
+
+      const targetX = 0;
+      const distance = Math.abs(targetX - walkX);
+      if (distance <= 1) {
+        walkX = targetX;
+        applyWalkPosition(0);
+        setSpriteForState('idle');
+        scheduleRandomWalk();
+        return;
+      }
+
+      walkDirection = targetX >= walkX ? 1 : -1;
+      const shouldDash = canDashToCookie(distance);
+      const movementState = shouldDash ? 'dash' : 'walk';
+      const durationMs = shouldDash ? dashGifDurationMs : Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000));
+
+      preserveSpriteCenter(() => {
+        setSpriteForState(movementState);
+      });
+      applyWalkPosition(0);
+      void spriteStage.offsetWidth;
+
+      waitForSpriteImage(() => {
+        if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
+          return;
+        }
+
+        const completeReturn = () => {
+          if (walkTransitionTimer) {
+            clearTimeout(walkTransitionTimer);
+            walkTransitionTimer = undefined;
+          }
+
+          if (walkTransitionCleanup) {
+            walkTransitionCleanup();
+            walkTransitionCleanup = undefined;
+          }
+
+          walkX = targetX;
+          applyWalkPosition(0);
+          currentState = 'idle';
+          document.body.dataset.state = 'idle';
+          setSpriteForState('idle');
+          scheduleRandomWalk();
+        };
+        const handleWalkTransitionEnd = (event) => {
+          if (event.target === spriteStage && event.propertyName === 'transform') {
+            completeReturn();
+          }
+        };
+
+        walkTransitionCleanup = () => {
+          spriteStage.removeEventListener('transitionend', handleWalkTransitionEnd);
+        };
+
+        spriteStage.addEventListener('transitionend', handleWalkTransitionEnd);
+        walkTransitionTimer = setTimeout(completeReturn, durationMs + 250);
+        walkX = targetX;
+        applyWalkPosition(durationMs);
+      });
+    }
+
     function spawnCookie() {
       if (!cookieTreat) {
         return;
@@ -2567,6 +2646,8 @@ export class Provider implements vscode.WebviewViewProvider {
         playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
         spawnCookie();
+      } else if (message.type === 'returnToCenter') {
+        returnToCenter();
       } else if (message.type === 'toggleBreakPrompt') {
         toggleBreakPrompt();
       }
