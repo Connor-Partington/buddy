@@ -264,14 +264,14 @@ export class Provider implements vscode.WebviewViewProvider {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transform: translateX(-50%) translateY(4px);
+      transform: translateX(var(--speech-offset-x, -50%)) translateY(4px);
       transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
     }
 
     .speech-bubble::after {
       content: "";
       position: absolute;
-      left: 50%;
+      left: var(--speech-tail-x, 50%);
       bottom: -6px;
       width: 10px;
       height: 10px;
@@ -284,7 +284,7 @@ export class Provider implements vscode.WebviewViewProvider {
     .speech-bubble[data-visible="true"] {
       opacity: 1;
       visibility: visible;
-      transform: translateX(-50%) translateY(0);
+      transform: translateX(var(--speech-offset-x, -50%)) translateY(0);
     }
 
     .fox {
@@ -922,6 +922,31 @@ export class Provider implements vscode.WebviewViewProvider {
       cookieTreat.hidden = false;
     }
 
+    function updateSpeechBubblePosition() {
+      if (!stage || !speechBubble) {
+        return;
+      }
+
+      speechBubble.style.setProperty('--speech-offset-x', '-50%');
+      speechBubble.style.setProperty('--speech-tail-x', '50%');
+
+      requestAnimationFrame(() => {
+        const stageRect = stage.getBoundingClientRect();
+        const padding = 8;
+        const stageCenterX = stageRect.left + stageRect.width / 2;
+        const buddyCenterX = stageCenterX + walkX;
+        const bubbleWidth = speechBubble.getBoundingClientRect().width;
+        const leftOffset = stageRect.left + padding - buddyCenterX;
+        const rightOffset = stageRect.right - padding - bubbleWidth - buddyCenterX;
+        const centeredOffset = -bubbleWidth / 2;
+        const offsetX = Math.min(Math.max(centeredOffset, leftOffset), rightOffset);
+        const tailX = Math.min(bubbleWidth - 12, Math.max(12, -offsetX));
+
+        speechBubble.style.setProperty('--speech-offset-x', offsetX + 'px');
+        speechBubble.style.setProperty('--speech-tail-x', tailX + 'px');
+      });
+    }
+
     function chooseMessage(messages) {
       return messages[Math.floor(Math.random() * messages.length)] || messages[0] || '';
     }
@@ -966,6 +991,8 @@ export class Provider implements vscode.WebviewViewProvider {
 
       speechBubble.dataset.visible = 'false';
       speechBubbleText.textContent = '';
+      speechBubble.style.setProperty('--speech-offset-x', '-50%');
+      speechBubble.style.setProperty('--speech-tail-x', '50%');
     }
 
     function clearBreakPromptTimer() {
@@ -1029,6 +1056,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
       speechBubble.dataset.visible = 'true';
       speechBubbleText.textContent = getDecodedSpeechText(0);
+      updateSpeechBubblePosition();
 
       if (breakScrambleTimer) {
         clearInterval(breakScrambleTimer);
@@ -1040,6 +1068,7 @@ export class Provider implements vscode.WebviewViewProvider {
         const elapsedMs = Date.now() - startedAt;
         const revealedLetters = Math.min(totalLetters, Math.floor((elapsedMs / breakPromptScrambleMs) * (totalLetters + 1)));
         speechBubbleText.textContent = getDecodedSpeechText(revealedLetters);
+        updateSpeechBubblePosition();
 
         if (revealedLetters < totalLetters) {
           return;
@@ -1051,6 +1080,7 @@ export class Provider implements vscode.WebviewViewProvider {
         }
 
         speechBubbleText.textContent = activeSpeechMessage;
+        updateSpeechBubblePosition();
         breakHideTimer = setTimeout(() => {
           const shouldScheduleWalk = isBreakPromptActive;
           hideBreakPrompt();
@@ -1753,6 +1783,9 @@ export class Provider implements vscode.WebviewViewProvider {
       }
       if (shouldResumeCookieWalk) {
         startCookieWalk(true);
+      }
+      if (speechBubble?.dataset.visible === 'true') {
+        updateSpeechBubblePosition();
       }
     });
   </script>
