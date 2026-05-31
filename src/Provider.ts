@@ -842,10 +842,8 @@ export class Provider implements vscode.WebviewViewProvider {
         spriteY = 0;
         applySpriteY(0);
         clearClickReaction();
-        clearCookieEatTimer();
+        resetCookie();
         clearRandomWalk();
-        cookieActive = false;
-        cookiePhase = 'idle';
         playDeathSequence(!wasDead);
       } else {
         clearDeathTimer();
@@ -924,10 +922,8 @@ export class Provider implements vscode.WebviewViewProvider {
       clearDeathTimer();
       clearReviveTimer();
       clearClickReaction();
-      clearCookieEatTimer();
+      resetCookie();
       clearRandomWalk();
-      cookieActive = false;
-      cookiePhase = 'idle';
       isReviving = true;
       currentState = 'idle';
       document.body.dataset.state = 'idle';
@@ -1155,6 +1151,19 @@ export class Provider implements vscode.WebviewViewProvider {
         clearTimeout(cookieEatTimer);
         cookieEatTimer = undefined;
       }
+    }
+
+    function resetCookie() {
+      clearCookieEatTimer();
+      cookieActive = false;
+      cookiePhase = 'idle';
+
+      if (!cookieTreat) {
+        return;
+      }
+
+      cookieTreat.hidden = true;
+      cookieTreat.removeAttribute('data-state');
     }
 
     function isCookieInteractionActive() {
