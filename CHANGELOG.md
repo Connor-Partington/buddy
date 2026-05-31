@@ -12,6 +12,7 @@ All notable changes to Buddy will be documented in this file.
 - Added `Buddy: Kill` and a death title-bar action in the Buddy panel.
 - Fixed `Buddy: Revive` to report when Buddy is already alive.
 - Fixed reopened Buddy panels desyncing dead state, replaying animations, or letting stale cookies restore hearts.
+- Fixed speech bubbles being clipped when Buddy is near a panel edge.
 
 ## 0.1.0
 
