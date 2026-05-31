@@ -68,7 +68,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
 - Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
-- Break reminder speech bubbles after 25 minutes, with scrambled text that decodes into Buddy's message.
+- Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
 - Feed Buddy a cookie to keep him alive.
 - Command Palette controls for showing Buddy, previewing animations, and testing states.

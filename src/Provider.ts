@@ -773,6 +773,10 @@ export class Provider implements vscode.WebviewViewProvider {
     let isDead = ${JSON.stringify(health.isDead)};
     let isReviving = false;
     let isBreakPromptActive = false;
+    let previousHearts = ${JSON.stringify(health.hearts)};
+    let heartLostMessageCount = 0;
+    let cookieEatingMessageCount = 0;
+    let activeSpeechMessage = 'TAKE A BREAK?';
     let deathPhase = isDead ? 'soul' : 'alive';
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
@@ -787,7 +791,24 @@ export class Provider implements vscode.WebviewViewProvider {
     const breakPromptIntervalMs = 25 * 60 * 1000;
     const breakPromptScrambleMs = 1800;
     const breakPromptVisibleMs = 9000;
-    const breakPromptMessage = 'TAKE A BREAK?';
+    const statusPromptVisibleMs = 3200;
+    const breakPromptMessages = [
+      'TAKE A BREAK?',
+      'SAVE AND STRETCH?',
+      'TOUCH GRASS SIDE QUEST?',
+      'SNACK? WATER? BOTH?',
+      'YOU HAVE BEEN CODING A WHILE.',
+      'HYDRATION QUEST!',
+      'STEP AWAY A BIT?',
+    ];
+    const heartLostMessages = [
+      'I LOST A HEART',
+      'I NEED FOOD',
+    ];
+    const cookieEatingMessages = [
+      'THANK YOU',
+      'NOM NOM NOM',
+    ];
 
     function getSpriteDisplaySize(state) {
       const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
@@ -879,24 +900,28 @@ export class Provider implements vscode.WebviewViewProvider {
       cookieTreat.hidden = false;
     }
 
-    function getBreakPromptLetterCount() {
-      return Array.from(breakPromptMessage).filter((character) => character !== ' ').length;
+    function chooseMessage(messages) {
+      return messages[Math.floor(Math.random() * messages.length)] || messages[0] || '';
     }
 
-    function getScrambledBreakGlyph() {
+    function getSpeechLetterCount(message = activeSpeechMessage) {
+      return Array.from(message).filter((character) => character !== ' ').length;
+    }
+
+    function getScrambledSpeechGlyph() {
       const glyphs = '#%*+=?<>/[]{}~';
       return glyphs[Math.floor(Math.random() * glyphs.length)];
     }
 
-    function getDecodedBreakText(revealedLetters) {
+    function getDecodedSpeechText(revealedLetters, message = activeSpeechMessage) {
       let letterIndex = 0;
-      return Array.from(breakPromptMessage, (character) => {
+      return Array.from(message, (character) => {
         if (character === ' ') {
           return ' ';
         }
 
         letterIndex += 1;
-        return letterIndex <= revealedLetters ? character : getScrambledBreakGlyph();
+        return letterIndex <= revealedLetters ? character : getScrambledSpeechGlyph();
       }).join('');
     }
 
@@ -952,38 +977,47 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    function showBreakPrompt() {
+    function showSpeechMessage(message, options = {}) {
       if (!speechBubble || !speechBubbleText) {
-        scheduleBreakPrompt(true);
+        if (options.scheduleNextBreak) {
+          scheduleBreakPrompt(true);
+        }
         return;
       }
 
-      if (isDead || isReviving || isCookieInteractionActive()) {
-        scheduleBreakPrompt(true);
+      if (isDead || isReviving || (options.lockBuddy && isCookieInteractionActive())) {
+        if (options.scheduleNextBreak) {
+          scheduleBreakPrompt(true);
+        }
         return;
       }
 
-      clearClickReaction();
-      clearRandomWalk();
-      isBreakPromptActive = true;
-      currentState = 'idle';
-      document.body.dataset.state = 'idle';
-      setSpriteForState('idle');
-      applyWalkPosition(0);
+      hideBreakPrompt();
+      activeSpeechMessage = message;
+      isBreakPromptActive = Boolean(options.lockBuddy);
+
+      if (options.lockBuddy) {
+        clearClickReaction();
+        clearRandomWalk();
+        currentState = 'idle';
+        document.body.dataset.state = 'idle';
+        setSpriteForState('idle');
+        applyWalkPosition(0);
+      }
 
       speechBubble.dataset.visible = 'true';
-      speechBubbleText.textContent = getDecodedBreakText(0);
+      speechBubbleText.textContent = getDecodedSpeechText(0);
 
       if (breakScrambleTimer) {
         clearInterval(breakScrambleTimer);
       }
 
       const startedAt = Date.now();
-      const totalLetters = getBreakPromptLetterCount();
+      const totalLetters = getSpeechLetterCount();
       breakScrambleTimer = setInterval(() => {
         const elapsedMs = Date.now() - startedAt;
         const revealedLetters = Math.min(totalLetters, Math.floor((elapsedMs / breakPromptScrambleMs) * (totalLetters + 1)));
-        speechBubbleText.textContent = getDecodedBreakText(revealedLetters);
+        speechBubbleText.textContent = getDecodedSpeechText(revealedLetters);
 
         if (revealedLetters < totalLetters) {
           return;
@@ -994,13 +1028,42 @@ export class Provider implements vscode.WebviewViewProvider {
           breakScrambleTimer = undefined;
         }
 
-        speechBubbleText.textContent = breakPromptMessage;
+        speechBubbleText.textContent = activeSpeechMessage;
         breakHideTimer = setTimeout(() => {
+          const shouldScheduleWalk = isBreakPromptActive;
           hideBreakPrompt();
-          scheduleBreakPrompt(true);
-          scheduleRandomWalk();
-        }, breakPromptVisibleMs);
+          if (options.scheduleNextBreak) {
+            scheduleBreakPrompt(true);
+          }
+          if (shouldScheduleWalk) {
+            scheduleRandomWalk();
+          }
+        }, options.visibleMs ?? statusPromptVisibleMs);
       }, 90);
+    }
+
+    function showBreakPrompt() {
+      showSpeechMessage(chooseMessage(breakPromptMessages), {
+        lockBuddy: true,
+        scheduleNextBreak: true,
+        visibleMs: breakPromptVisibleMs,
+      });
+    }
+
+    function showStatusSpeechMessage(messages) {
+      if (isBreakPromptActive) {
+        return;
+      }
+
+      showSpeechMessage(chooseMessage(messages), {
+        lockBuddy: false,
+        scheduleNextBreak: false,
+        visibleMs: statusPromptVisibleMs,
+      });
+    }
+
+    function shouldShowEveryOtherStatusMessage(count) {
+      return count % 2 === 1;
     }
 
     function toggleBreakPrompt() {
@@ -1033,6 +1096,8 @@ export class Provider implements vscode.WebviewViewProvider {
     function setHealth(health) {
       const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
       const wasDead = isDead;
+      const lostHeart = hearts < previousHearts;
+      previousHearts = hearts;
       isDead = Boolean(health?.isDead || hearts <= 0);
       document.body.dataset.dead = String(isDead);
       healthMeter?.setAttribute('aria-label', isDead ? 'Buddy has no hearts left' : 'Buddy has ' + hearts + ' hearts');
@@ -1057,6 +1122,13 @@ export class Provider implements vscode.WebviewViewProvider {
         }
 
         setDeathPhase('alive');
+        if (lostHeart) {
+          heartLostMessageCount += 1;
+          if (shouldShowEveryOtherStatusMessage(heartLostMessageCount)) {
+            showStatusSpeechMessage(heartLostMessages);
+          }
+        }
+
         if (isCookieInteractionActive()) {
           return;
         }
@@ -1536,6 +1608,10 @@ export class Provider implements vscode.WebviewViewProvider {
       document.body.dataset.state = 'idle';
       setSpriteForState('eat');
       applyWalkPosition(0);
+      cookieEatingMessageCount += 1;
+      if (shouldShowEveryOtherStatusMessage(cookieEatingMessageCount)) {
+        showStatusSpeechMessage(cookieEatingMessages);
+      }
 
       cookieEatTimer = setTimeout(() => {
         cookiePhase = 'loving';
