@@ -16,7 +16,7 @@ const buddyLevelXpRequirements = Array.from({ length: levelUpsToMax }, (_, index
 
 export const maxBuddyXp = buddyLevelXpRequirements.reduce((total, xp) => total + xp, 0);
 
-export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush' | 'feed' | 'test' | 'reset';
+export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush' | 'feed' | 'test' | 'death' | 'reset';
 
 export type BuddyXp = {
   totalXp: number;
@@ -36,6 +36,7 @@ export type BuddyXpChange = {
   xp: BuddyXp;
   award: BuddyXpAward;
   leveledUp: boolean;
+  leveledDown: boolean;
 };
 
 const totalXpKey = 'buddyXp.totalXp';
@@ -81,10 +82,45 @@ export class BuddyXpManager implements vscode.Disposable {
         amount: effectiveAmount,
       },
       leveledUp: this.xp.level > previousLevel,
+      leveledDown: false,
     };
     this.listeners.forEach((listener) => listener(change));
 
     return change;
+  }
+
+  public async deductXp(award: BuddyXpAward): Promise<BuddyXpChange | undefined> {
+    const effectiveAmount = normalizeDeductionAmount(award.amount);
+    if (effectiveAmount <= 0 || this.totalXp <= 0) {
+      return undefined;
+    }
+
+    const previousLevel = this.xp.level;
+    const nextTotalXp = normalizeTotalXp(this.totalXp - effectiveAmount);
+    if (nextTotalXp === this.totalXp) {
+      return undefined;
+    }
+
+    const deductedAmount = this.totalXp - nextTotalXp;
+    this.totalXp = nextTotalXp;
+    await this.globalState.update(totalXpKey, this.totalXp);
+
+    const change: BuddyXpChange = {
+      xp: this.xp,
+      award: {
+        ...award,
+        amount: deductedAmount,
+      },
+      leveledUp: false,
+      leveledDown: this.xp.level < previousLevel,
+    };
+    this.listeners.forEach((listener) => listener(change));
+
+    return change;
+  }
+
+  public async deductDeathPenalty(): Promise<BuddyXpChange | undefined> {
+    return this.deductXp({ source: 'death', amount: getBuddyDeathXpPenalty(this.xp) });
   }
 
   public async resetXp(): Promise<BuddyXpChange | undefined> {
@@ -99,6 +135,7 @@ export class BuddyXpManager implements vscode.Disposable {
       xp: this.xp,
       award: { source: 'reset', amount: 0 },
       leveledUp: false,
+      leveledDown: false,
     };
     this.listeners.forEach((listener) => listener(change));
 
@@ -148,6 +185,15 @@ function getBuddyXp(totalXp: number): BuddyXp {
   };
 }
 
+export function getBuddyDeathXpPenalty(xp: BuddyXp): number {
+  if (xp.totalXp <= 0) {
+    return 0;
+  }
+
+  const currentLevelRequirement = getXpRequirementForLevel(xp.level);
+  return Math.min(xp.totalXp, Math.max(1, Math.round(currentLevelRequirement * 0.25)));
+}
+
 function getLevelForTotalXp(totalXp: number): number {
   let remainingXp = totalXp;
   for (let index = 0; index < buddyLevelXpRequirements.length; index += 1) {
@@ -165,6 +211,12 @@ function getTotalXpForLevel(level: number): number {
   return buddyLevelXpRequirements
     .slice(0, Math.max(0, Math.min(maxBuddyLevel, level) - 1))
     .reduce((total, xp) => total + xp, 0);
+}
+
+function getXpRequirementForLevel(level: number): number {
+  const index = Math.max(0, Math.min(maxBuddyLevel - 2, level - 1));
+
+  return buddyLevelXpRequirements[index] ?? buddyLevelXpRequirements[buddyLevelXpRequirements.length - 1] ?? baseLevelXp;
 }
 
 function normalizeTotalXp(totalXp: number | undefined): number {
@@ -189,4 +241,12 @@ function getEffectiveAwardAmount(amount: number, multiplier: number): number {
   }
 
   return Math.max(1, Math.round(amount * multiplier));
+}
+
+function normalizeDeductionAmount(amount: number): number {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+    return 0;
+  }
+
+  return Math.round(amount);
 }

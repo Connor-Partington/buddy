@@ -5,6 +5,7 @@ All notable changes to Buddy will be documented in this file.
 ## 0.4.0
 
 - Added locally saved level-up card PNGs when Buddy gains a level while the panel is open.
+- Added level-scaled XP loss when Buddy dies, including level-downs when the penalty drops total XP below the current level.
 
 ## 0.3.0
 

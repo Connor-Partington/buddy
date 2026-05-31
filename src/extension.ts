@@ -56,7 +56,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
     provider.setHealth(health);
     if (health.isDead) {
-      vscode.window.showWarningMessage('Buddy is dead.');
+      void xpManager.deductDeathPenalty().then((change) => {
+        if (!change) {
+          vscode.window.showWarningMessage('Buddy is dead.');
+          return;
+        }
+
+        const levelText = change.leveledDown ? ` and dropped to level ${change.xp.level}` : '';
+        vscode.window.showWarningMessage(`Buddy is dead. Lost ${change.award.amount} XP${levelText}.`);
+      });
     }
   });
   const xpSubscription = xpManager.onDidChangeXp((change) => {
