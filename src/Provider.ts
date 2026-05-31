@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
+type SpriteKey = BuddyState | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
 export type BuddySize = 'default' | 'small';
 
@@ -23,6 +23,8 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   happy: { width: 20, height: 35 },
   jump: { width: 26, height: 46 },
   walk: { width: 22, height: 18 },
+  dash: { width: 26, height: 16 },
+  dashContinue: { width: 26, height: 16 },
   love: { width: 18, height: 28 },
   eat: { width: 18, height: 18 },
   death: { width: 22, height: 18 },
@@ -795,6 +797,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let walkDirection = 1;
     let cookieX = 0;
     let cookieActive = false;
+    let cookieDashSegmentsRemaining = 0;
     let cookiePhase = 'idle';
     let isDead = ${JSON.stringify(health.isDead)};
     let isReviving = false;
@@ -807,7 +810,10 @@ export class Provider implements vscode.WebviewViewProvider {
     let activeSpeechMessage = 'TAKE A BREAK?';
     let deathPhase = isDead ? 'soul' : 'alive';
     const walkSpeedPxPerSecond = 70;
+    const dashSpeedPxPerSecond = 230;
     const walkVisibleWidthRatio = 0.42;
+    const dashGifDurationMs = 400;
+    const cookieDashMinDistancePx = 1;
     const loveGifDurationMs = 1300;
     const cookieDropMs = 580;
     const eatGifDurationMs = 2000;
@@ -857,7 +863,7 @@ export class Provider implements vscode.WebviewViewProvider {
       return Math.round(${baseCookieDisplayWidth} * scale) + 'px';
     }
 
-    function setSpriteForState(state) {
+    function setSpriteForState(state, replay = false) {
       if (!spriteImage || !spriteStage) {
         return;
       }
@@ -866,7 +872,11 @@ export class Provider implements vscode.WebviewViewProvider {
       const displaySize = getSpriteDisplaySize(state);
       spriteStage.style.setProperty('--sprite-display-width', displaySize.width);
       spriteStage.style.setProperty('--sprite-aspect-ratio', displaySize.aspectRatio);
-      if (source && spriteImage.getAttribute('src') !== source) {
+      if (source && (replay || spriteImage.getAttribute('src') !== source)) {
+        if (replay) {
+          spriteImage.removeAttribute('src');
+          void spriteImage.offsetWidth;
+        }
         spriteImage.setAttribute('src', source);
       }
     }
@@ -900,9 +910,19 @@ export class Provider implements vscode.WebviewViewProvider {
         return 0;
       }
 
-      const stageWidth = stage.getBoundingClientRect().width;
+      const stageWidth = getPanelWidth();
       const spriteWidth = spriteStage.getBoundingClientRect().width * (useVisibleWalkWidth ? walkVisibleWidthRatio : 1);
       return Math.max(0, (stageWidth - spriteWidth) / 2);
+    }
+
+    function getPanelWidth() {
+      return stage?.getBoundingClientRect().width || window.innerWidth || 0;
+    }
+
+    function getSingleDashDistance() {
+      const panelWidth = getPanelWidth();
+      const timedDistance = dashSpeedPxPerSecond * (dashGifDurationMs / 1000);
+      return Math.max(cookieDashMinDistancePx, Math.min(panelWidth, timedDistance));
     }
 
     function applyWalkPosition(durationMs = 0) {
@@ -1612,6 +1632,7 @@ export class Provider implements vscode.WebviewViewProvider {
     function resetCookie() {
       clearCookieEatTimer();
       cookieActive = false;
+      cookieDashSegmentsRemaining = 0;
       cookiePhase = 'idle';
 
       if (!cookieTreat) {
@@ -1646,8 +1667,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const walkSource = spriteSources.walk;
-      if (!walkSource) {
+      if (!spriteSources.walk) {
         return;
       }
 
@@ -1695,6 +1715,7 @@ export class Provider implements vscode.WebviewViewProvider {
       const limit = getWalkLimit(true);
       cookieX = walkX <= 0 ? Math.max(0, limit - 12) : -Math.max(0, limit - 12);
       cookieActive = true;
+      cookieDashSegmentsRemaining = 0;
       cookiePhase = 'dropping';
       applyCookiePosition();
       setCookieState('ready');
@@ -1705,9 +1726,43 @@ export class Provider implements vscode.WebviewViewProvider {
         cookieDropTimer = setTimeout(() => {
           cookieDropTimer = undefined;
           setCookieState('landed');
+          cookieDashSegmentsRemaining = getCookieDashSegmentCount(Math.abs(cookieX - walkX));
           startCookieWalk();
         }, cookieDropMs);
       });
+    }
+
+    function getCookieDashSegmentCount(distance) {
+      if (!spriteSources.dash || !spriteSources.dashContinue || distance <= cookieDashMinDistancePx) {
+        return 0;
+      }
+
+      return Math.max(1, Math.ceil(distance / getSingleDashDistance()));
+    }
+
+    function canDashToCookie(distance) {
+      return Boolean(spriteSources.dash && spriteSources.dashContinue && distance > cookieDashMinDistancePx);
+    }
+
+    function getCookieMovementPlan(distance) {
+      const shouldDash = canDashToCookie(distance) && cookieDashSegmentsRemaining > 0;
+
+      if (!shouldDash) {
+        return {
+          state: 'walk',
+          targetX: cookieX,
+          durationMs: Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000)),
+        };
+      }
+
+      const isFinalDash = cookieDashSegmentsRemaining <= 1;
+      const dashDistance = isFinalDash ? distance : distance / cookieDashSegmentsRemaining;
+
+      return {
+        state: isFinalDash ? 'dash' : 'dashContinue',
+        targetX: walkX + walkDirection * dashDistance,
+        durationMs: dashGifDurationMs,
+      };
     }
 
     function startCookieWalk(preserveReturnState = false) {
@@ -1723,8 +1778,13 @@ export class Provider implements vscode.WebviewViewProvider {
       currentState = 'idle';
       document.body.dataset.state = 'idle';
       walkDirection = cookieX >= walkX ? 1 : -1;
+      const distanceToCookie = Math.abs(cookieX - walkX);
+      if (canDashToCookie(distanceToCookie) && cookieDashSegmentsRemaining <= 0) {
+        cookieDashSegmentsRemaining = getCookieDashSegmentCount(distanceToCookie);
+      }
+      const movementPlan = getCookieMovementPlan(distanceToCookie);
       preserveSpriteCenter(() => {
-        setSpriteForState('walk');
+        setSpriteForState(movementPlan.state, movementPlan.state === 'dashContinue');
       });
       applyWalkPosition(0);
       void spriteStage.offsetWidth;
@@ -1738,7 +1798,10 @@ export class Provider implements vscode.WebviewViewProvider {
         void spriteStage.offsetWidth;
 
         const distance = Math.abs(cookieX - walkX);
-        const durationMs = Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000));
+        if (canDashToCookie(distance) && cookieDashSegmentsRemaining <= 0) {
+          cookieDashSegmentsRemaining = getCookieDashSegmentCount(distance);
+        }
+        const activeMovementPlan = getCookieMovementPlan(distance);
         const completeCookieWalk = () => {
           if (!cookieActive || cookiePhase !== 'walking') {
             return;
@@ -1754,7 +1817,13 @@ export class Provider implements vscode.WebviewViewProvider {
             walkTransitionCleanup = undefined;
           }
 
-          eatCookie();
+          cookieDashSegmentsRemaining = Math.max(0, cookieDashSegmentsRemaining - 1);
+
+          if (Math.abs(cookieX - walkX) <= 1) {
+            eatCookie();
+          } else {
+            startCookieWalk(true);
+          }
         };
         const handleWalkTransitionEnd = (event) => {
           if (event.target === spriteStage && event.propertyName === 'transform') {
@@ -1766,9 +1835,9 @@ export class Provider implements vscode.WebviewViewProvider {
         };
 
         spriteStage.addEventListener('transitionend', handleWalkTransitionEnd);
-        walkTransitionTimer = setTimeout(completeCookieWalk, durationMs + 250);
-        walkX = cookieX;
-        applyWalkPosition(durationMs);
+        walkTransitionTimer = setTimeout(completeCookieWalk, activeMovementPlan.durationMs + 250);
+        walkX = activeMovementPlan.targetX;
+        applyWalkPosition(activeMovementPlan.durationMs);
       });
     }
 
@@ -1902,6 +1971,7 @@ export class Provider implements vscode.WebviewViewProvider {
         applyCookiePosition();
       }
       if (shouldResumeCookieWalk) {
+        cookieDashSegmentsRemaining = getCookieDashSegmentCount(Math.abs(cookieX - walkX));
         startCookieWalk(true);
       }
       if (speechBubble?.dataset.visible === 'true') {
@@ -1927,6 +1997,8 @@ function getSpriteSources(
     happy: 'happy-trim.gif',
     jump: 'jump-trim.gif',
     walk: 'walk-trim.gif',
+    dash: 'dash-trim.gif',
+    dashContinue: 'dash-continue-trim.gif',
     love: 'love-trim.gif',
     eat: 'eat-trim.gif',
     death: 'death-trim.gif',
