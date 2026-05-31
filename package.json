@@ -108,7 +108,11 @@
       },
       {
         "command": "buddy.revive",
-        "title": "Buddy: Revive"
+        "title": "Buddy: Revive",
+        "icon": {
+          "light": "media/revive-light.svg",
+          "dark": "media/revive-dark.svg"
+        }
       },
       {
         "command": "buddy.removeHeart",
@@ -120,7 +124,12 @@
         {
           "command": "buddy.spawnCookie",
           "when": "view == buddy.companion",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "buddy.revive",
+          "when": "view == buddy.companion",
+          "group": "navigation@2"
         }
       ]
     }

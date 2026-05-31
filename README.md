@@ -103,6 +103,7 @@ Try these first:
 - `Buddy: Wake Up` to return Buddy to the idle state.
 - `Buddy: Preview Animations` to cycle through the available animation states.
 - Use the cookie icon in the Buddy panel title bar to feed Buddy.
+- Use the revive icon in the Buddy panel title bar to restore Buddy after all three hearts are gone.
 - `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
 - `Buddy: Remove Heart` to simulate health loss and death during development.
 - `Buddy: Revive` to restore Buddy after all three hearts are gone.

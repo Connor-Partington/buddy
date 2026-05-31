@@ -65,6 +65,11 @@ export async function activate(context: vscode.ExtensionContext) {
     await healthManager.loseHeart();
   });
   const reviveCommand = vscode.commands.registerCommand('buddy.revive', async () => {
+    if (!healthManager.health.isDead) {
+      vscode.window.showInformationMessage('Buddy is already alive.');
+      return;
+    }
+
     await healthManager.revive();
     stateManager.setState('idle');
     vscode.window.showInformationMessage('Buddy has been revived.');
