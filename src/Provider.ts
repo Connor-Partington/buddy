@@ -5,7 +5,7 @@ import { BuddyState, BuddyStateMessage } from './stateManager';
 import { BuddyXp, maxBuddyLevel } from './xpManager';
 
 type SpriteKey = BuddyState | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
-type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
+type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
 
 const baseSpriteCanvasWidth = 64;
@@ -279,10 +279,8 @@ export class Provider implements vscode.WebviewViewProvider {
       top: 34px;
       left: 8px;
       z-index: 3;
-      width: min(112px, calc(100vw - 16px));
-      display: grid;
-      gap: 3px;
-      padding: 3px 5px;
+      width: min(96px, calc(100vw - 16px));
+      padding: 2px 6px;
       border: 1px solid var(--vscode-editorWidget-border, rgb(128 128 128 / 48%));
       border-radius: 4px;
       color: var(--vscode-sideBar-foreground);
@@ -291,11 +289,14 @@ export class Provider implements vscode.WebviewViewProvider {
       font-family: "Courier New", "Menlo", "Monaco", monospace;
       font-size: 10px;
       font-weight: 700;
-      line-height: 1.1;
+      line-height: 1.2;
+      overflow: hidden;
       pointer-events: none;
     }
 
     .xp-meter__label {
+      position: relative;
+      z-index: 1;
       display: flex;
       justify-content: space-between;
       gap: 6px;
@@ -304,10 +305,14 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     .xp-meter__track {
-      height: 4px;
+      position: absolute;
+      right: 6px;
+      bottom: 1px;
+      left: 6px;
+      height: 2px;
       overflow: hidden;
-      border: 1px solid rgb(0 0 0 / 24%);
-      border-radius: 2px;
+      border: 0;
+      border-radius: 1px;
       background: var(--vscode-editorWidget-background, rgb(128 128 128 / 18%));
     }
 
@@ -435,6 +440,21 @@ export class Provider implements vscode.WebviewViewProvider {
       transform: scaleX(var(--sprite-direction, 1));
       transform-origin: center bottom;
       transition: translate var(--vertical-duration, 0ms) cubic-bezier(0.18, 0.82, 0.26, 1);
+    }
+
+    .xp-burst {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 2px);
+      z-index: 2;
+      width: 9px;
+      height: 9px;
+      pointer-events: none;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 1px 0 rgb(0 0 0 / 24%));
+      animation: xp-burst-rise 1200ms ease-out both;
+      transform: translate(calc(-50% + var(--xp-burst-start-x, 0px)), var(--xp-burst-start-y, 0px));
+      will-change: transform, opacity;
     }
 
     .cookie-treat {
@@ -822,6 +842,23 @@ export class Provider implements vscode.WebviewViewProvider {
       100% {
         translate: 0 -18px;
         opacity: 1;
+      }
+    }
+
+    @keyframes xp-burst-rise {
+      0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--xp-burst-start-x, 0px)), var(--xp-burst-start-y, 0px)) scale(0.92);
+      }
+      18% {
+        opacity: 1;
+      }
+      72% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--xp-burst-end-x, 0px)), var(--xp-burst-end-y, -44px)) scale(var(--xp-burst-scale, 1));
       }
     }
 
@@ -1492,6 +1529,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setXp(xp) {
+      const previousTotalXp = Number(currentXp?.totalXp) || 0;
       const level = Math.max(1, Math.min(${maxBuddyLevel}, Number(xp?.level) || 1));
       const currentLevelXp = Math.max(0, Number(xp?.currentLevelXp) || 0);
       const nextLevelXp = Math.max(1, Number(xp?.nextLevelXp) || 100);
@@ -1518,6 +1556,10 @@ export class Provider implements vscode.WebviewViewProvider {
       if (xpValue) {
         xpValue.textContent = currentXp.isMaxLevel ? 'Max' : currentXp.currentLevelXp + '/' + currentXp.nextLevelXp;
       }
+
+      if (currentXp.totalXp > previousTotalXp && !isDead && !isIntroPlaying) {
+        playXpBurst();
+      }
     }
 
     function getXpAriaLabel(xp) {
@@ -1526,6 +1568,36 @@ export class Provider implements vscode.WebviewViewProvider {
       }
 
       return 'Buddy is level ' + xp.level + ' with ' + xp.currentLevelXp + ' of ' + xp.nextLevelXp + ' XP';
+    }
+
+    function playXpBurst() {
+      if (!spriteStage || !imageSources.xp) {
+        return;
+      }
+
+      const burstCount = 4 + Math.floor(Math.random() * 3);
+      for (let index = 0; index < burstCount; index += 1) {
+        const xpBurst = document.createElement('img');
+        const startX = -18 + Math.random() * 36;
+        const startY = -2 - Math.random() * 10;
+        const endX = startX + (-5 + Math.random() * 10);
+        const endY = startY - 34 - Math.random() * 18;
+        const scale = 0.9 + Math.random() * 0.25;
+        xpBurst.className = 'xp-burst';
+        xpBurst.setAttribute('src', imageSources.xp);
+        xpBurst.setAttribute('alt', '');
+        xpBurst.setAttribute('aria-hidden', 'true');
+        xpBurst.style.setProperty('--xp-burst-start-x', startX + 'px');
+        xpBurst.style.setProperty('--xp-burst-start-y', startY + 'px');
+        xpBurst.style.setProperty('--xp-burst-end-x', endX + 'px');
+        xpBurst.style.setProperty('--xp-burst-end-y', endY + 'px');
+        xpBurst.style.setProperty('--xp-burst-scale', String(scale));
+        xpBurst.style.animationDelay = index * 55 + 'ms';
+        xpBurst.addEventListener('animationend', () => {
+          xpBurst.remove();
+        }, { once: true });
+        spriteStage.appendChild(xpBurst);
+      }
     }
 
     function setHealth(health, options = {}) {
@@ -2323,6 +2395,7 @@ function getImageSources(
     heart: 'heart-trim.gif',
     heartEmpty: 'heart-empty-trim.gif',
     heartFill: 'heart-fill-trim.gif',
+    xp: 'xp-trim.gif',
   };
 
   return Object.fromEntries(

@@ -1,10 +1,22 @@
 import * as vscode from 'vscode';
 
 export const maxBuddyLevel = 100;
-export const buddyXpPerLevel = 100;
-export const maxBuddyXp = (maxBuddyLevel - 1) * buddyXpPerLevel;
+export const targetMaxBuddyXp = 85000;
+export const defaultBuddyXpMultiplier = 1;
 
-export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush';
+const baseLevelXp = 100;
+const levelXpCurveExponent = 1.2;
+const levelUpsToMax = maxBuddyLevel - 1;
+const levelXpWeights = Array.from({ length: levelUpsToMax }, (_, index) => Math.pow(index, levelXpCurveExponent));
+const levelXpWeightTotal = levelXpWeights.reduce((total, weight) => total + weight, 0);
+const levelXpScale = (targetMaxBuddyXp - baseLevelXp * levelUpsToMax) / levelXpWeightTotal;
+const buddyLevelXpRequirements = Array.from({ length: levelUpsToMax }, (_, index) =>
+  Math.max(1, Math.round(baseLevelXp + levelXpWeights[index] * levelXpScale)),
+);
+
+export const maxBuddyXp = buddyLevelXpRequirements.reduce((total, xp) => total + xp, 0);
+
+export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush' | 'feed' | 'test' | 'reset';
 
 export type BuddyXp = {
   totalXp: number;
@@ -27,26 +39,34 @@ export type BuddyXpChange = {
 };
 
 const totalXpKey = 'buddyXp.totalXp';
+const xpMultiplierKey = 'buddyXp.multiplier';
 
 export class BuddyXpManager implements vscode.Disposable {
   private totalXp: number;
+  private xpMultiplier: number;
   private readonly listeners = new Set<(change: BuddyXpChange) => void>();
 
   public constructor(private readonly globalState: vscode.Memento) {
     this.totalXp = normalizeTotalXp(globalState.get<number>(totalXpKey, 0));
+    this.xpMultiplier = normalizeXpMultiplier(globalState.get<number>(xpMultiplierKey, defaultBuddyXpMultiplier));
   }
 
   public get xp(): BuddyXp {
     return getBuddyXp(this.totalXp);
   }
 
+  public get multiplier(): number {
+    return this.xpMultiplier;
+  }
+
   public async awardXp(award: BuddyXpAward): Promise<BuddyXpChange | undefined> {
-    if (award.amount <= 0 || this.xp.isMaxLevel) {
+    const effectiveAmount = getEffectiveAwardAmount(award.amount, this.xpMultiplier);
+    if (effectiveAmount <= 0 || this.xp.isMaxLevel) {
       return undefined;
     }
 
     const previousLevel = this.xp.level;
-    const nextTotalXp = normalizeTotalXp(this.totalXp + award.amount);
+    const nextTotalXp = normalizeTotalXp(this.totalXp + effectiveAmount);
     if (nextTotalXp === this.totalXp) {
       return undefined;
     }
@@ -56,12 +76,40 @@ export class BuddyXpManager implements vscode.Disposable {
 
     const change: BuddyXpChange = {
       xp: this.xp,
-      award,
+      award: {
+        ...award,
+        amount: effectiveAmount,
+      },
       leveledUp: this.xp.level > previousLevel,
     };
     this.listeners.forEach((listener) => listener(change));
 
     return change;
+  }
+
+  public async resetXp(): Promise<BuddyXpChange | undefined> {
+    if (this.totalXp <= 0) {
+      return undefined;
+    }
+
+    this.totalXp = 0;
+    await this.globalState.update(totalXpKey, this.totalXp);
+
+    const change: BuddyXpChange = {
+      xp: this.xp,
+      award: { source: 'reset', amount: 0 },
+      leveledUp: false,
+    };
+    this.listeners.forEach((listener) => listener(change));
+
+    return change;
+  }
+
+  public async setMultiplier(multiplier: number): Promise<number> {
+    this.xpMultiplier = normalizeXpMultiplier(multiplier);
+    await this.globalState.update(xpMultiplierKey, this.xpMultiplier);
+
+    return this.xpMultiplier;
   }
 
   public onDidChangeXp(listener: (change: BuddyXpChange) => void): vscode.Disposable {
@@ -81,11 +129,13 @@ export class BuddyXpManager implements vscode.Disposable {
 
 function getBuddyXp(totalXp: number): BuddyXp {
   const normalizedTotalXp = normalizeTotalXp(totalXp);
-  const level = Math.min(maxBuddyLevel, Math.floor(normalizedTotalXp / buddyXpPerLevel) + 1);
-  const currentLevelStartXp = (level - 1) * buddyXpPerLevel;
-  const currentLevelXp = Math.max(0, normalizedTotalXp - currentLevelStartXp);
+  const level = getLevelForTotalXp(normalizedTotalXp);
+  const currentLevelStartXp = getTotalXpForLevel(level);
   const isMaxLevel = level >= maxBuddyLevel;
-  const nextLevelXp = isMaxLevel ? buddyXpPerLevel : buddyXpPerLevel;
+  const nextLevelXp = isMaxLevel
+    ? buddyLevelXpRequirements[buddyLevelXpRequirements.length - 1]
+    : buddyLevelXpRequirements[level - 1];
+  const currentLevelXp = isMaxLevel ? nextLevelXp : Math.max(0, normalizedTotalXp - currentLevelStartXp);
   const progress = isMaxLevel ? 1 : currentLevelXp / nextLevelXp;
 
   return {
@@ -98,10 +148,45 @@ function getBuddyXp(totalXp: number): BuddyXp {
   };
 }
 
+function getLevelForTotalXp(totalXp: number): number {
+  let remainingXp = totalXp;
+  for (let index = 0; index < buddyLevelXpRequirements.length; index += 1) {
+    if (remainingXp < buddyLevelXpRequirements[index]) {
+      return index + 1;
+    }
+
+    remainingXp -= buddyLevelXpRequirements[index];
+  }
+
+  return maxBuddyLevel;
+}
+
+function getTotalXpForLevel(level: number): number {
+  return buddyLevelXpRequirements
+    .slice(0, Math.max(0, Math.min(maxBuddyLevel, level) - 1))
+    .reduce((total, xp) => total + xp, 0);
+}
+
 function normalizeTotalXp(totalXp: number | undefined): number {
   if (typeof totalXp !== 'number' || !Number.isFinite(totalXp)) {
     return 0;
   }
 
   return Math.min(maxBuddyXp, Math.max(0, Math.round(totalXp)));
+}
+
+function normalizeXpMultiplier(multiplier: number | undefined): number {
+  if (typeof multiplier !== 'number' || !Number.isFinite(multiplier)) {
+    return defaultBuddyXpMultiplier;
+  }
+
+  return Math.min(5, Math.max(0.25, multiplier));
+}
+
+function getEffectiveAwardAmount(amount: number, multiplier: number): number {
+  if (amount <= 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.round(amount * multiplier));
 }

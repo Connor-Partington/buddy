@@ -30,7 +30,7 @@ export class BuddyActivityController implements vscode.Disposable {
       vscode.workspace.onDidSaveTextDocument((document) => {
         if (isSupportedDocument(document)) {
           this.handleSave();
-          this.awardXp({ source: 'save', amount: 5 });
+          this.awardXp({ source: 'save', amount: 1 });
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((event) => {
@@ -120,10 +120,8 @@ export class BuddyActivityController implements vscode.Disposable {
       return;
     }
 
-    if (source === 'gitCommit') {
-      this.awardXp({ source, amount: 50 });
-    } else if (source === 'gitPush') {
-      this.awardXp({ source, amount: 75 });
+    if (source === 'gitPush') {
+      this.awardXp({ source, amount: 30 });
     }
   }
 
@@ -191,10 +189,6 @@ function isNavigableDocument(document: vscode.TextDocument): boolean {
 
 function getGitXpSource(commandLine: string): BuddyXpSource | undefined {
   const normalizedCommand = commandLine.trim().toLowerCase();
-  if (/^(?:\w+=\S+\s+)*(?:command\s+)?git(?:\s+-c\s+\S+(?:=\S+)?)*\s+commit(?:\s|$)/.test(normalizedCommand)) {
-    return 'gitCommit';
-  }
-
   if (/^(?:\w+=\S+\s+)*(?:command\s+)?git(?:\s+-c\s+\S+(?:=\S+)?)*\s+push(?:\s|$)/.test(normalizedCommand)) {
     return 'gitPush';
   }

@@ -70,7 +70,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - First-open spawn animation with a Buddy greeting and heart reveal.
 - Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
-- Persistent XP counter with levels up to 100, including progress for saves, successful terminal `git commit`, and successful terminal `git push` work.
+- Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, and successful terminal `git push` work.
 - Dash behavior when Buddy goes after cookies.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
@@ -105,19 +105,14 @@ Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy wi
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
 
-Buddy also tracks XP across sessions. Saving a supported local file earns 5 XP, a successful `git commit` from the integrated terminal earns 50 XP, and a successful `git push` from the integrated terminal earns 75 XP. Each level takes 100 XP, with level 100 as the cap.
+Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful `git push` from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP.
 
-Try these first:
+## Actions
 
-- `Buddy: Wake Up` to return Buddy to the idle state.
-- `Buddy: Preview Animations` to cycle through the available animation states.
 - Use the <img src="media/cookie-dark.svg" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
 - Use the <img src="media/revive-dark.svg" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
 - Use the <img src="media/death-dark.svg" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
 - Use the <img src="media/break-dark.svg" alt="break prompt icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to toggle the break prompt.
-- `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
-- `Buddy: Remove Heart` to simulate health loss and death.
-- `Buddy: Revive` to restore Buddy if he dies.
 
 ## Commands
 
@@ -129,6 +124,9 @@ Try these first:
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
 | `Buddy: Toggle Break Prompt` | Shows or hides Buddy's break reminder speech bubble. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
+| `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |
+| `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |
+| `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |

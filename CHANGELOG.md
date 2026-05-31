@@ -5,7 +5,12 @@ All notable changes to Buddy will be documented in this file.
 ## 0.3.0
 
 - Added a persistent XP counter with levels up to 100.
-- Added XP gains for supported file saves, successful integrated-terminal `git commit`, and successful integrated-terminal `git push` actions.
+- Added XP gains for supported file saves, feeding Buddy, Git commits detected by VS Code, and successful integrated-terminal `git push` actions.
+- Added XP burst sprites above Buddy when XP is earned.
+- Added `Buddy: Add XP` for testing XP progress and burst animations.
+- Added `Buddy: Reset XP` and `Buddy: Set XP Multiplier` for testing and tuning XP progress.
+- Tuned XP so each level needs more XP than the previous level, with level 100 targeted around 85,000 total XP.
+- Raised early XP requirements so the first levels no longer advance too quickly.
 - Fixed panel switching replaying Buddy's revive animation after he had previously died.
 
 ## 0.2.0

@@ -30,6 +30,9 @@
     "onCommand:buddy.spawnCookie",
     "onCommand:buddy.toggleBreakPrompt",
     "onCommand:buddy.removeHeart",
+    "onCommand:buddy.addXp",
+    "onCommand:buddy.resetXp",
+    "onCommand:buddy.setXpMultiplier",
     "onCommand:buddy.revive",
     "onCommand:buddy.showSidebar",
     "onStartupFinished",
@@ -135,6 +138,18 @@
       {
         "command": "buddy.removeHeart",
         "title": "Buddy: Remove Heart"
+      },
+      {
+        "command": "buddy.addXp",
+        "title": "Buddy: Add XP"
+      },
+      {
+        "command": "buddy.resetXp",
+        "title": "Buddy: Reset XP"
+      },
+      {
+        "command": "buddy.setXpMultiplier",
+        "title": "Buddy: Set XP Multiplier"
       }
     ],
     "menus": {
