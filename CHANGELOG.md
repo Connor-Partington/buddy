@@ -7,7 +7,7 @@ All notable changes to Buddy will be documented in this file.
 - Added a persistent alive day counter that scrambles into place and resets after Buddy dies.
 - Added a 25-minute break reminder speech bubble with scrambled text that decodes into Buddy's message.
 - Added randomized speech bubble messages for break reminders, heart loss, and cookie eating.
-- Added a first-open spawn animation with a Buddy greeting and sequential heart reveal.
+- Added a first-open spawn animation with a Buddy greeting and sequential heart fill.
 - Added dash behavior for cookie movement.
 - Added `Buddy: Toggle Break Prompt` and a title-bar action for manually showing or hiding the break reminder.
 - Added a revive animation that returns Buddy from the soul position before dropping back to the panel bottom.

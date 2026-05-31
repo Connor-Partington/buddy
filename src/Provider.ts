@@ -760,7 +760,7 @@ export class Provider implements vscode.WebviewViewProvider {
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
       <div class="health-meter" aria-label="Buddy health">
-        ${renderHearts(shouldPlayIntro ? 0 : health.hearts, imageSources)}
+        ${renderHearts(0, imageSources)}
       </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
@@ -998,16 +998,20 @@ export class Provider implements vscode.WebviewViewProvider {
       cookieTreat.hidden = false;
     }
 
+    function clearHeartFillTimer() {
+      if (introHeartTimer) {
+        clearTimeout(introHeartTimer);
+        introHeartTimer = undefined;
+      }
+    }
+
     function clearIntroTimer() {
       if (introTimer) {
         clearTimeout(introTimer);
         introTimer = undefined;
       }
 
-      if (introHeartTimer) {
-        clearTimeout(introHeartTimer);
-        introHeartTimer = undefined;
-      }
+      clearHeartFillTimer();
     }
 
     function updateSpeechBubblePosition() {
@@ -1090,16 +1094,29 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    function playIntroHearts(nextHeart = 1) {
-      renderHearts(Math.min(currentHearts, nextHeart));
+    function startSequentialHeartFill(hearts) {
+      clearHeartFillTimer();
+      renderHearts(0);
 
-      if (nextHeart >= currentHearts) {
+      if (hearts <= 0) {
+        introHeartTimer = undefined;
+        return;
+      }
+
+      playSequentialHeartFill(hearts);
+    }
+
+    function playSequentialHeartFill(hearts, heartIndex = 0) {
+      renderHearts(heartIndex);
+      playHeartFill(heartIndex);
+
+      if (heartIndex >= hearts - 1) {
         introHeartTimer = undefined;
         return;
       }
 
       introHeartTimer = setTimeout(() => {
-        playIntroHearts(nextHeart + 1);
+        playSequentialHeartFill(hearts, heartIndex + 1);
       }, introHeartPopMs);
     }
 
@@ -1144,7 +1161,7 @@ export class Provider implements vscode.WebviewViewProvider {
                 return;
               }
 
-              playIntroHearts();
+              startSequentialHeartFill(currentHearts);
               showSpeechMessage(introMessage, {
                 lockBuddy: false,
                 scheduleNextBreak: false,
@@ -1392,7 +1409,7 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    function setHealth(health) {
+    function setHealth(health, options = {}) {
       const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
       const wasDead = isDead;
       const healthDidChange = hearts !== currentHearts || Boolean(health?.isDead || hearts <= 0) !== isDead;
@@ -1411,7 +1428,12 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      renderHearts(hearts);
+      if (options.animateHeartFill && !isDead) {
+        startSequentialHeartFill(hearts);
+      } else {
+        clearHeartFillTimer();
+        renderHearts(hearts);
+      }
 
       if (isDead) {
         clearIntroTimer();
@@ -2083,7 +2105,7 @@ export class Provider implements vscode.WebviewViewProvider {
     if (isIntroPlaying) {
       playIntroSequence();
     } else {
-      setHealth(${JSON.stringify(health)});
+      setHealth(${JSON.stringify(health)}, { animateHeartFill: true });
     }
     updateLifeCounter(true);
     scheduleLifeCounterTick();
