@@ -70,10 +70,10 @@ Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, 
 
 ## Actions
 
-- Use the <img src="media/cookie-dark.svg" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
-- Use the <img src="media/revive-dark.svg" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
-- Use the <img src="media/death-dark.svg" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
-- Use the <img src="media/break-dark.svg" alt="break prompt icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to toggle the break prompt.
+- Use the <img src="media/cookie-dark.png" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
+- Use the <img src="media/revive-dark.png" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
+- Use the <img src="media/death-dark.png" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
+- Use the <img src="media/break-dark.png" alt="break prompt icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to toggle the break prompt.
 
 ## Commands
 
