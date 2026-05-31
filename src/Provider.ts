@@ -53,13 +53,15 @@ export class Provider implements vscode.WebviewViewProvider {
         this.onDidFeedCookieEmitter.fire();
       }
     });
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.syncWebviewState();
+      }
+    });
 
     const spriteSources = getSpriteSources(this.extensionUri, webviewView.webview);
     const imageSources = getImageSources(this.extensionUri, webviewView.webview);
     webviewView.webview.html = this.getHtml(webviewView.webview, spriteSources, imageSources);
-    this.postState();
-    this.postBuddySize();
-    this.postHealth();
   }
 
   public setState(state: BuddyState): void {
@@ -123,6 +125,12 @@ export class Provider implements vscode.WebviewViewProvider {
     void this.webviewView?.webview.postMessage(message);
   }
 
+  private syncWebviewState(): void {
+    this.postHealth();
+    this.postState();
+    this.postBuddySize();
+  }
+
   private getHtml(
     webview: vscode.Webview,
     spriteSources: Record<SpriteKey, string>,
@@ -131,6 +139,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const nonce = getNonce();
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
     const health = this.health;
+    const initialSpriteState: SpriteKey = health.isDead ? 'soul' : this.state;
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -728,9 +737,9 @@ export class Provider implements vscode.WebviewViewProvider {
           <div class="nose"></div>
         </div>
       </div>
-      <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love" style="--sprite-display-width: ${spriteDisplaySizes[this.state].width}; --sprite-aspect-ratio: ${spriteDisplaySizes[this.state].aspectRatio};">
+      <div class="frame-stage" role="button" tabindex="0" aria-label="Show Buddy love" style="--sprite-display-width: ${spriteDisplaySizes[initialSpriteState].width}; --sprite-aspect-ratio: ${spriteDisplaySizes[initialSpriteState].aspectRatio};">
         <div class="speech-bubble" aria-live="polite" aria-atomic="true"><span></span></div>
-        <img class="sprite-image" alt="" src="${spriteSources[this.state]}" />
+        <img class="sprite-image" alt="" src="${spriteSources[initialSpriteState]}" />
       </div>
       <img class="cookie-treat" alt="" src="${imageSources.cookie}" hidden />
     </section>
@@ -773,6 +782,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let isDead = ${JSON.stringify(health.isDead)};
     let isReviving = false;
     let isBreakPromptActive = false;
+    let currentHearts = ${JSON.stringify(health.hearts)};
     let previousHearts = ${JSON.stringify(health.hearts)};
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
@@ -837,6 +847,18 @@ export class Provider implements vscode.WebviewViewProvider {
       if (source && spriteImage.getAttribute('src') !== source) {
         spriteImage.setAttribute('src', source);
       }
+    }
+
+    function getVisibleSpriteState() {
+      if (isReviving || deathPhase === 'reviving') {
+        return 'revive';
+      }
+
+      if (isDead) {
+        return deathPhase === 'dying' ? 'death' : 'soul';
+      }
+
+      return document.body.dataset.state || currentState || 'idle';
     }
 
     function updateCookieSize() {
@@ -1096,7 +1118,9 @@ export class Provider implements vscode.WebviewViewProvider {
     function setHealth(health) {
       const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
       const wasDead = isDead;
+      const healthDidChange = hearts !== currentHearts || Boolean(health?.isDead || hearts <= 0) !== isDead;
       const lostHeart = hearts < previousHearts;
+      currentHearts = hearts;
       previousHearts = hearts;
       isDead = Boolean(health?.isDead || hearts <= 0);
       document.body.dataset.dead = String(isDead);
@@ -1113,6 +1137,12 @@ export class Provider implements vscode.WebviewViewProvider {
         clearClickReaction();
         resetCookie();
         clearRandomWalk();
+        if (!healthDidChange && deathPhase === 'soul') {
+          setSpriteForState('soul');
+          setDeathPhase('soul');
+          return;
+        }
+
         playDeathSequence(!wasDead);
       } else {
         clearDeathTimer();
@@ -1637,7 +1667,7 @@ export class Provider implements vscode.WebviewViewProvider {
           state: document.body.dataset.state || 'idle',
           buddySize,
         });
-        setSpriteForState(document.body.dataset.state || 'idle');
+        setSpriteForState(getVisibleSpriteState());
         updateCookieSize();
       });
     }
@@ -1710,8 +1740,6 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     });
 
-    setState('${this.state}');
-    setBuddySize(buddySize);
     setHealth(${JSON.stringify(health)});
     updateCookieSize();
     clampWalkPosition();

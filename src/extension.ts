@@ -17,6 +17,11 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setState(state);
   });
   const feedCookieSubscription = provider.onDidFeedCookie(() => {
+    if (healthManager.health.isDead) {
+      provider.setHealth(healthManager.health);
+      return;
+    }
+
     void healthManager.feedCookie().then((restoredHeartIndex) => {
       if (restoredHeartIndex !== undefined) {
         provider.playHeartFill(restoredHeartIndex);
@@ -69,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const killCommand = vscode.commands.registerCommand('buddy.kill', async () => {
     if (healthManager.health.isDead) {
+      provider.setHealth(healthManager.health);
       vscode.window.showInformationMessage('Buddy is dead.');
       return;
     }
