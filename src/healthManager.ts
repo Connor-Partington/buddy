@@ -76,6 +76,12 @@ export class BuddyHealthManager implements vscode.Disposable {
     }
   }
 
+  public async kill(): Promise<void> {
+    this.clearHeartLossTimer();
+    await this.setHearts(0);
+    this.remainingHeartLossMs = buddyHeartLossIntervalMs;
+  }
+
   public onDidChangeHealth(listener: (health: BuddyHealth) => void): vscode.Disposable {
     this.listeners.add(listener);
 

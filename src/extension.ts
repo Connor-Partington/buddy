@@ -26,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
     provider.setHealth(health);
     if (health.isDead) {
-      vscode.window.showWarningMessage('Buddy has no hearts left.');
+      vscode.window.showWarningMessage('Buddy is dead.');
     }
   });
   const windowStateSubscription = vscode.window.onDidChangeWindowState((windowState) => {
@@ -64,6 +64,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
     await healthManager.loseHeart();
   });
+  const killCommand = vscode.commands.registerCommand('buddy.kill', async () => {
+    if (healthManager.health.isDead) {
+      vscode.window.showInformationMessage('Buddy is dead.');
+      return;
+    }
+
+    await healthManager.kill();
+  });
   const reviveCommand = vscode.commands.registerCommand('buddy.revive', async () => {
     if (!healthManager.health.isDead) {
       vscode.window.showInformationMessage('Buddy is already alive.');
@@ -97,6 +105,7 @@ export async function activate(context: vscode.ExtensionContext) {
     toggleSizeCommand,
     spawnCookieCommand,
     removeHeartCommand,
+    killCommand,
     reviveCommand,
     ...stateCommands,
   );

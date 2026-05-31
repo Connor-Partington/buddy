@@ -26,6 +26,7 @@
     "fun"
   ],
   "activationEvents": [
+    "onCommand:buddy.kill",
     "onCommand:buddy.spawnCookie",
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.revive",
@@ -115,6 +116,14 @@
         }
       },
       {
+        "command": "buddy.kill",
+        "title": "Buddy: Kill",
+        "icon": {
+          "light": "media/death-light.svg",
+          "dark": "media/death-dark.svg"
+        }
+      },
+      {
         "command": "buddy.removeHeart",
         "title": "Buddy: Remove Heart"
       }
@@ -130,6 +139,11 @@
           "command": "buddy.revive",
           "when": "view == buddy.companion",
           "group": "navigation@2"
+        },
+        {
+          "command": "buddy.kill",
+          "when": "view == buddy.companion",
+          "group": "navigation@3"
         }
       ]
     }

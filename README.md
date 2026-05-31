@@ -104,8 +104,9 @@ Try these first:
 - `Buddy: Preview Animations` to cycle through the available animation states.
 - Use the cookie icon in the Buddy panel title bar to feed Buddy.
 - Use the revive icon in the Buddy panel title bar to restore Buddy after all three hearts are gone.
+- Use the death icon in the Buddy panel title bar to drain all hearts.
 - `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
-- `Buddy: Remove Heart` to simulate health loss and death during development.
+- `Buddy: Remove Heart` to simulate health loss and death.
 - `Buddy: Revive` to restore Buddy after all three hearts are gone.
 
 ## Commands
@@ -117,6 +118,7 @@ Try these first:
 | `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
+| `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Restores Buddy to three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
 | `Buddy: Set State Idle` | Shows the idle state. |

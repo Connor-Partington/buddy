@@ -8,6 +8,7 @@ All notable changes to Buddy will be documented in this file.
 - Added cookie feeding health recovery with heart fill animations.
 - Added Buddy death, death animation, floating soul, and revive behavior.
 - Added a revive title-bar action in the Buddy panel.
+- Added a death title-bar action in the Buddy panel.
 - Added `Buddy: Remove Heart` and `Buddy: Revive` commands for testing and recovery.
 
 ## 0.0.31
