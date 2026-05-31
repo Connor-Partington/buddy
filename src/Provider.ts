@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul';
+type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul' | 'revive';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
 export type BuddySize = 'default' | 'small';
 
@@ -27,6 +27,7 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   eat: { width: 18, height: 18 },
   death: { width: 22, height: 18 },
   soul: { width: 16, height: 16 },
+  revive: { width: 32, height: 32 },
 };
 
 export class Provider implements vscode.WebviewViewProvider {
@@ -196,10 +197,15 @@ export class Provider implements vscode.WebviewViewProvider {
       filter: none;
     }
 
-    body[data-death-phase="soul"] .frame-stage {
+    body[data-death-phase="soul"] .frame-stage,
+    body[data-death-phase="reviving"] .frame-stage {
       animation: soul-wander 8s ease-in-out infinite;
       filter: drop-shadow(0 0 10px rgb(144 213 255 / 34%));
-      margin-bottom: 24px;
+      --sprite-lift: 24px;
+    }
+
+    body[data-death-phase="reviving"] .frame-stage {
+      animation: none;
     }
 
     body[data-death-phase="rising"] .sprite-image {
@@ -231,7 +237,10 @@ export class Provider implements vscode.WebviewViewProvider {
       aspect-ratio: var(--sprite-aspect-ratio, ${spriteDisplaySizes[this.state].aspectRatio});
       align-self: end;
       transform: translateX(var(--walk-x, 0px));
-      transition: transform var(--walk-duration, 0ms) linear;
+      margin-bottom: var(--sprite-lift, 0px);
+      transition:
+        transform var(--walk-duration, 0ms) linear,
+        margin-bottom var(--vertical-duration, 0ms) cubic-bezier(0.18, 0.82, 0.26, 1);
       will-change: transform;
       cursor: pointer;
     }
@@ -247,8 +256,10 @@ export class Provider implements vscode.WebviewViewProvider {
       align-self: end;
       object-fit: contain;
       image-rendering: pixelated;
+      translate: 0 var(--sprite-y, 0px);
       transform: scaleX(var(--sprite-direction, 1));
       transform-origin: center bottom;
+      transition: translate var(--vertical-duration, 0ms) cubic-bezier(0.18, 0.82, 0.26, 1);
     }
 
     .cookie-treat {
@@ -689,12 +700,15 @@ export class Provider implements vscode.WebviewViewProvider {
     let cookieDropTimer;
     let cookieEatTimer;
     let deathTimer;
+    let reviveTimer;
     let walkX = 0;
+    let spriteY = 0;
     let walkDirection = 1;
     let cookieX = 0;
     let cookieActive = false;
     let cookiePhase = 'idle';
     let isDead = ${JSON.stringify(health.isDead)};
+    let isReviving = false;
     let deathPhase = isDead ? 'soul' : 'alive';
     const walkSpeedPxPerSecond = 70;
     const walkVisibleWidthRatio = 0.42;
@@ -703,6 +717,8 @@ export class Provider implements vscode.WebviewViewProvider {
     const eatGifDurationMs = 2000;
     const deathGifDurationMs = 950;
     const soulRiseDurationMs = 1100;
+    const reviveGifDurationMs = 900;
+    const reviveDropDurationMs = 360;
     const heartFillDurationMs = 1100;
 
     function getSpriteDisplaySize(state) {
@@ -763,6 +779,12 @@ export class Provider implements vscode.WebviewViewProvider {
       updateSoulWanderBounds();
     }
 
+    function applySpriteY(durationMs = 0) {
+      spriteImage?.style.setProperty('--vertical-duration', durationMs + 'ms');
+      spriteStage?.style.setProperty('--vertical-duration', durationMs + 'ms');
+      spriteImage?.style.setProperty('--sprite-y', spriteY + 'px');
+    }
+
     function updateSoulWanderBounds() {
       if (!spriteStage || deathPhase !== 'soul') {
         return;
@@ -815,6 +837,10 @@ export class Provider implements vscode.WebviewViewProvider {
       renderHearts(hearts);
 
       if (isDead) {
+        clearReviveTimer();
+        isReviving = false;
+        spriteY = 0;
+        applySpriteY(0);
         clearClickReaction();
         clearCookieEatTimer();
         clearRandomWalk();
@@ -823,6 +849,11 @@ export class Provider implements vscode.WebviewViewProvider {
         playDeathSequence(!wasDead);
       } else {
         clearDeathTimer();
+        if (wasDead) {
+          playReviveSequence();
+          return;
+        }
+
         setDeathPhase('alive');
         if (isCookieInteractionActive()) {
           return;
@@ -843,6 +874,13 @@ export class Provider implements vscode.WebviewViewProvider {
       if (deathTimer) {
         clearTimeout(deathTimer);
         deathTimer = undefined;
+      }
+    }
+
+    function clearReviveTimer() {
+      if (reviveTimer) {
+        clearTimeout(reviveTimer);
+        reviveTimer = undefined;
       }
     }
 
@@ -882,6 +920,59 @@ export class Provider implements vscode.WebviewViewProvider {
       }, deathGifDurationMs);
     }
 
+    function playReviveSequence() {
+      clearDeathTimer();
+      clearReviveTimer();
+      clearClickReaction();
+      clearCookieEatTimer();
+      clearRandomWalk();
+      cookieActive = false;
+      cookiePhase = 'idle';
+      isReviving = true;
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      captureWalkPosition();
+
+      preserveSpritePosition(() => {
+        setDeathPhase('reviving');
+        setSpriteForState('revive');
+      });
+
+      reviveTimer = setTimeout(() => {
+        reviveTimer = undefined;
+        if (isDead) {
+          isReviving = false;
+          return;
+        }
+
+        preserveSpritePosition(() => {
+          currentState = 'idle';
+          document.body.dataset.state = 'idle';
+          setSpriteForState('idle');
+        });
+
+        waitForSpriteImage(() => {
+          if (isDead) {
+            isReviving = false;
+            return;
+          }
+
+          requestAnimationFrame(() => {
+            setDeathPhase('alive');
+            spriteY = 0;
+            applySpriteY(reviveDropDurationMs);
+
+            reviveTimer = setTimeout(() => {
+              reviveTimer = undefined;
+              isReviving = false;
+              applySpriteY(0);
+              scheduleRandomWalk();
+            }, reviveDropDurationMs);
+          });
+        });
+      }, reviveGifDurationMs);
+    }
+
     function playHeartFill(heartIndex) {
       if (!healthMeter) {
         return;
@@ -904,10 +995,16 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const transform = getComputedStyle(spriteStage).transform;
-      if (transform && transform !== 'none') {
-        const matrix = new DOMMatrixReadOnly(transform);
-        walkX = matrix.m41;
+      if (stage) {
+        const stageRect = stage.getBoundingClientRect();
+        const spriteRect = spriteStage.getBoundingClientRect();
+        walkX = spriteRect.left + spriteRect.width / 2 - (stageRect.left + stageRect.width / 2);
+      } else {
+        const transform = getComputedStyle(spriteStage).transform;
+        if (transform && transform !== 'none') {
+          const matrix = new DOMMatrixReadOnly(transform);
+          walkX = matrix.m41;
+        }
       }
 
       applyWalkPosition(0);
@@ -920,6 +1017,14 @@ export class Provider implements vscode.WebviewViewProvider {
 
       const rect = spriteImage.getBoundingClientRect();
       return rect.left + rect.width / 2;
+    }
+
+    function getSpriteBottom() {
+      if (!spriteImage) {
+        return undefined;
+      }
+
+      return spriteImage.getBoundingClientRect().bottom;
     }
 
     function preserveSpriteCenter(callback) {
@@ -943,6 +1048,48 @@ export class Provider implements vscode.WebviewViewProvider {
 
       requestAnimationFrame(adjustPosition);
       spriteImage?.addEventListener('load', adjustPosition, { once: true });
+    }
+
+    function preserveSpritePosition(callback) {
+      const previousCenter = getSpriteCenterX();
+      const previousBottom = getSpriteBottom();
+      callback();
+
+      if (previousCenter === undefined && previousBottom === undefined) {
+        return;
+      }
+
+      let didAdjust = false;
+      const adjustPosition = () => {
+        if (didAdjust) {
+          return;
+        }
+        didAdjust = true;
+
+        if (previousCenter !== undefined) {
+          const nextCenter = getSpriteCenterX();
+          if (nextCenter !== undefined) {
+            walkX += previousCenter - nextCenter;
+            applyWalkPosition(0);
+            clampWalkPosition();
+          }
+        }
+
+        if (previousBottom !== undefined) {
+          const nextBottom = getSpriteBottom();
+          if (nextBottom !== undefined) {
+            spriteY += previousBottom - nextBottom;
+            applySpriteY(0);
+          }
+        }
+      };
+
+      if (spriteImage && !spriteImage.complete) {
+        spriteImage.addEventListener('load', adjustPosition, { once: true });
+        spriteImage.addEventListener('error', adjustPosition, { once: true });
+      } else {
+        requestAnimationFrame(adjustPosition);
+      }
     }
 
     function waitForSpriteImage(callback) {
@@ -1015,7 +1162,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function scheduleRandomWalk() {
-      if (isDead || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
 
@@ -1029,7 +1176,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function startRandomWalk() {
-      if (isDead || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
         scheduleRandomWalk();
         return;
       }
@@ -1072,7 +1219,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      if (isDead || isCookieInteractionActive()) {
+      if (isDead || isReviving || isCookieInteractionActive()) {
         return;
       }
 
@@ -1201,7 +1348,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setState(state) {
-      if (isDead) {
+      if (isDead || isReviving) {
         lastState = state;
         return;
       }
@@ -1224,7 +1371,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function triggerBuddyClick() {
-      if (isDead || isCookieInteractionActive()) {
+      if (isDead || isReviving || isCookieInteractionActive()) {
         return;
       }
 
@@ -1304,6 +1451,7 @@ function getSpriteSources(
     eat: 'eat-trim.gif',
     death: 'death-trim.gif',
     soul: 'soul-trim.gif',
+    revive: 'revive-trim.gif',
   };
 
   return Object.fromEntries(

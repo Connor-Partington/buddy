@@ -7,6 +7,7 @@ All notable changes to Buddy will be documented in this file.
 - Added a three-heart health meter that drains during focused VS Code time.
 - Added cookie feeding health recovery with heart fill animations.
 - Added Buddy death, death animation, floating soul, and revive behavior.
+- Added a revive animation that returns Buddy from the soul position before dropping back to the panel bottom.
 - Added a revive title-bar action in the Buddy panel.
 - Added a death title-bar action in the Buddy panel.
 - Added `Buddy: Remove Heart` and `Buddy: Revive` commands for testing and recovery.

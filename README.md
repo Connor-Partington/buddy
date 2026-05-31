@@ -67,9 +67,9 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 ## Features
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
-- Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy runs out of hearts.
+- Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
-- Feed Buddy a cookie from the panel title bar.
+- Feed Buddy a cookie to keep him alive.
 - Command Palette controls for showing Buddy, previewing animations, and testing states.
 
 ## Installation
@@ -102,12 +102,12 @@ Try these first:
 
 - `Buddy: Wake Up` to return Buddy to the idle state.
 - `Buddy: Preview Animations` to cycle through the available animation states.
-- Use the cookie icon in the Buddy panel title bar to feed Buddy.
-- Use the revive icon in the Buddy panel title bar to restore Buddy after all three hearts are gone.
-- Use the death icon in the Buddy panel title bar to drain all hearts.
+- Use the <img src="media/cookie-dark.svg" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
+- Use the <img src="media/revive-dark.svg" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
+- Use the <img src="media/death-dark.svg" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
 - `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
 - `Buddy: Remove Heart` to simulate health loss and death.
-- `Buddy: Revive` to restore Buddy after all three hearts are gone.
+- `Buddy: Revive` to restore Buddy if he dies.
 
 ## Commands
 
@@ -119,7 +119,7 @@ Try these first:
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
-| `Buddy: Revive` | Restores Buddy to three hearts after death. |
+| `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
 | `Buddy: Set State Idle` | Shows the idle state. |
 | `Buddy: Set State Typing` | Shows the typing state. |
