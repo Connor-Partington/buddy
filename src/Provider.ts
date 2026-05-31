@@ -811,6 +811,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let deathTimer;
     let reviveTimer;
     let lifeCounterTimer;
+    let lifeCounterScrambleTimer;
     let introTimer;
     let introHeartTimer;
     let breakPromptTimer;
@@ -830,6 +831,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentHearts = ${JSON.stringify(health.hearts)};
     let previousHearts = ${JSON.stringify(health.hearts)};
     let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
+    let currentLifeCounterText = ${JSON.stringify(getAliveDayCounterText(health))};
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
     let activeSpeechMessage = 'TAKE A BREAK?';
@@ -855,6 +857,8 @@ export class Provider implements vscode.WebviewViewProvider {
     const breakPromptVisibleMs = 9000;
     const statusPromptVisibleMs = 3200;
     const oneDayMs = 24 * 60 * 60 * 1000;
+    const lifeCounterScrambleMs = 900;
+    const lifeCounterNumberScrambleMs = 1500;
     const breakPromptMessages = [
       'TAKE A BREAK?',
       'SAVE AND STRETCH?',
@@ -1307,17 +1311,68 @@ export class Provider implements vscode.WebviewViewProvider {
       return Math.max(1, Math.floor((Date.now() - aliveSince) / oneDayMs) + 1);
     }
 
-    function updateLifeCounter() {
+    function updateLifeCounter(replay = false) {
       if (!lifeCounter) {
         return;
       }
 
       const days = isDead ? 0 : getAliveDays(currentAliveSince);
-      lifeCounter.textContent = 'Day ' + days;
+      const nextText = 'Day ' + days;
       lifeCounter.setAttribute(
         'aria-label',
         days === 1 ? 'Buddy has been alive for 1 day' : 'Buddy has been alive for ' + days + ' days',
       );
+
+      if (!replay && nextText === currentLifeCounterText) {
+        return;
+      }
+
+      currentLifeCounterText = nextText;
+      playLifeCounterScramble(days);
+    }
+
+    function playLifeCounterScramble(days) {
+      if (!lifeCounter) {
+        return;
+      }
+
+      clearLifeCounterScramble();
+
+      const label = 'Day';
+      const value = String(days);
+      const startedAt = Date.now();
+      const totalLabelLetters = getSpeechLetterCount(label);
+
+      const updateScramble = () => {
+        const elapsedMs = Date.now() - startedAt;
+        const labelLetters = Math.min(
+          totalLabelLetters,
+          Math.floor((elapsedMs / lifeCounterScrambleMs) * (totalLabelLetters + 1)),
+        );
+        const labelText = getDecodedSpeechText(labelLetters, label);
+        const numberText = elapsedMs >= lifeCounterNumberScrambleMs ? value : getDecodedSpeechText(0, value);
+
+        lifeCounter.textContent = labelText + ' ' + numberText;
+
+        if (elapsedMs < lifeCounterNumberScrambleMs) {
+          const progress = Math.min(1, elapsedMs / lifeCounterNumberScrambleMs);
+          const nextDelayMs = 45 + Math.floor(150 * progress * progress);
+          lifeCounterScrambleTimer = setTimeout(updateScramble, nextDelayMs);
+          return;
+        }
+
+        clearLifeCounterScramble();
+        lifeCounter.textContent = label + ' ' + value;
+      };
+
+      updateScramble();
+    }
+
+    function clearLifeCounterScramble() {
+      if (lifeCounterScrambleTimer) {
+        clearTimeout(lifeCounterScrambleTimer);
+        lifeCounterScrambleTimer = undefined;
+      }
     }
 
     function scheduleLifeCounterTick() {
@@ -2030,7 +2085,7 @@ export class Provider implements vscode.WebviewViewProvider {
     } else {
       setHealth(${JSON.stringify(health)});
     }
-    updateLifeCounter();
+    updateLifeCounter(true);
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();
