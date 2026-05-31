@@ -28,6 +28,7 @@
   "activationEvents": [
     "onCommand:buddy.kill",
     "onCommand:buddy.spawnCookie",
+    "onCommand:buddy.toggleBreakPrompt",
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.revive",
     "onCommand:buddy.showSidebar",
@@ -108,6 +109,14 @@
         }
       },
       {
+        "command": "buddy.toggleBreakPrompt",
+        "title": "Buddy: Toggle Break Prompt",
+        "icon": {
+          "light": "media/break-light.svg",
+          "dark": "media/break-dark.svg"
+        }
+      },
+      {
         "command": "buddy.revive",
         "title": "Buddy: Revive",
         "icon": {
@@ -144,6 +153,11 @@
           "command": "buddy.kill",
           "when": "view == buddy.companion",
           "group": "navigation@3"
+        },
+        {
+          "command": "buddy.toggleBreakPrompt",
+          "when": "view == buddy.companion",
+          "group": "navigation@4"
         }
       ]
     }

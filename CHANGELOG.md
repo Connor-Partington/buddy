@@ -7,6 +7,8 @@ All notable changes to Buddy will be documented in this file.
 - Added a three-heart health meter that drains during focused VS Code time.
 - Added cookie feeding health recovery with heart fill animations.
 - Added Buddy death, death animation, floating soul, and revive behavior.
+- Added a 25-minute break reminder speech bubble with scrambled text that decodes into Buddy's message.
+- Added `Buddy: Toggle Break Prompt` and a title-bar action for manually showing or hiding the break reminder.
 - Added a revive animation that returns Buddy from the soul position before dropping back to the panel bottom.
 - Added a revive title-bar action in the Buddy panel.
 - Added a death title-bar action in the Buddy panel.

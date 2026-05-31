@@ -68,6 +68,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
 - Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
+- Break reminder speech bubbles after 25 minutes, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
 - Feed Buddy a cookie to keep him alive.
 - Command Palette controls for showing Buddy, previewing animations, and testing states.
@@ -105,6 +106,7 @@ Try these first:
 - Use the <img src="media/cookie-dark.svg" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
 - Use the <img src="media/revive-dark.svg" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
 - Use the <img src="media/death-dark.svg" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
+- Use the <img src="media/break-dark.svg" alt="break prompt icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to toggle the break prompt.
 - `Buddy: Toggle Size` to switch between the default Buddy size and a smaller Buddy.
 - `Buddy: Remove Heart` to simulate health loss and death.
 - `Buddy: Revive` to restore Buddy if he dies.
@@ -117,6 +119,7 @@ Try these first:
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
 | `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
+| `Buddy: Toggle Break Prompt` | Shows or hides Buddy's break reminder speech bubble. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |

@@ -61,6 +61,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     provider.spawnCookie();
   });
+  const toggleBreakPromptCommand = vscode.commands.registerCommand('buddy.toggleBreakPrompt', () => {
+    provider.toggleBreakPrompt();
+  });
   const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
     await healthManager.loseHeart();
   });
@@ -104,6 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
     showSidebarCommand,
     toggleSizeCommand,
     spawnCookieCommand,
+    toggleBreakPromptCommand,
     removeHeartCommand,
     killCommand,
     reviveCommand,
