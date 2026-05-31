@@ -6,6 +6,7 @@ All notable changes to Buddy will be documented in this file.
 
 - Added a persistent XP counter with levels up to 100.
 - Added XP gains for supported file saves, successful integrated-terminal `git commit`, and successful integrated-terminal `git push` actions.
+- Fixed panel switching replaying Buddy's revive animation after he had previously died.
 
 ## 0.2.0
 

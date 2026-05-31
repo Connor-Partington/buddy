@@ -142,6 +142,16 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private syncHealth(): void {
+    this.postMessage({
+      type: 'setHealth',
+      health: this.health,
+      options: {
+        suppressTransitionAnimations: true,
+      },
+    });
+  }
+
   private postXp(): void {
     this.postMessage({
       type: 'setXp',
@@ -154,7 +164,7 @@ export class Provider implements vscode.WebviewViewProvider {
   }
 
   private syncWebviewState(): void {
-    this.postHealth();
+    this.syncHealth();
     this.postState();
     this.postBuddySize();
     this.postXp();
@@ -1544,6 +1554,34 @@ export class Provider implements vscode.WebviewViewProvider {
         renderHearts(hearts);
       }
 
+      if (options.suppressTransitionAnimations) {
+        clearDeathTimer();
+        clearReviveTimer();
+        isReviving = false;
+        spriteY = 0;
+        applySpriteY(0);
+        setDeathPhase(isDead ? 'soul' : 'alive');
+        setSpriteForState(isDead ? 'soul' : currentState);
+
+        if (isDead) {
+          clearIntroTimer();
+          isIntroPlaying = false;
+          document.body.dataset.introPhase = 'done';
+          clearBreakPromptTimer();
+          clearLifeCounterTick();
+          hideBreakPrompt();
+          clearClickReaction();
+          resetCookie();
+          clearRandomWalk();
+        } else {
+          scheduleLifeCounterTick();
+          scheduleBreakPrompt();
+          scheduleRandomWalk();
+        }
+
+        return;
+      }
+
       if (isDead) {
         clearIntroTimer();
         isIntroPlaying = false;
@@ -2201,7 +2239,7 @@ export class Provider implements vscode.WebviewViewProvider {
       } else if (message.type === 'setBuddySize') {
         setBuddySize(message.size);
       } else if (message.type === 'setHealth') {
-        setHealth(message.health);
+        setHealth(message.health, message.options);
       } else if (message.type === 'setXp') {
         setXp(message.xp);
       } else if (message.type === 'playHeartFill') {
