@@ -8,7 +8,7 @@ import { BuddyStateManager, buddyStates } from './stateManager';
 
 export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
-  const provider = new Provider(context.extensionUri);
+  const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>('buddyIntro.hasPlayed', false));
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState);
   const activityController = new BuddyActivityController(stateManager);
@@ -27,6 +27,9 @@ export async function activate(context: vscode.ExtensionContext) {
         provider.playHeartFill(restoredHeartIndex);
       }
     });
+  });
+  const introSubscription = provider.onDidPlayIntro(() => {
+    void context.globalState.update('buddyIntro.hasPlayed', true);
   });
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
     provider.setHealth(health);
@@ -106,6 +109,7 @@ export async function activate(context: vscode.ExtensionContext) {
     healthManager,
     stateSubscription,
     feedCookieSubscription,
+    introSubscription,
     healthSubscription,
     windowStateSubscription,
     disposable,

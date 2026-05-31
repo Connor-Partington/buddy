@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 
-type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul' | 'revive';
+type SpriteKey = BuddyState | 'walk' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill';
 export type BuddySize = 'default' | 'small';
 
@@ -28,6 +28,7 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   death: { width: 22, height: 18 },
   soul: { width: 16, height: 16 },
   revive: { width: 32, height: 32 },
+  spawn: { width: 32, height: 32 },
 };
 
 export class Provider implements vscode.WebviewViewProvider {
@@ -37,10 +38,18 @@ export class Provider implements vscode.WebviewViewProvider {
   private state: BuddyState = 'idle';
   private buddySize: BuddySize = 'default';
   private health: BuddyHealth = { hearts: maxBuddyHearts, isDead: false };
+  private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<void>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
+  private readonly onDidPlayIntroEmitter = new vscode.EventEmitter<void>();
+  public readonly onDidPlayIntro = this.onDidPlayIntroEmitter.event;
 
-  public constructor(private readonly extensionUri: vscode.Uri) {}
+  public constructor(
+    private readonly extensionUri: vscode.Uri,
+    shouldPlayIntro: boolean,
+  ) {
+    this.shouldPlayIntro = shouldPlayIntro;
+  }
 
   public async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.webviewView = webviewView;
@@ -51,6 +60,9 @@ export class Provider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message: { type?: string }) => {
       if (message.type === 'cookieEaten') {
         this.onDidFeedCookieEmitter.fire();
+      } else if (message.type === 'introPlayed') {
+        this.shouldPlayIntro = false;
+        this.onDidPlayIntroEmitter.fire();
       }
     });
     webviewView.onDidChangeVisibility(() => {
@@ -139,7 +151,8 @@ export class Provider implements vscode.WebviewViewProvider {
     const nonce = getNonce();
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
     const health = this.health;
-    const initialSpriteState: SpriteKey = health.isDead ? 'soul' : this.state;
+    const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
+    const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -212,6 +225,7 @@ export class Provider implements vscode.WebviewViewProvider {
       filter: none;
     }
 
+    body[data-intro-phase="spawning"] .frame-stage,
     body[data-death-phase="soul"] .frame-stage,
     body[data-death-phase="reviving"] .frame-stage {
       animation: soul-wander 8s ease-in-out infinite;
@@ -219,6 +233,7 @@ export class Provider implements vscode.WebviewViewProvider {
       --sprite-lift: 24px;
     }
 
+    body[data-intro-phase="spawning"] .frame-stage,
     body[data-death-phase="reviving"] .frame-stage {
       animation: none;
     }
@@ -718,11 +733,11 @@ export class Provider implements vscode.WebviewViewProvider {
 
   </style>
 </head>
-<body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}">
+<body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}" data-intro-phase="${shouldPlayIntro ? 'spawning' : 'done'}">
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
       <div class="health-meter" aria-label="Buddy health">
-        ${renderHearts(health.hearts, imageSources)}
+        ${renderHearts(shouldPlayIntro ? 0 : health.hearts, imageSources)}
       </div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -770,6 +785,8 @@ export class Provider implements vscode.WebviewViewProvider {
     let cookieEatTimer;
     let deathTimer;
     let reviveTimer;
+    let introTimer;
+    let introHeartTimer;
     let breakPromptTimer;
     let breakScrambleTimer;
     let breakHideTimer;
@@ -781,6 +798,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let cookiePhase = 'idle';
     let isDead = ${JSON.stringify(health.isDead)};
     let isReviving = false;
+    let isIntroPlaying = ${JSON.stringify(shouldPlayIntro)};
     let isBreakPromptActive = false;
     let currentHearts = ${JSON.stringify(health.hearts)};
     let previousHearts = ${JSON.stringify(health.hearts)};
@@ -797,6 +815,9 @@ export class Provider implements vscode.WebviewViewProvider {
     const soulRiseDurationMs = 1100;
     const reviveGifDurationMs = 900;
     const reviveDropDurationMs = 360;
+    const spawnGifDurationMs = 450;
+    const spawnDropDurationMs = 360;
+    const introHeartPopMs = 260;
     const heartFillDurationMs = 1100;
     const breakPromptIntervalMs = 25 * 60 * 1000;
     const breakPromptScrambleMs = 1800;
@@ -819,6 +840,7 @@ export class Provider implements vscode.WebviewViewProvider {
       'THANK YOU',
       'NOM NOM NOM',
     ];
+    const introMessage = "HEY, I'M BUDDY";
 
     function getSpriteDisplaySize(state) {
       const displaySize = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
@@ -850,6 +872,10 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function getVisibleSpriteState() {
+      if (isIntroPlaying) {
+        return 'spawn';
+      }
+
       if (isReviving || deathPhase === 'reviving') {
         return 'revive';
       }
@@ -920,6 +946,18 @@ export class Provider implements vscode.WebviewViewProvider {
 
       cookieTreat.dataset.state = state;
       cookieTreat.hidden = false;
+    }
+
+    function clearIntroTimer() {
+      if (introTimer) {
+        clearTimeout(introTimer);
+        introTimer = undefined;
+      }
+
+      if (introHeartTimer) {
+        clearTimeout(introHeartTimer);
+        introHeartTimer = undefined;
+      }
     }
 
     function updateSpeechBubblePosition() {
@@ -1000,6 +1038,76 @@ export class Provider implements vscode.WebviewViewProvider {
         clearTimeout(breakPromptTimer);
         breakPromptTimer = undefined;
       }
+    }
+
+    function playIntroHearts(nextHeart = 1) {
+      renderHearts(Math.min(currentHearts, nextHeart));
+
+      if (nextHeart >= currentHearts) {
+        introHeartTimer = undefined;
+        return;
+      }
+
+      introHeartTimer = setTimeout(() => {
+        playIntroHearts(nextHeart + 1);
+      }, introHeartPopMs);
+    }
+
+    function playIntroSequence() {
+      if (!isIntroPlaying || isDead) {
+        return;
+      }
+
+      clearIntroTimer();
+      clearClickReaction();
+      clearRandomWalk();
+      resetCookie();
+      renderHearts(0);
+      setSpriteForState('spawn');
+      document.body.dataset.introPhase = 'spawning';
+
+      introTimer = setTimeout(() => {
+        introTimer = undefined;
+        if (!isIntroPlaying || isDead) {
+          return;
+        }
+
+        preserveSpritePosition(() => {
+          currentState = 'idle';
+          document.body.dataset.state = 'idle';
+          setSpriteForState('idle');
+        });
+
+        waitForSpriteImage(() => {
+          if (!isIntroPlaying || isDead) {
+            return;
+          }
+
+          requestAnimationFrame(() => {
+            document.body.dataset.introPhase = 'done';
+            spriteY = 0;
+            applySpriteY(spawnDropDurationMs);
+
+            introTimer = setTimeout(() => {
+              introTimer = undefined;
+              if (!isIntroPlaying || isDead) {
+                return;
+              }
+
+              playIntroHearts();
+              showSpeechMessage(introMessage, {
+                lockBuddy: false,
+                scheduleNextBreak: false,
+                visibleMs: 5000,
+              });
+              isIntroPlaying = false;
+              vscode.postMessage({ type: 'introPlayed' });
+              scheduleBreakPrompt(true);
+              scheduleRandomWalk();
+            }, spawnDropDurationMs);
+          });
+        });
+      }, spawnGifDurationMs);
     }
 
     function scheduleBreakPrompt(reset = false) {
@@ -1155,9 +1263,17 @@ export class Provider implements vscode.WebviewViewProvider {
       isDead = Boolean(health?.isDead || hearts <= 0);
       document.body.dataset.dead = String(isDead);
       healthMeter?.setAttribute('aria-label', isDead ? 'Buddy has no hearts left' : 'Buddy has ' + hearts + ' hearts');
+
+      if (isIntroPlaying && !isDead) {
+        return;
+      }
+
       renderHearts(hearts);
 
       if (isDead) {
+        clearIntroTimer();
+        isIntroPlaying = false;
+        document.body.dataset.introPhase = 'done';
         clearBreakPromptTimer();
         hideBreakPrompt();
         clearReviveTimer();
@@ -1511,7 +1627,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function scheduleRandomWalk() {
-      if (isDead || isReviving || isBreakPromptActive || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
 
@@ -1525,7 +1641,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function startRandomWalk() {
-      if (isDead || isReviving || isBreakPromptActive || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
         scheduleRandomWalk();
         return;
       }
@@ -1568,7 +1684,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      if (isDead || isReviving || isBreakPromptActive || isCookieInteractionActive()) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
         return;
       }
 
@@ -1703,7 +1819,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setState(state) {
-      if (isDead || isReviving || isBreakPromptActive) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive) {
         lastState = state;
         return;
       }
@@ -1727,7 +1843,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function triggerBuddyClick() {
-      if (isDead || isReviving || isBreakPromptActive || isCookieInteractionActive()) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
         return;
       }
 
@@ -1770,7 +1886,11 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     });
 
-    setHealth(${JSON.stringify(health)});
+    if (isIntroPlaying) {
+      playIntroSequence();
+    } else {
+      setHealth(${JSON.stringify(health)});
+    }
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
@@ -1812,6 +1932,7 @@ function getSpriteSources(
     death: 'death-trim.gif',
     soul: 'soul-trim.gif',
     revive: 'revive-trim.gif',
+    spawn: 'spawn-trim.gif',
   };
 
   return Object.fromEntries(
