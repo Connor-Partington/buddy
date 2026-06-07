@@ -7,8 +7,10 @@ All notable changes to Buddy will be documented in this file.
 - Added Command-click panel cookie drops so Buddy eats at the clicked spot.
 - Added cursor-aware look sprites so Buddy watches the pointer when it gets close.
 - Added double-click panel movement so Buddy walks or dashes to the selected spot.
+- Changed heart loss to use local wall-clock time instead of only focused VS Code time.
 - Fixed double-click movement selecting or dragging panel contents while Buddy moves.
 - Fixed cursor look reactions nudging Buddy sideways by keeping look swaps to stable idle and walk frames.
+- Fixed cursor look reactions getting stuck when the pointer leaves the Buddy panel for another VS Code area.
 
 ## 0.4.0
 

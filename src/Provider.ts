@@ -2396,6 +2396,22 @@ export class Provider implements vscode.WebviewViewProvider {
       setLookState(lookState);
     }
 
+    function handlePointerExit() {
+      clearLookReaction({ delay: true });
+    }
+
+    function handlePointerOut(event) {
+      if (event.relatedTarget === null) {
+        handlePointerExit();
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        clearLookReaction({ resumeWalk: false });
+      }
+    }
+
     function clearClickReaction() {
       if (clickReactionTimer) {
         clearTimeout(clickReactionTimer);
@@ -2923,9 +2939,14 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     });
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerleave', () => {
-      clearLookReaction({ delay: true });
+    window.addEventListener('pointerleave', handlePointerExit);
+    window.addEventListener('pointerout', handlePointerOut);
+    window.addEventListener('mouseout', handlePointerOut);
+    window.addEventListener('blur', () => {
+      clearLookReaction({ resumeWalk: false });
     });
+    document.addEventListener('mouseleave', handlePointerExit);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('message', (event) => {
       const message = event.data;
       if (message.type === 'setState') {

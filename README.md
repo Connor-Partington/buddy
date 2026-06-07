@@ -28,7 +28,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
 - First-open spawn animation with a Buddy greeting and heart reveal.
-- Three-heart health meter with one heart lost every three focused hours, cookie feeding to recover, and a floating soul when Buddy dies.
+- Three-heart health meter with one heart lost every three local wall-clock hours, cookie feeding to recover, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
 - Locally saved level-up card PNGs when Buddy levels up while the panel is open.
@@ -143,7 +143,7 @@ To record Buddy's core feature loop, start recording the Extension Development H
 npm run demo
 ```
 
-The demo opens the Buddy sidebar and automatically runs through state changes, one-heart loss, cookie recovery, the break prompt, XP bursts, death, and revive. Keep the Extension Development Host focused while it plays.
+The demo opens the Buddy sidebar and automatically runs through state changes, one-heart loss, cookie recovery, the break prompt, XP bursts, death, and revive. Keep the Extension Development Host open while it plays.
 
 ## License
 

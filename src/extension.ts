@@ -93,13 +93,6 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     }
   });
-  const windowStateSubscription = vscode.window.onDidChangeWindowState((windowState) => {
-    if (windowState.focused) {
-      healthManager.startActiveHeartLoss();
-    } else {
-      healthManager.pauseActiveHeartLoss();
-    }
-  });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
   });
@@ -295,7 +288,6 @@ export async function activate(context: vscode.ExtensionContext) {
     levelUpCardFailureSubscription,
     healthSubscription,
     xpSubscription,
-    windowStateSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
@@ -314,9 +306,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ...stateCommands,
   );
 
-  if (vscode.window.state.focused) {
-    healthManager.startActiveHeartLoss();
-  }
+  healthManager.startHeartLossTimer();
   provider.setState(stateManager.state);
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
