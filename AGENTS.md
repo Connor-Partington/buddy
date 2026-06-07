@@ -14,6 +14,14 @@ These notes capture recurring Buddy repo workflow preferences for coding agents.
 - If a change adds commands, update both `package.json` contributions and README command documentation.
 - Use semantic versioning going forward. For user-facing features, prefer a minor version bump; for bug fixes, prefer a patch bump; for breaking behavior or API changes, use a major bump once the project is past `1.0.0`.
 
+## Token Efficiency
+
+- Be token-efficient by default: inspect only files and symbols directly relevant to the request, and use targeted `rg` searches before broader exploration.
+- Keep progress updates and final summaries concise unless Connor asks for deeper explanation.
+- Prefer the smallest safe change that matches the existing codebase; avoid unrelated refactors, broad file reads, and long code explanations.
+- Ask before reading large files, running broad audits, or expanding the task beyond the named scope when the next step is not clearly necessary.
+- If verification is expensive or exploratory, mention the tradeoff and wait for direction unless completion requires the standard `npm run compile` and `npm run lint` checks.
+
 ## Extension Notes
 
 - Webview UI and animation behavior live primarily in `src/Provider.ts`.

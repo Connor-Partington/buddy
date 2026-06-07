@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { BuddyAttention } from './attentionManager';
 import { BuddyHealth, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 import { maxBuddyLevel } from './xpManager';
@@ -17,6 +18,7 @@ type LookSpriteKey =
   | 'lookTopLeft';
 type SpriteKey = BuddyState | LookSpriteKey | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 export type FoodType = 'cookie' | 'coffee' | 'sandwich' | 'cake';
+export type CareAction = 'feed' | 'love' | 'chase';
 type ImageKey = FoodType | 'heart' | 'heartEmpty' | 'heartFill' | 'goldHeart' | 'goldHeartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
 export type LevelUpCardCapture = {
@@ -31,6 +33,7 @@ export type LevelUpCardCaptureFailure = {
 type WebviewMessage =
   | { type?: 'cookieEaten' }
   | { type?: 'foodEaten'; food?: FoodType }
+  | { type?: 'careAction'; action?: CareAction }
   | { type?: 'introPlayed' }
   | { type?: 'levelUpCardCaptured'; dataUri?: string; level?: number }
   | { type?: 'levelUpCardFailed'; error?: string; level?: number };
@@ -85,9 +88,18 @@ export class Provider implements vscode.WebviewViewProvider {
   };
   private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
   private xpBoost: BuddyXpBoost = { multiplier: 2, expiresAt: 0, isActive: false };
+  private attention: BuddyAttention = {
+    value: 100,
+    progress: 1,
+    isLow: false,
+    lastInteractionAt: Date.now(),
+    nextDecayAt: Date.now(),
+  };
   private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<FoodType>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
+  private readonly onDidCareActionEmitter = new vscode.EventEmitter<CareAction>();
+  public readonly onDidCareAction = this.onDidCareActionEmitter.event;
   private readonly onDidPlayIntroEmitter = new vscode.EventEmitter<void>();
   public readonly onDidPlayIntro = this.onDidPlayIntroEmitter.event;
   private readonly onDidCaptureLevelUpCardEmitter = new vscode.EventEmitter<LevelUpCardCapture>();
@@ -113,6 +125,8 @@ export class Provider implements vscode.WebviewViewProvider {
         this.onDidFeedCookieEmitter.fire(normalizeFoodType(message.food));
       } else if (message.type === 'cookieEaten') {
         this.onDidFeedCookieEmitter.fire('cookie');
+      } else if (message.type === 'careAction') {
+        this.onDidCareActionEmitter.fire(normalizeCareAction(message.action));
       } else if (message.type === 'introPlayed') {
         this.shouldPlayIntro = false;
         this.onDidPlayIntroEmitter.fire();
@@ -162,6 +176,11 @@ export class Provider implements vscode.WebviewViewProvider {
   public setXpBoost(boost: BuddyXpBoost): void {
     this.xpBoost = boost;
     this.postXpBoost();
+  }
+
+  public setAttention(attention: BuddyAttention): void {
+    this.attention = attention;
+    this.postAttention();
   }
 
   public spawnCookie(): void {
@@ -249,6 +268,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postAttention(): void {
+    this.postMessage({
+      type: 'setAttention',
+      attention: this.attention,
+    });
+  }
+
   private postMessage(message: unknown): Thenable<boolean> {
     return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
@@ -259,6 +285,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postBuddySize();
     this.postXp();
     this.postXpBoost();
+    this.postAttention();
   }
 
   private getHtml(
@@ -271,6 +298,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const health = this.health;
     const xp = this.xp;
     const xpBoost = this.xpBoost;
+    const attention = this.attention;
     const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
     const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
 
@@ -440,6 +468,56 @@ export class Provider implements vscode.WebviewViewProvider {
       height: 100%;
       background: linear-gradient(90deg, #ff5f8a, #90d5ff);
       transition: width 180ms ease-out;
+    }
+
+    .attention-meter {
+      position: absolute;
+      top: 58px;
+      left: 8px;
+      z-index: 3;
+      width: min(96px, calc(100vw - 16px));
+      padding: 2px 6px;
+      border: 1px solid var(--vscode-editorWidget-border, rgb(128 128 128 / 48%));
+      border-radius: 4px;
+      color: var(--vscode-sideBar-foreground);
+      background: var(--vscode-sideBar-background);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .attention-meter__label {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+      text-transform: uppercase;
+    }
+
+    .attention-meter__track {
+      position: absolute;
+      right: 6px;
+      bottom: 1px;
+      left: 6px;
+      height: 2px;
+      overflow: hidden;
+      border: 0;
+      border-radius: 1px;
+      background: var(--vscode-editorWidget-background, rgb(128 128 128 / 18%));
+    }
+
+    .attention-meter__fill {
+      display: block;
+      width: calc(var(--attention-progress, 1) * 100%);
+      height: 100%;
+      background: linear-gradient(90deg, #90d5ff, #fbf236);
+      transition: width 220ms ease-out;
     }
 
     body[data-intro-phase="spawning"] .frame-stage,
@@ -997,6 +1075,13 @@ export class Provider implements vscode.WebviewViewProvider {
         <div class="xp-meter__track" aria-hidden="true"><span class="xp-meter__fill"></span></div>
       </div>
       <div class="xp-boost" aria-live="polite" aria-label="${getXpBoostLabel(xpBoost)}" ${xpBoost.isActive ? '' : 'hidden'}>${getXpBoostText(xpBoost)}</div>
+      <div class="attention-meter" aria-live="polite" aria-label="${getAttentionLabel(attention)}" style="--attention-progress: ${attention.progress};">
+        <div class="attention-meter__label">
+          <span>ATTN</span>
+          <span class="attention-meter__value">${getAttentionProgressText(attention)}</span>
+        </div>
+        <div class="attention-meter__track" aria-hidden="true"><span class="attention-meter__fill"></span></div>
+      </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -1032,6 +1117,8 @@ export class Provider implements vscode.WebviewViewProvider {
     const xpLevel = document.querySelector('.xp-meter__level');
     const xpValue = document.querySelector('.xp-meter__value');
     const xpBoostIndicator = document.querySelector('.xp-boost');
+    const attentionMeter = document.querySelector('.attention-meter');
+    const attentionValue = document.querySelector('.attention-meter__value');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const speechBubble = document.querySelector('.speech-bubble');
@@ -1079,9 +1166,12 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
     let currentLifeCounterText = ${JSON.stringify(getAliveDayCounterText(health))};
     let currentXp = ${JSON.stringify(xp)};
+    let currentAttention = ${JSON.stringify(attention)};
     let activeLookState;
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
+    let attentionMessageCount = 0;
+    let lastAttentionPromptAt = 0;
     let activeSpeechMessage = 'TAKE A BREAK?';
     let deathPhase = isDead ? 'soul' : 'alive';
     const walkSpeedPxPerSecond = 70;
@@ -1136,6 +1226,12 @@ export class Provider implements vscode.WebviewViewProvider {
     const cookieEatingMessages = [
       'THANK YOU',
       'NOM NOM NOM',
+    ];
+    const attentionMessages = [
+      'I NEEDS SOME ATTENTION SOON',
+      "I'M LOW ON ATTENTION",
+      'MAYBE SOME FOOD WILL HELP ME',
+      'I FEEL LIKE, ATTENTION IS NEEDED',
     ];
     const introMessage = "HEY, I'M BUDDY";
     const levelUpCardWidth = 960;
@@ -1745,6 +1841,60 @@ export class Provider implements vscode.WebviewViewProvider {
       xpBoostIndicator.hidden = !currentXpBoost.isActive;
       xpBoostIndicator.textContent = 'x' + formatXpBoostMultiplier(currentXpBoost.multiplier);
       xpBoostIndicator.setAttribute('aria-label', getXpBoostAriaLabel(currentXpBoost));
+    }
+
+    function setAttention(attention) {
+      const wasLow = Boolean(currentAttention?.isLow);
+      const value = Math.max(0, Math.min(100, Number(attention?.value) || 0));
+      currentAttention = {
+        value,
+        progress: Math.max(0, Math.min(1, Number(attention?.progress) || value / 100)),
+        isLow: Boolean(attention?.isLow || value <= 35),
+        lastInteractionAt: Math.max(0, Number(attention?.lastInteractionAt) || 0),
+        nextDecayAt: Math.max(0, Number(attention?.nextDecayAt) || 0),
+      };
+
+      if (attentionMeter) {
+        attentionMeter.style.setProperty('--attention-progress', String(currentAttention.progress));
+        attentionMeter.setAttribute('aria-label', getAttentionAriaLabel(currentAttention));
+      }
+
+      if (attentionValue) {
+        attentionValue.textContent = getAttentionText(currentAttention);
+      }
+
+      if (!wasLow && currentAttention.isLow) {
+        maybeShowAttentionPrompt(true);
+      }
+    }
+
+    function recordCareAction(action) {
+      vscode.postMessage({ type: 'careAction', action });
+    }
+
+    function maybeShowAttentionPrompt(force = false) {
+      if (!currentAttention?.isLow || isDead || isIntroPlaying || isReviving || isCookieInteractionActive()) {
+        return;
+      }
+
+      const now = Date.now();
+      if (!force && now - lastAttentionPromptAt < 20 * 60 * 1000) {
+        return;
+      }
+
+      lastAttentionPromptAt = now;
+      attentionMessageCount += 1;
+      if (force || shouldShowEveryOtherStatusMessage(attentionMessageCount)) {
+        showStatusSpeechMessage(attentionMessages);
+      }
+    }
+
+    function getAttentionText(attention) {
+      return Math.round(Math.max(0, Math.min(100, Number(attention?.value) || 0))) + '%';
+    }
+
+    function getAttentionAriaLabel(attention) {
+      return 'Buddy attention is ' + getAttentionText(attention);
     }
 
     function formatXpBoostMultiplier(multiplier) {
@@ -2702,6 +2852,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      recordCareAction('chase');
       clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
@@ -2961,6 +3112,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
       cookieEatTimer = setTimeout(() => {
         cookiePhase = 'loving';
+        recordCareAction('feed');
         vscode.postMessage({ type: 'foodEaten', food: activeFood });
         setSpriteForState('love');
 
@@ -3024,6 +3176,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      recordCareAction('love');
       clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
@@ -3071,6 +3224,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setXp(message.xp);
       } else if (message.type === 'setXpBoost') {
         setXpBoost(message.boost);
+      } else if (message.type === 'setAttention') {
+        setAttention(message.attention);
       } else if (message.type === 'captureLevelUpCard') {
         captureLevelUpCard(message.level, message.xp);
       } else if (message.type === 'playHeartFill') {
@@ -3092,6 +3247,7 @@ export class Provider implements vscode.WebviewViewProvider {
     updateLifeCounter(true);
     setXp(${JSON.stringify(xp)});
     setXpBoost(${JSON.stringify(xpBoost)});
+    setAttention(${JSON.stringify(attention)});
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();
@@ -3227,6 +3383,14 @@ function getXpLabel(xp: BuddyXp): string {
   return `Buddy is level ${xp.level} with ${xp.currentLevelXp} of ${xp.nextLevelXp} XP`;
 }
 
+function getAttentionProgressText(attention: BuddyAttention): string {
+  return `${Math.round(Math.max(0, Math.min(100, attention.value)))}%`;
+}
+
+function getAttentionLabel(attention: BuddyAttention): string {
+  return `Buddy attention is ${getAttentionProgressText(attention)}`;
+}
+
 function getXpBoostLabel(boost: BuddyXpBoost): string {
   if (!boost.isActive) {
     return 'Buddy XP boost inactive';
@@ -3249,6 +3413,10 @@ function normalizeLevel(level: number | undefined): number {
 
 function normalizeFoodType(food: string | undefined): FoodType {
   return food === 'coffee' || food === 'sandwich' || food === 'cake' ? food : 'cookie';
+}
+
+function normalizeCareAction(action: string | undefined): CareAction {
+  return action === 'feed' || action === 'chase' ? action : 'love';
 }
 
 function getSpriteDisplaySizes(size: BuddySize = 'default'): Record<SpriteKey, { width: string; aspectRatio: string }> {

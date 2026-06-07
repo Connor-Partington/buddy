@@ -6,6 +6,7 @@ All notable changes to Buddy will be documented in this file.
 
 - Changed coffee to activate a 2x XP multiplier for 30 minutes instead of granting flat XP.
 - Added an active `x2` XP boost indicator beside the level and XP bar.
+- Added a gentle attention meter below level and XP that refills from feeding, love taps, and double-click chase actions.
 - Changed Buddy death to clear the active coffee XP multiplier.
 
 ## 0.5.0

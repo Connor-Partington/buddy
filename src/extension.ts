@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { BuddyActivityController } from './activityController';
+import { BuddyAttentionManager } from './attentionManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyHearts } from './healthManager';
@@ -33,6 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState);
   const xpManager = new BuddyXpManager(context.globalState);
+  const attentionManager = new BuddyAttentionManager(context.globalState);
   const activityController = new BuddyActivityController(stateManager, (award) => {
     void xpManager.awardXp(award);
   });
@@ -50,6 +52,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     void handleFoodEaten(food);
+  });
+  const careActionSubscription = provider.onDidCareAction(() => {
+    void attentionManager.recordCareAction();
   });
   const introSubscription = provider.onDidPlayIntro(() => {
     void context.globalState.update('buddyIntro.hasPlayed', true);
@@ -91,6 +96,9 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const xpBoostSubscription = xpManager.onDidChangeXpBoost((boost) => {
     provider.setXpBoost(boost);
+  });
+  const attentionSubscription = attentionManager.onDidChangeAttention((attention) => {
+    provider.setAttention(attention);
   });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
@@ -289,14 +297,17 @@ export async function activate(context: vscode.ExtensionContext) {
     demoController,
     healthManager,
     xpManager,
+    attentionManager,
     stateSubscription,
     feedCookieSubscription,
+    careActionSubscription,
     introSubscription,
     levelUpCardSubscription,
     levelUpCardFailureSubscription,
     healthSubscription,
     xpSubscription,
     xpBoostSubscription,
+    attentionSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
@@ -319,11 +330,13 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   healthManager.startHeartLossTimer();
+  attentionManager.startAttentionTimer();
   provider.setState(stateManager.state);
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
   provider.setXp(xpManager.xp);
   provider.setXpBoost(xpManager.xpBoost);
+  provider.setAttention(attentionManager.attention);
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
     if (food === 'coffee') {
