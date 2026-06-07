@@ -75,11 +75,11 @@ Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, 
 
 Buddy's attention meter is a softer daily care goal, not a life-or-death need. It drops from full to empty across about 8 hours when Buddy has not received attention and refills when you feed Buddy, tap him for love, or double-click the panel to make him chase to a spot. When attention gets low, Buddy may give a friendly reminder in a speech bubble.
 
-Treats have distinct effects: cookies restore one red heart, sandwiches refill missing red hearts, cake grants up to two gold heart shields after the three red hearts, and coffee gives Buddy an XP boost. Coffee can be spawned manually or dropped automatically after every five detected Git commits. Timed heart loss consumes gold hearts before red hearts.
+Treats have distinct effects: cookies restore one red heart, sandwiches refill missing red hearts, cake grants up to two gold heart shields after the three red hearts, and coffee gives Buddy an XP boost. Coffee can be spawned manually or dropped automatically after every five detected Git commits. After four treats within 30 minutes, Buddy refuses extra food with a full-status bubble before another treat drops, but losing a heart resets that fullness. Timed heart loss consumes gold hearts before red hearts.
 
 ## Actions
 
-- Command-click inside the Buddy panel to drop a cookie at that spot.
+- Command-click inside the Buddy panel to offer a cookie at that spot.
 - Use the <img src="media/cookie-dark.png" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
 - Use the <img src="media/revive-dark.png" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
 - Use the <img src="media/death-dark.png" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.

@@ -5,7 +5,7 @@ import { BuddyAttentionManager } from './attentionManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyHearts } from './healthManager';
-import { Provider, type BuddySize, type FoodType, type LevelUpCardCapture } from './Provider';
+import { Provider, type BuddySize, type FoodRequest, type FoodType, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 
@@ -57,6 +57,24 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     void handleFoodEaten(food);
+  });
+  const foodReachedSubscription = provider.onDidReachFood(async () => {
+    if (healthManager.health.isDead) {
+      provider.setHealth(healthManager.health);
+      provider.refuseFood();
+      return;
+    }
+
+    if (!healthManager.canEatFood()) {
+      provider.refuseFood();
+      return;
+    }
+
+    await healthManager.recordFoodEaten();
+    provider.acceptFood();
+  });
+  const foodRequestSubscription = provider.onDidRequestFood((request) => {
+    requestFoodSpawn(request);
   });
   const careActionSubscription = provider.onDidCareAction(() => {
     void attentionManager.recordCareAction();
@@ -128,16 +146,16 @@ export async function activate(context: vscode.ExtensionContext) {
     void setBuddySize(buddySize === 'default' ? 'small' : 'default');
   });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
-    provider.spawnCookie();
+    requestFoodSpawn({ food: 'cookie' });
   });
   const spawnCoffeeCommand = vscode.commands.registerCommand('buddy.spawnCoffee', () => {
-    provider.spawnFood('coffee');
+    requestFoodSpawn({ food: 'coffee' });
   });
   const spawnSandwichCommand = vscode.commands.registerCommand('buddy.spawnSandwich', () => {
-    provider.spawnFood('sandwich');
+    requestFoodSpawn({ food: 'sandwich' });
   });
   const spawnCakeCommand = vscode.commands.registerCommand('buddy.spawnCake', () => {
-    provider.spawnFood('cake');
+    requestFoodSpawn({ food: 'cake' });
   });
   const toggleBreakPromptCommand = vscode.commands.registerCommand('buddy.toggleBreakPrompt', () => {
     provider.toggleBreakPrompt();
@@ -305,6 +323,8 @@ export async function activate(context: vscode.ExtensionContext) {
     attentionManager,
     stateSubscription,
     feedCookieSubscription,
+    foodReachedSubscription,
+    foodRequestSubscription,
     careActionSubscription,
     introSubscription,
     levelUpCardSubscription,
@@ -381,8 +401,23 @@ export async function activate(context: vscode.ExtensionContext) {
     await context.globalState.update(coffeeDropCommitCountKey, coffeeDropCommitCount);
 
     if (coffeeDropCommitCount === 0) {
-      provider.spawnFood('coffee');
+      requestFoodSpawn({ food: 'coffee' });
     }
+  }
+
+  function requestFoodSpawn(request: FoodRequest): void {
+    if (healthManager.health.isDead) {
+      provider.setHealth(healthManager.health);
+      provider.showFoodRefusal();
+      return;
+    }
+
+    if (!healthManager.canEatFood()) {
+      provider.showFoodRefusal();
+      return;
+    }
+
+    provider.spawnFood(request.food, request.targetX);
   }
 }
 

@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 export const maxBuddyHearts = 3;
 export const maxBuddyGoldHearts = 2;
 export const buddyHeartLossIntervalMs = 3 * 60 * 60 * 1000;
+export const buddyOverfeedingWindowMs = 30 * 60 * 1000;
+export const buddyOverfeedingTreatLimit = 5;
 
 export type BuddyHealth = {
   hearts: number;
@@ -16,6 +18,7 @@ const heartsKey = 'buddyHealth.hearts';
 const goldHeartsKey = 'buddyHealth.goldHearts';
 const aliveSinceKey = 'buddyHealth.aliveSince';
 const nextHeartLossAtKey = 'buddyHealth.nextHeartLossAt';
+const foodTimestampsKey = 'buddyHealth.foodTimestamps';
 const oneDayMs = 24 * 60 * 60 * 1000;
 
 export class BuddyHealthManager implements vscode.Disposable {
@@ -24,6 +27,7 @@ export class BuddyHealthManager implements vscode.Disposable {
   private aliveSince?: number;
   private heartLossTimer?: ReturnType<typeof setTimeout>;
   private nextHeartLossAt?: number;
+  private foodTimestamps: number[];
   private readonly listeners = new Set<(health: BuddyHealth) => void>();
 
   public constructor(private readonly globalState: vscode.Memento) {
@@ -31,6 +35,7 @@ export class BuddyHealthManager implements vscode.Disposable {
     this.goldHearts = normalizeGoldHearts(globalState.get<number>(goldHeartsKey, 0));
     this.aliveSince = normalizeTimestamp(globalState.get<number>(aliveSinceKey));
     this.nextHeartLossAt = normalizeTimerTimestamp(globalState.get<number>(nextHeartLossAtKey));
+    this.foodTimestamps = normalizeFoodTimestamps(globalState.get<number[]>(foodTimestampsKey, []));
 
     if (!this.health.isDead && this.aliveSince === undefined) {
       this.aliveSince = Date.now();
@@ -109,6 +114,20 @@ export class BuddyHealthManager implements vscode.Disposable {
     return restoredHeartIndex;
   }
 
+  public canEatFood(): boolean {
+    const windowStart = Date.now() - buddyOverfeedingWindowMs;
+    return this.foodTimestamps.filter((timestamp) => timestamp >= windowStart).length < buddyOverfeedingTreatLimit - 1;
+  }
+
+  public async recordFoodEaten(): Promise<void> {
+    const now = Date.now();
+    const windowStart = now - buddyOverfeedingWindowMs;
+    const recentFoodTimestamps = this.foodTimestamps.filter((timestamp) => timestamp >= windowStart);
+    recentFoodTimestamps.push(now);
+    this.foodTimestamps = recentFoodTimestamps;
+    await this.globalState.update(foodTimestampsKey, this.foodTimestamps);
+  }
+
   public async revive(): Promise<void> {
     await this.setHearts(maxBuddyHearts);
     await this.setGoldHearts(0);
@@ -177,6 +196,11 @@ export class BuddyHealthManager implements vscode.Disposable {
     let remainingLosses = Math.max(0, Math.round(losses));
     if (remainingLosses <= 0) {
       return;
+    }
+
+    if (this.foodTimestamps.length > 0) {
+      this.foodTimestamps = [];
+      await this.globalState.update(foodTimestampsKey, this.foodTimestamps);
     }
 
     const nextGoldHearts = Math.max(0, this.goldHearts - remainingLosses);
@@ -268,6 +292,17 @@ function normalizeTimerTimestamp(timestamp: number | undefined): number | undefi
   }
 
   return timestamp;
+}
+
+function normalizeFoodTimestamps(timestamps: number[] | undefined): number[] {
+  if (!Array.isArray(timestamps)) {
+    return [];
+  }
+
+  const windowStart = Date.now() - buddyOverfeedingWindowMs;
+  return timestamps
+    .filter((timestamp) => typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= windowStart)
+    .sort((first, second) => first - second);
 }
 
 function getAliveDays(aliveSince: number | undefined): number {

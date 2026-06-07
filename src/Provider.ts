@@ -18,6 +18,10 @@ type LookSpriteKey =
   | 'lookTopLeft';
 type SpriteKey = BuddyState | LookSpriteKey | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 export type FoodType = 'cookie' | 'coffee' | 'sandwich' | 'cake';
+export type FoodRequest = {
+  food: FoodType;
+  targetX?: number;
+};
 export type CareAction = 'feed' | 'love' | 'chase';
 type ImageKey = FoodType | 'heart' | 'heartEmpty' | 'heartFill' | 'goldHeart' | 'goldHeartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
@@ -33,6 +37,8 @@ export type LevelUpCardCaptureFailure = {
 type WebviewMessage =
   | { type?: 'cookieEaten' }
   | { type?: 'foodEaten'; food?: FoodType }
+  | { type?: 'foodReached'; food?: FoodType }
+  | { type?: 'foodRequested'; food?: FoodType; targetX?: number }
   | { type?: 'careAction'; action?: CareAction }
   | { type?: 'introPlayed' }
   | { type?: 'levelUpCardCaptured'; dataUri?: string; level?: number }
@@ -98,6 +104,10 @@ export class Provider implements vscode.WebviewViewProvider {
   private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<FoodType>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
+  private readonly onDidReachFoodEmitter = new vscode.EventEmitter<FoodType>();
+  public readonly onDidReachFood = this.onDidReachFoodEmitter.event;
+  private readonly onDidRequestFoodEmitter = new vscode.EventEmitter<FoodRequest>();
+  public readonly onDidRequestFood = this.onDidRequestFoodEmitter.event;
   private readonly onDidCareActionEmitter = new vscode.EventEmitter<CareAction>();
   public readonly onDidCareAction = this.onDidCareActionEmitter.event;
   private readonly onDidPlayIntroEmitter = new vscode.EventEmitter<void>();
@@ -125,6 +135,13 @@ export class Provider implements vscode.WebviewViewProvider {
         this.onDidFeedCookieEmitter.fire(normalizeFoodType(message.food));
       } else if (message.type === 'cookieEaten') {
         this.onDidFeedCookieEmitter.fire('cookie');
+      } else if (message.type === 'foodReached') {
+        this.onDidReachFoodEmitter.fire(normalizeFoodType(message.food));
+      } else if (message.type === 'foodRequested') {
+        this.onDidRequestFoodEmitter.fire({
+          food: normalizeFoodType(message.food),
+          targetX: normalizeTargetX(message.targetX),
+        });
       } else if (message.type === 'careAction') {
         this.onDidCareActionEmitter.fire(normalizeCareAction(message.action));
       } else if (message.type === 'introPlayed') {
@@ -187,16 +204,35 @@ export class Provider implements vscode.WebviewViewProvider {
     this.spawnFood('cookie');
   }
 
-  public spawnFood(food: FoodType): void {
+  public spawnFood(food: FoodType, targetX?: number): void {
     this.postMessage({
       type: 'spawnCookie',
       food,
+      targetX,
     });
   }
 
   public returnToCenter(): void {
     this.postMessage({
       type: 'returnToCenter',
+    });
+  }
+
+  public acceptFood(): void {
+    this.postMessage({
+      type: 'acceptFood',
+    });
+  }
+
+  public refuseFood(): void {
+    this.postMessage({
+      type: 'refuseFood',
+    });
+  }
+
+  public showFoodRefusal(): void {
+    this.postMessage({
+      type: 'showFoodRefusal',
     });
   }
 
@@ -1226,6 +1262,11 @@ export class Provider implements vscode.WebviewViewProvider {
     const cookieEatingMessages = [
       'THANK YOU',
       'NOM NOM NOM',
+    ];
+    const foodRefusalMessages = [
+      "I'M FULL",
+      'NO MORE SNACKS',
+      'MAYBE LATER',
     ];
     const attentionMessages = [
       'I NEEDS SOME ATTENTION SOON',
@@ -2943,7 +2984,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
       event.preventDefault();
       event.stopPropagation();
-      spawnCookie(getPanelTargetX(event));
+      vscode.postMessage({ type: 'foodRequested', food: 'cookie', targetX: getPanelTargetX(event) });
     }
 
     function spawnCookie(targetX, food = 'cookie') {
@@ -3098,11 +3139,22 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      cookiePhase = 'waiting';
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      setSpriteForState('idle');
+      applyWalkPosition(0);
+      vscode.postMessage({ type: 'foodReached', food: activeFood });
+    }
+
+    function acceptFood() {
+      if (!cookieTreat || cookiePhase !== 'waiting') {
+        return;
+      }
+
       cookieActive = false;
       cookiePhase = 'eating';
       setCookieState('eaten');
-      currentState = 'idle';
-      document.body.dataset.state = 'idle';
       setSpriteForState('eat');
       applyWalkPosition(0);
       cookieEatingMessageCount += 1;
@@ -3126,6 +3178,30 @@ export class Provider implements vscode.WebviewViewProvider {
           scheduleRandomWalk();
         }, loveGifDurationMs);
       }, eatGifDurationMs);
+    }
+
+    function refuseFood() {
+      if (cookiePhase !== 'waiting') {
+        return;
+      }
+
+      resetCookie();
+      currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
+      document.body.dataset.state = currentState;
+      setSpriteForState(currentState);
+      showStatusSpeechMessage(foodRefusalMessages);
+      scheduleRandomWalk();
+    }
+
+    function showFoodRefusal() {
+      if (isDead || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
+        return;
+      }
+
+      clearLookReaction({ resumeWalk: false });
+      clearClickReaction();
+      dismissBreakPrompt();
+      showStatusSpeechMessage(foodRefusalMessages);
     }
 
     function setBuddySize(size) {
@@ -3231,7 +3307,13 @@ export class Provider implements vscode.WebviewViewProvider {
       } else if (message.type === 'playHeartFill') {
         playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
-        spawnCookie(undefined, message.food);
+        spawnCookie(message.targetX, message.food);
+      } else if (message.type === 'acceptFood') {
+        acceptFood();
+      } else if (message.type === 'refuseFood') {
+        refuseFood();
+      } else if (message.type === 'showFoodRefusal') {
+        showFoodRefusal();
       } else if (message.type === 'returnToCenter') {
         returnToCenter();
       } else if (message.type === 'toggleBreakPrompt') {
@@ -3413,6 +3495,10 @@ function normalizeLevel(level: number | undefined): number {
 
 function normalizeFoodType(food: string | undefined): FoodType {
   return food === 'coffee' || food === 'sandwich' || food === 'cake' ? food : 'cookie';
+}
+
+function normalizeTargetX(targetX: number | undefined): number | undefined {
+  return typeof targetX === 'number' && Number.isFinite(targetX) ? targetX : undefined;
 }
 
 function normalizeCareAction(action: string | undefined): CareAction {

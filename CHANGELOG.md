@@ -4,6 +4,7 @@ All notable changes to Buddy will be documented in this file.
 
 ## 0.5.1
 
+- Added an overfeeding guard so Buddy refuses extra treats before they drop after four within 30 minutes, resetting once Buddy loses a heart.
 - Added automatic coffee drops every five Git commits detected by VS Code.
 - Changed coffee to activate a 2x XP multiplier for 30 minutes instead of granting flat XP.
 - Added an active `x2` XP boost indicator beside the level and XP bar.
