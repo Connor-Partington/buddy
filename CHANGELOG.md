@@ -4,6 +4,7 @@ All notable changes to Buddy will be documented in this file.
 
 ## 0.5.0
 
+- Added Command-click panel cookie drops so Buddy eats at the clicked spot.
 - Added cursor-aware look sprites so Buddy watches the pointer when it gets close.
 - Added double-click panel movement so Buddy walks or dashes to the selected spot.
 - Fixed double-click movement selecting or dragging panel contents while Buddy moves.

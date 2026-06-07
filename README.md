@@ -33,6 +33,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
 - Locally saved level-up card PNGs when Buddy levels up while the panel is open.
 - Dash behavior when Buddy goes after cookies.
+- Command-click panel cookie drops so Buddy eats at the spot you choose.
 - Double-click panel movement so Buddy walks or dashes to the spot you choose.
 - Cursor-aware look sprites when your pointer gets close to Buddy.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
@@ -72,6 +73,7 @@ Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, 
 
 ## Actions
 
+- Command-click inside the Buddy panel to drop a cookie at that spot.
 - Use the <img src="media/cookie-dark.png" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
 - Use the <img src="media/revive-dark.png" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
 - Use the <img src="media/death-dark.png" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.

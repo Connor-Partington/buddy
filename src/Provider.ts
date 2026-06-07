@@ -2658,7 +2658,17 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     }
 
-    function spawnCookie() {
+    function handlePanelClick(event) {
+      if (!event.metaKey) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      spawnCookie(getPanelTargetX(event));
+    }
+
+    function spawnCookie(targetX) {
       if (!cookieTreat) {
         return;
       }
@@ -2673,7 +2683,10 @@ export class Provider implements vscode.WebviewViewProvider {
       clearCookieEatTimer();
       clearRandomWalk();
       const limit = getWalkLimit(true);
-      cookieX = walkX <= 0 ? Math.max(0, limit - 12) : -Math.max(0, limit - 12);
+      const defaultCookieX = walkX <= 0 ? Math.max(0, limit - 12) : -Math.max(0, limit - 12);
+      cookieX = typeof targetX === 'number'
+        ? Math.min(limit, Math.max(-limit, targetX))
+        : defaultCookieX;
       cookieActive = true;
       cookieDashSegmentsRemaining = 0;
       cookiePhase = 'dropping';
@@ -2899,6 +2912,7 @@ export class Provider implements vscode.WebviewViewProvider {
       }, loveGifDurationMs);
     }
 
+    stage?.addEventListener('click', handlePanelClick, true);
     spriteStage?.addEventListener('click', triggerBuddyClick);
     stage?.addEventListener('mousedown', handlePanelMouseDown);
     stage?.addEventListener('dblclick', handlePanelDoubleClick);
