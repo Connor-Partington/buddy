@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 
 import { BuddyHealth, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
-import { BuddyXp, maxBuddyLevel } from './xpManager';
+import { maxBuddyLevel } from './xpManager';
+import type { BuddyXp, BuddyXpBoost } from './xpManager';
 
 type LookSpriteKey =
   | 'lookCenter'
@@ -83,6 +84,7 @@ export class Provider implements vscode.WebviewViewProvider {
     aliveDays: 1,
   };
   private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
+  private xpBoost: BuddyXpBoost = { multiplier: 2, expiresAt: 0, isActive: false };
   private shouldPlayIntro: boolean;
   private readonly onDidFeedCookieEmitter = new vscode.EventEmitter<FoodType>();
   public readonly onDidFeedCookie = this.onDidFeedCookieEmitter.event;
@@ -155,6 +157,11 @@ export class Provider implements vscode.WebviewViewProvider {
   public setXp(xp: BuddyXp): void {
     this.xp = xp;
     this.postXp();
+  }
+
+  public setXpBoost(boost: BuddyXpBoost): void {
+    this.xpBoost = boost;
+    this.postXpBoost();
   }
 
   public spawnCookie(): void {
@@ -235,6 +242,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postXpBoost(): void {
+    this.postMessage({
+      type: 'setXpBoost',
+      boost: this.xpBoost,
+    });
+  }
+
   private postMessage(message: unknown): Thenable<boolean> {
     return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
@@ -244,6 +258,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postState();
     this.postBuddySize();
     this.postXp();
+    this.postXpBoost();
   }
 
   private getHtml(
@@ -255,6 +270,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const spriteDisplaySizes = getSpriteDisplaySizes(this.buddySize);
     const health = this.health;
     const xp = this.xp;
+    const xpBoost = this.xpBoost;
     const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
     const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
 
@@ -369,6 +385,31 @@ export class Provider implements vscode.WebviewViewProvider {
       line-height: 1.2;
       overflow: hidden;
       pointer-events: none;
+    }
+
+    .xp-boost {
+      position: absolute;
+      top: 34px;
+      left: min(112px, calc(100vw - 44px));
+      z-index: 3;
+      min-width: 36px;
+      padding: 2px 6px;
+      border: 1px solid rgb(251 242 54 / 72%);
+      border-radius: 4px;
+      color: var(--vscode-sideBar-foreground);
+      background: color-mix(in srgb, var(--vscode-sideBar-background) 78%, #fbf236);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .xp-boost[hidden] {
+      display: none;
     }
 
     .xp-meter__label {
@@ -955,6 +996,7 @@ export class Provider implements vscode.WebviewViewProvider {
         </div>
         <div class="xp-meter__track" aria-hidden="true"><span class="xp-meter__fill"></span></div>
       </div>
+      <div class="xp-boost" aria-live="polite" aria-label="${getXpBoostLabel(xpBoost)}" ${xpBoost.isActive ? '' : 'hidden'}>${getXpBoostText(xpBoost)}</div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -989,6 +1031,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const xpMeter = document.querySelector('.xp-meter');
     const xpLevel = document.querySelector('.xp-meter__level');
     const xpValue = document.querySelector('.xp-meter__value');
+    const xpBoostIndicator = document.querySelector('.xp-boost');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const speechBubble = document.querySelector('.speech-bubble');
@@ -1013,6 +1056,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let lifeCounterScrambleTimer;
     let introTimer;
     let introHeartTimer;
+    let currentXpBoost = ${JSON.stringify(xpBoost)};
     let breakPromptTimer;
     let breakScrambleTimer;
     let breakHideTimer;
@@ -1683,6 +1727,36 @@ export class Provider implements vscode.WebviewViewProvider {
       if (currentXp.totalXp > previousTotalXp && !isDead && !isIntroPlaying) {
         playXpBurst();
       }
+    }
+
+    function setXpBoost(boost) {
+      const multiplier = Math.max(1, Number(boost?.multiplier) || 1);
+      const expiresAt = Math.max(0, Number(boost?.expiresAt) || 0);
+      currentXpBoost = {
+        multiplier,
+        expiresAt,
+        isActive: Boolean(boost?.isActive) && expiresAt > Date.now(),
+      };
+
+      if (!xpBoostIndicator) {
+        return;
+      }
+
+      xpBoostIndicator.hidden = !currentXpBoost.isActive;
+      xpBoostIndicator.textContent = 'x' + formatXpBoostMultiplier(currentXpBoost.multiplier);
+      xpBoostIndicator.setAttribute('aria-label', getXpBoostAriaLabel(currentXpBoost));
+    }
+
+    function formatXpBoostMultiplier(multiplier) {
+      return Number.isInteger(multiplier) ? String(multiplier) : String(Math.round(multiplier * 10) / 10);
+    }
+
+    function getXpBoostAriaLabel(boost) {
+      if (!boost?.isActive) {
+        return 'Buddy XP boost inactive';
+      }
+
+      return 'Buddy XP boost x' + formatXpBoostMultiplier(boost.multiplier) + ' active';
     }
 
     function getXpAriaLabel(xp) {
@@ -2995,6 +3069,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setHealth(message.health, message.options);
       } else if (message.type === 'setXp') {
         setXp(message.xp);
+      } else if (message.type === 'setXpBoost') {
+        setXpBoost(message.boost);
       } else if (message.type === 'captureLevelUpCard') {
         captureLevelUpCard(message.level, message.xp);
       } else if (message.type === 'playHeartFill') {
@@ -3015,6 +3091,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
     updateLifeCounter(true);
     setXp(${JSON.stringify(xp)});
+    setXpBoost(${JSON.stringify(xpBoost)});
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();
@@ -3138,12 +3215,28 @@ function getXpProgressText(xp: BuddyXp): string {
   return xp.isMaxLevel ? 'Max' : `${xp.currentLevelXp}/${xp.nextLevelXp}`;
 }
 
+function getXpBoostText(boost: BuddyXpBoost): string {
+  return boost.isActive ? `x${formatMultiplier(boost.multiplier)}` : '';
+}
+
 function getXpLabel(xp: BuddyXp): string {
   if (xp.isMaxLevel) {
     return `Buddy is at max level ${xp.level}`;
   }
 
   return `Buddy is level ${xp.level} with ${xp.currentLevelXp} of ${xp.nextLevelXp} XP`;
+}
+
+function getXpBoostLabel(boost: BuddyXpBoost): string {
+  if (!boost.isActive) {
+    return 'Buddy XP boost inactive';
+  }
+
+  return `Buddy XP boost x${formatMultiplier(boost.multiplier)} active`;
+}
+
+function formatMultiplier(multiplier: number): string {
+  return Number.isInteger(multiplier) ? String(multiplier) : String(Math.round(multiplier * 10) / 10);
 }
 
 function normalizeLevel(level: number | undefined): number {

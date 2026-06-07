@@ -10,7 +10,6 @@ import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
-const coffeeXpAwardAmount = 15;
 const xpMultiplierOptions = [0.5, 1, 1.5, 2, 3];
 const demoStepMs = 1200;
 const demoStateStepMs: Partial<Record<(typeof buddyStates)[number], number>> = {
@@ -67,6 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
     provider.setHealth(health);
     if (health.isDead) {
+      void xpManager.clearCoffeeXpBoost();
       void xpManager.deductDeathPenalty().then((change) => {
         if (!change) {
           vscode.window.showWarningMessage('Buddy is dead.');
@@ -88,6 +88,9 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       });
     }
+  });
+  const xpBoostSubscription = xpManager.onDidChangeXpBoost((boost) => {
+    provider.setXpBoost(boost);
   });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
@@ -293,6 +296,7 @@ export async function activate(context: vscode.ExtensionContext) {
     levelUpCardFailureSubscription,
     healthSubscription,
     xpSubscription,
+    xpBoostSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
@@ -319,10 +323,11 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
   provider.setXp(xpManager.xp);
+  provider.setXpBoost(xpManager.xpBoost);
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
     if (food === 'coffee') {
-      await xpManager.awardXp({ source: 'feed', amount: coffeeXpAwardAmount });
+      await xpManager.activateCoffeeXpBoost();
       return;
     }
 

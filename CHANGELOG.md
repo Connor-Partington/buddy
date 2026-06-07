@@ -2,6 +2,12 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.5.1
+
+- Changed coffee to activate a 2x XP multiplier for 30 minutes instead of granting flat XP.
+- Added an active `x2` XP boost indicator beside the level and XP bar.
+- Changed Buddy death to clear the active coffee XP multiplier.
+
 ## 0.5.0
 
 - Added coffee, sandwich, and cake treat drops with distinct rewards.

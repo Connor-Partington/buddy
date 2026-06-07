@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 export const maxBuddyLevel = 100;
 export const targetMaxBuddyXp = 85000;
 export const defaultBuddyXpMultiplier = 1;
+export const coffeeBuddyXpMultiplier = 2;
+export const coffeeBuddyXpBoostDurationMs = 30 * 60 * 1000;
 
 const baseLevelXp = 100;
 const levelXpCurveExponent = 1.2;
@@ -39,17 +41,29 @@ export type BuddyXpChange = {
   leveledDown: boolean;
 };
 
+export type BuddyXpBoost = {
+  multiplier: number;
+  expiresAt: number;
+  isActive: boolean;
+};
+
 const totalXpKey = 'buddyXp.totalXp';
 const xpMultiplierKey = 'buddyXp.multiplier';
+const coffeeXpBoostExpiresAtKey = 'buddyXp.coffeeBoostExpiresAt';
 
 export class BuddyXpManager implements vscode.Disposable {
   private totalXp: number;
   private xpMultiplier: number;
+  private coffeeXpBoostExpiresAt: number;
+  private coffeeXpBoostTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly listeners = new Set<(change: BuddyXpChange) => void>();
+  private readonly boostListeners = new Set<(boost: BuddyXpBoost) => void>();
 
   public constructor(private readonly globalState: vscode.Memento) {
     this.totalXp = normalizeTotalXp(globalState.get<number>(totalXpKey, 0));
     this.xpMultiplier = normalizeXpMultiplier(globalState.get<number>(xpMultiplierKey, defaultBuddyXpMultiplier));
+    this.coffeeXpBoostExpiresAt = normalizeBoostExpiresAt(globalState.get<number>(coffeeXpBoostExpiresAtKey, 0));
+    this.scheduleCoffeeXpBoostExpiry();
   }
 
   public get xp(): BuddyXp {
@@ -60,8 +74,12 @@ export class BuddyXpManager implements vscode.Disposable {
     return this.xpMultiplier;
   }
 
+  public get xpBoost(): BuddyXpBoost {
+    return getCoffeeXpBoost(this.coffeeXpBoostExpiresAt);
+  }
+
   public async awardXp(award: BuddyXpAward): Promise<BuddyXpChange | undefined> {
-    const effectiveAmount = getEffectiveAwardAmount(award.amount, this.xpMultiplier);
+    const effectiveAmount = getEffectiveAwardAmount(award.amount, this.getEffectiveMultiplier());
     if (effectiveAmount <= 0 || this.xp.isMaxLevel) {
       return undefined;
     }
@@ -149,6 +167,32 @@ export class BuddyXpManager implements vscode.Disposable {
     return this.xpMultiplier;
   }
 
+  public async activateCoffeeXpBoost(): Promise<BuddyXpBoost> {
+    this.coffeeXpBoostExpiresAt = Date.now() + coffeeBuddyXpBoostDurationMs;
+    await this.globalState.update(coffeeXpBoostExpiresAtKey, this.coffeeXpBoostExpiresAt);
+    this.scheduleCoffeeXpBoostExpiry();
+    this.emitBoost();
+
+    return this.xpBoost;
+  }
+
+  public async clearCoffeeXpBoost(): Promise<BuddyXpBoost | undefined> {
+    if (this.coffeeXpBoostExpiresAt <= 0) {
+      return undefined;
+    }
+
+    this.coffeeXpBoostExpiresAt = 0;
+    if (this.coffeeXpBoostTimer) {
+      clearTimeout(this.coffeeXpBoostTimer);
+      this.coffeeXpBoostTimer = undefined;
+    }
+
+    await this.globalState.update(coffeeXpBoostExpiresAtKey, undefined);
+    this.emitBoost();
+
+    return this.xpBoost;
+  }
+
   public onDidChangeXp(listener: (change: BuddyXpChange) => void): vscode.Disposable {
     this.listeners.add(listener);
 
@@ -159,8 +203,64 @@ export class BuddyXpManager implements vscode.Disposable {
     };
   }
 
+  public onDidChangeXpBoost(listener: (boost: BuddyXpBoost) => void): vscode.Disposable {
+    this.boostListeners.add(listener);
+
+    return {
+      dispose: () => {
+        this.boostListeners.delete(listener);
+      },
+    };
+  }
+
   public dispose(): void {
+    if (this.coffeeXpBoostTimer) {
+      clearTimeout(this.coffeeXpBoostTimer);
+      this.coffeeXpBoostTimer = undefined;
+    }
     this.listeners.clear();
+    this.boostListeners.clear();
+  }
+
+  private getEffectiveMultiplier(): number {
+    return this.xpMultiplier * (this.xpBoost.isActive ? coffeeBuddyXpMultiplier : 1);
+  }
+
+  private scheduleCoffeeXpBoostExpiry(): void {
+    if (this.coffeeXpBoostTimer) {
+      clearTimeout(this.coffeeXpBoostTimer);
+      this.coffeeXpBoostTimer = undefined;
+    }
+
+    const remainingMs = this.coffeeXpBoostExpiresAt - Date.now();
+    if (remainingMs <= 0) {
+      return;
+    }
+
+    this.coffeeXpBoostTimer = setTimeout(() => {
+      this.coffeeXpBoostTimer = undefined;
+      void this.expireCoffeeXpBoost();
+    }, remainingMs);
+  }
+
+  private async expireCoffeeXpBoost(): Promise<void> {
+    if (this.coffeeXpBoostExpiresAt > Date.now()) {
+      this.scheduleCoffeeXpBoostExpiry();
+      return;
+    }
+
+    if (this.coffeeXpBoostExpiresAt <= 0) {
+      return;
+    }
+
+    this.coffeeXpBoostExpiresAt = 0;
+    await this.globalState.update(coffeeXpBoostExpiresAtKey, undefined);
+    this.emitBoost();
+  }
+
+  private emitBoost(): void {
+    const boost = this.xpBoost;
+    this.boostListeners.forEach((listener) => listener(boost));
   }
 }
 
@@ -233,6 +333,22 @@ function normalizeXpMultiplier(multiplier: number | undefined): number {
   }
 
   return Math.min(5, Math.max(0.25, multiplier));
+}
+
+function normalizeBoostExpiresAt(expiresAt: number | undefined): number {
+  if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(expiresAt));
+}
+
+function getCoffeeXpBoost(expiresAt: number): BuddyXpBoost {
+  return {
+    multiplier: coffeeBuddyXpMultiplier,
+    expiresAt,
+    isActive: expiresAt > Date.now(),
+  };
 }
 
 function getEffectiveAwardAmount(amount: number, multiplier: number): number {
