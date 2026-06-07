@@ -12,6 +12,8 @@ import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
 const xpMultiplierOptions = [0.5, 1, 1.5, 2, 3];
+const coffeeDropCommitInterval = 5;
+const coffeeDropCommitCountKey = 'buddyCoffeeDrop.commitCount';
 const demoStepMs = 1200;
 const demoStateStepMs: Partial<Record<(typeof buddyStates)[number], number>> = {
   typing: 2200,
@@ -29,6 +31,9 @@ const demoTriggerFileName = '.buddy-demo-trigger';
 
 export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
+  let coffeeDropCommitCount = normalizeCoffeeDropCommitCount(
+    context.globalState.get<number>(coffeeDropCommitCountKey, 0),
+  );
   let isDemoRunning = false;
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>('buddyIntro.hasPlayed', false));
   const stateManager = new BuddyStateManager();
@@ -39,7 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
     void xpManager.awardXp(award);
   });
   const gitActivityController = await BuddyGitActivityController.create((award) => {
-    void xpManager.awardXp(award);
+    void handleGitCommitAward(award);
   });
   const demoController = new BuddyDemoController(stateManager);
   const stateSubscription = stateManager.onDidChangeState((state) => {
@@ -368,6 +373,17 @@ export async function activate(context: vscode.ExtensionContext) {
       provider.playHeartFill(restoredHeartIndex);
     }
   }
+
+  async function handleGitCommitAward(award: Parameters<BuddyXpManager['awardXp']>[0]): Promise<void> {
+    await xpManager.awardXp(award);
+
+    coffeeDropCommitCount = normalizeCoffeeDropCommitCount(coffeeDropCommitCount + 1);
+    await context.globalState.update(coffeeDropCommitCountKey, coffeeDropCommitCount);
+
+    if (coffeeDropCommitCount === 0) {
+      provider.spawnFood('coffee');
+    }
+  }
 }
 
 export function deactivate() {}
@@ -376,6 +392,14 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function normalizeCoffeeDropCommitCount(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(value)) % coffeeDropCommitInterval;
 }
 
 async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelUpCardCapture): Promise<void> {
