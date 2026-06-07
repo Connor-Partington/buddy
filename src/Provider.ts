@@ -4,7 +4,17 @@ import { BuddyHealth, maxBuddyHearts } from './healthManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 import { BuddyXp, maxBuddyLevel } from './xpManager';
 
-type SpriteKey = BuddyState | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
+type LookSpriteKey =
+  | 'lookCenter'
+  | 'lookTop'
+  | 'lookTopRight'
+  | 'lookRight'
+  | 'lookBottomRight'
+  | 'lookBottom'
+  | 'lookBottomLeft'
+  | 'lookLeft'
+  | 'lookTopLeft';
+type SpriteKey = BuddyState | LookSpriteKey | 'walk' | 'dash' | 'dashContinue' | 'love' | 'eat' | 'death' | 'soul' | 'revive' | 'spawn';
 type ImageKey = 'cookie' | 'heart' | 'heartEmpty' | 'heartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
 export type LevelUpCardCapture = {
@@ -37,6 +47,15 @@ const spriteTrimSizes: Record<SpriteKey, { width: number; height: number }> = {
   sleeping: { width: 29, height: 26 },
   happy: { width: 20, height: 35 },
   jump: { width: 26, height: 46 },
+  lookCenter: { width: 16, height: 16 },
+  lookTop: { width: 16, height: 16 },
+  lookTopRight: { width: 16, height: 16 },
+  lookRight: { width: 16, height: 16 },
+  lookBottomRight: { width: 16, height: 16 },
+  lookBottom: { width: 16, height: 16 },
+  lookBottomLeft: { width: 16, height: 16 },
+  lookLeft: { width: 16, height: 16 },
+  lookTopLeft: { width: 16, height: 16 },
   walk: { width: 22, height: 18 },
   dash: { width: 26, height: 16 },
   dashContinue: { width: 26, height: 16 },
@@ -966,6 +985,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let walkTransitionTimer;
     let walkTransitionCleanup;
     let clickReactionTimer;
+    let lookResetTimer;
     let cookieDropTimer;
     let cookieEatTimer;
     let deathTimer;
@@ -993,6 +1013,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
     let currentLifeCounterText = ${JSON.stringify(getAliveDayCounterText(health))};
     let currentXp = ${JSON.stringify(xp)};
+    let activeLookState;
     let heartLostMessageCount = 0;
     let cookieEatingMessageCount = 0;
     let activeSpeechMessage = 'TAKE A BREAK?';
@@ -1020,6 +1041,19 @@ export class Provider implements vscode.WebviewViewProvider {
     const oneDayMs = 24 * 60 * 60 * 1000;
     const lifeCounterScrambleMs = 900;
     const lifeCounterNumberScrambleMs = 1500;
+    const lookActivationDistancePx = 64;
+    const lookCenterDistancePx = 8;
+    const lookResetDelayMs = 120;
+    const lookDirections = [
+      'lookRight',
+      'lookBottomRight',
+      'lookBottom',
+      'lookBottomLeft',
+      'lookLeft',
+      'lookTopLeft',
+      'lookTop',
+      'lookTopRight',
+    ];
     const breakPromptMessages = [
       'TAKE A BREAK?',
       'SAVE AND STRETCH?',
@@ -1056,6 +1090,10 @@ export class Provider implements vscode.WebviewViewProvider {
       return Math.round(${baseCookieDisplayWidth} * scale) + 'px';
     }
 
+    function isLookSpriteState(state) {
+      return state === 'lookCenter' || lookDirections.includes(state);
+    }
+
     function setSpriteForState(state, replay = false) {
       if (!spriteImage || !spriteStage) {
         return;
@@ -1065,6 +1103,7 @@ export class Provider implements vscode.WebviewViewProvider {
       const displaySize = getSpriteDisplaySize(state);
       spriteStage.style.setProperty('--sprite-display-width', displaySize.width);
       spriteStage.style.setProperty('--sprite-aspect-ratio', displaySize.aspectRatio);
+      spriteStage.style.setProperty('--sprite-direction', isLookSpriteState(state) ? '1' : String(walkDirection));
       if (source && (replay || spriteImage.getAttribute('src') !== source)) {
         if (replay) {
           spriteImage.removeAttribute('src');
@@ -1125,7 +1164,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
       spriteStage.style.setProperty('--walk-duration', durationMs + 'ms');
       spriteStage.style.setProperty('--walk-x', walkX + 'px');
-      spriteStage.style.setProperty('--sprite-direction', String(walkDirection));
+      spriteStage.style.setProperty('--sprite-direction', activeLookState ? '1' : String(walkDirection));
       updateSoulWanderBounds();
     }
 
@@ -2229,6 +2268,115 @@ export class Provider implements vscode.WebviewViewProvider {
       captureWalkPosition();
     }
 
+    function clearLookTimer() {
+      if (lookResetTimer) {
+        clearTimeout(lookResetTimer);
+        lookResetTimer = undefined;
+      }
+    }
+
+    function isLookEligible() {
+      return !isDead
+        && !isReviving
+        && !isIntroPlaying
+        && !isBreakPromptActive
+        && !isCookieInteractionActive()
+        && !clickReactionTimer
+        && !walkTransitionTimer
+        && spriteImage
+        && spriteStage;
+    }
+
+    function getLookStateForPointer(event) {
+      if (!spriteImage) {
+        return undefined;
+      }
+
+      const rect = spriteImage.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const deltaX = event.clientX - centerX;
+      const deltaY = event.clientY - centerY;
+      const distance = Math.hypot(deltaX, deltaY);
+
+      if (distance > lookActivationDistancePx) {
+        return undefined;
+      }
+
+      if (distance < lookCenterDistancePx) {
+        return 'lookCenter';
+      }
+
+      const angle = Math.atan2(deltaY, deltaX);
+      const normalizedAngle = angle < 0 ? angle + Math.PI * 2 : angle;
+      const directionIndex = Math.round(normalizedAngle / (Math.PI / 4)) % lookDirections.length;
+      return lookDirections[directionIndex];
+    }
+
+    function setLookState(lookState) {
+      if (activeLookState === lookState) {
+        return;
+      }
+
+      activeLookState = lookState;
+      preserveSpriteCenter(() => {
+        setSpriteForState(lookState);
+      });
+    }
+
+    function clearLookReaction({ delay = false, resumeWalk = true } = {}) {
+      clearLookTimer();
+
+      if (!activeLookState) {
+        return;
+      }
+
+      const restoreSprite = () => {
+        lookResetTimer = undefined;
+        if (!activeLookState) {
+          return;
+        }
+
+        activeLookState = undefined;
+        if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
+          return;
+        }
+
+        preserveSpriteCenter(() => {
+          setSpriteForState(getVisibleSpriteState());
+        });
+
+        if (resumeWalk) {
+          scheduleRandomWalk();
+        }
+      };
+
+      if (delay) {
+        lookResetTimer = setTimeout(restoreSprite, lookResetDelayMs);
+      } else {
+        restoreSprite();
+      }
+    }
+
+    function handlePointerMove(event) {
+      if (!isLookEligible()) {
+        clearLookReaction({ resumeWalk: false });
+        return;
+      }
+
+      const lookState = getLookStateForPointer(event);
+      if (!lookState) {
+        clearLookReaction({ delay: true });
+        return;
+      }
+
+      clearLookTimer();
+      if (currentState === 'idle' || currentState === 'sleeping') {
+        clearRandomWalk();
+      }
+      setLookState(lookState);
+    }
+
     function clearClickReaction() {
       if (clickReactionTimer) {
         clearTimeout(clickReactionTimer);
@@ -2267,7 +2415,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function scheduleRandomWalk() {
-      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || activeLookState || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
 
@@ -2281,7 +2429,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function startRandomWalk() {
-      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || activeLookState || !spriteImage || !spriteStage || (currentState !== 'idle' && currentState !== 'sleeping')) {
         scheduleRandomWalk();
         return;
       }
@@ -2323,6 +2471,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
       clearRandomWalk();
@@ -2400,6 +2549,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
       clearCookieEatTimer();
@@ -2574,32 +2724,39 @@ export class Provider implements vscode.WebviewViewProvider {
           state: document.body.dataset.state || 'idle',
           buddySize,
         });
-        setSpriteForState(getVisibleSpriteState());
+        setSpriteForState(activeLookState || getVisibleSpriteState());
         updateCookieSize();
       });
     }
 
     function setState(state) {
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive) {
+        clearLookReaction({ resumeWalk: false });
         lastState = state;
         return;
       }
 
       if (isCookieInteractionActive()) {
+        clearLookReaction({ resumeWalk: false });
         stateBeforeWalk = state;
         vscode.setState({ state, buddySize });
         lastState = state;
         return;
       }
 
+      clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
-      clearRandomWalk();
+      if (!activeLookState) {
+        clearRandomWalk();
+      }
       currentState = state;
       document.body.dataset.state = state;
       vscode.setState({ state, buddySize });
-      setSpriteForState(state);
-      scheduleRandomWalk();
+      setSpriteForState(activeLookState || state);
+      if (!activeLookState) {
+        scheduleRandomWalk();
+      }
       lastState = state;
     }
 
@@ -2608,6 +2765,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      clearLookReaction({ resumeWalk: false });
       clearClickReaction();
       dismissBreakPrompt();
       preserveSpriteCenter(() => {
@@ -2629,6 +2787,10 @@ export class Provider implements vscode.WebviewViewProvider {
         event.preventDefault();
         triggerBuddyClick();
       }
+    });
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerleave', () => {
+      clearLookReaction({ delay: true });
     });
     window.addEventListener('message', (event) => {
       const message = event.data;
@@ -2697,6 +2859,15 @@ function getSpriteSources(
     sleeping: 'sleep-trim.gif',
     happy: 'happy-trim.gif',
     jump: 'jump-trim.gif',
+    lookCenter: 'look-center.png',
+    lookTop: 'look-top.png',
+    lookTopRight: 'look-top-right.png',
+    lookRight: 'look-right.png',
+    lookBottomRight: 'look-bottom-right.png',
+    lookBottom: 'look-bottom.png',
+    lookBottomLeft: 'look-bottom-left.png',
+    lookLeft: 'look-left.png',
+    lookTopLeft: 'look-top-left.png',
     walk: 'walk-trim.gif',
     dash: 'dash-trim.gif',
     dashContinue: 'dash-continue-trim.gif',

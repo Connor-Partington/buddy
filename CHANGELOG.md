@@ -2,6 +2,10 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.5.0
+
+- Added cursor-aware look sprites so Buddy watches the pointer when it gets close.
+
 ## 0.4.0
 
 - Added locally saved level-up card PNGs when Buddy gains a level while the panel is open.

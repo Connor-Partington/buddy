@@ -33,6 +33,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
 - Locally saved level-up card PNGs when Buddy levels up while the panel is open.
 - Dash behavior when Buddy goes after cookies.
+- Cursor-aware look sprites when your pointer gets close to Buddy.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
 - Feed Buddy a cookie to keep him alive.
