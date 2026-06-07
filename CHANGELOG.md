@@ -5,6 +5,9 @@ All notable changes to Buddy will be documented in this file.
 ## 0.5.0
 
 - Added cursor-aware look sprites so Buddy watches the pointer when it gets close.
+- Added double-click panel movement so Buddy walks or dashes to the selected spot.
+- Fixed double-click movement selecting or dragging panel contents while Buddy moves.
+- Fixed cursor look reactions nudging Buddy sideways by keeping look swaps to stable idle and walk frames.
 
 ## 0.4.0
 

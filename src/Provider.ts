@@ -271,6 +271,7 @@ export class Provider implements vscode.WebviewViewProvider {
       background: var(--vscode-sideBar-background);
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
+      user-select: none;
     }
 
     .shell {
@@ -497,6 +498,7 @@ export class Provider implements vscode.WebviewViewProvider {
       align-self: end;
       object-fit: contain;
       image-rendering: pixelated;
+      -webkit-user-drag: none;
       translate: 0 var(--sprite-y, 0px);
       transform: scaleX(var(--sprite-direction, 1));
       transform-origin: center bottom;
@@ -980,12 +982,14 @@ export class Provider implements vscode.WebviewViewProvider {
     let buddySize = '${this.buddySize}';
     let lastState = '${this.state}';
     let currentState = '${this.state}';
+    let visibleSpriteState = '${initialSpriteState}';
     let stateBeforeWalk = '${this.state}';
     let walkTimer;
     let walkTransitionTimer;
     let walkTransitionCleanup;
     let clickReactionTimer;
     let lookResetTimer;
+    let lookReturnSpriteState;
     let cookieDropTimer;
     let cookieEatTimer;
     let deathTimer;
@@ -1099,6 +1103,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      visibleSpriteState = state;
       const source = spriteSources[state] || spriteSources.idle;
       const displaySize = getSpriteDisplaySize(state);
       spriteStage.style.setProperty('--sprite-display-width', displaySize.width);
@@ -1114,6 +1119,10 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function getVisibleSpriteState() {
+      if (activeLookState && lookReturnSpriteState) {
+        return lookReturnSpriteState;
+      }
+
       if (isIntroPlaying) {
         return 'spawn';
       }
@@ -1124,6 +1133,10 @@ export class Provider implements vscode.WebviewViewProvider {
 
       if (isDead) {
         return deathPhase === 'dying' ? 'death' : 'soul';
+      }
+
+      if (visibleSpriteState && !isLookSpriteState(visibleSpriteState)) {
+        return visibleSpriteState;
       }
 
       return document.body.dataset.state || currentState || 'idle';
@@ -2276,15 +2289,16 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function isLookEligible() {
+      const visibleState = getVisibleSpriteState();
       return !isDead
         && !isReviving
         && !isIntroPlaying
         && !isBreakPromptActive
         && !isCookieInteractionActive()
         && !clickReactionTimer
-        && !walkTransitionTimer
         && spriteImage
-        && spriteStage;
+        && spriteStage
+        && (visibleState === 'idle' || visibleState === 'walk');
     }
 
     function getLookStateForPointer(event) {
@@ -2318,6 +2332,9 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      if (!activeLookState) {
+        lookReturnSpriteState = getVisibleSpriteState();
+      }
       activeLookState = lookState;
       preserveSpriteCenter(() => {
         setSpriteForState(lookState);
@@ -2338,12 +2355,14 @@ export class Provider implements vscode.WebviewViewProvider {
         }
 
         activeLookState = undefined;
+        const restoreState = lookReturnSpriteState || getVisibleSpriteState();
+        lookReturnSpriteState = undefined;
         if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
           return;
         }
 
         preserveSpriteCenter(() => {
-          setSpriteForState(getVisibleSpriteState());
+          setSpriteForState(restoreState);
         });
 
         if (resumeWalk) {
@@ -2371,7 +2390,7 @@ export class Provider implements vscode.WebviewViewProvider {
       }
 
       clearLookTimer();
-      if (currentState === 'idle' || currentState === 'sleeping') {
+      if (getVisibleSpriteState() === 'idle') {
         clearRandomWalk();
       }
       setLookState(lookState);
@@ -2538,6 +2557,105 @@ export class Provider implements vscode.WebviewViewProvider {
         walkX = targetX;
         applyWalkPosition(durationMs);
       });
+    }
+
+    function getPanelTargetX(event) {
+      if (!stage) {
+        return 0;
+      }
+
+      const stageRect = stage.getBoundingClientRect();
+      const stageCenterX = stageRect.left + stageRect.width / 2;
+      const limit = getWalkLimit();
+      return Math.min(limit, Math.max(-limit, event.clientX - stageCenterX));
+    }
+
+    function moveBuddyToPanelTarget(targetX) {
+      if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive() || !spriteImage || !spriteStage) {
+        return;
+      }
+
+      clearLookReaction({ resumeWalk: false });
+      clearClickReaction();
+      dismissBreakPrompt();
+      clearRandomWalk();
+
+      const boundedTargetX = Math.min(getWalkLimit(), Math.max(-getWalkLimit(), targetX));
+      const distance = Math.abs(boundedTargetX - walkX);
+      stateBeforeWalk = currentState;
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+
+      if (distance <= 1) {
+        walkX = boundedTargetX;
+        applyWalkPosition(0);
+        currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
+        document.body.dataset.state = currentState;
+        setSpriteForState(currentState);
+        scheduleRandomWalk();
+        return;
+      }
+
+      walkDirection = boundedTargetX >= walkX ? 1 : -1;
+      const shouldDash = canDashToCookie(distance);
+      const movementState = shouldDash ? 'dash' : 'walk';
+      const durationMs = shouldDash ? dashGifDurationMs : Math.max(700, Math.round((distance / walkSpeedPxPerSecond) * 1000));
+
+      preserveSpriteCenter(() => {
+        setSpriteForState(movementState);
+      });
+      applyWalkPosition(0);
+      void spriteStage.offsetWidth;
+
+      waitForSpriteImage(() => {
+        if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
+          return;
+        }
+
+        const completeMove = () => {
+          if (walkTransitionTimer) {
+            clearTimeout(walkTransitionTimer);
+            walkTransitionTimer = undefined;
+          }
+
+          if (walkTransitionCleanup) {
+            walkTransitionCleanup();
+            walkTransitionCleanup = undefined;
+          }
+
+          walkX = boundedTargetX;
+          applyWalkPosition(0);
+          currentState = stateBeforeWalk === 'sleeping' ? 'idle' : stateBeforeWalk;
+          document.body.dataset.state = currentState;
+          setSpriteForState(currentState);
+          scheduleRandomWalk();
+        };
+        const handleWalkTransitionEnd = (event) => {
+          if (event.target === spriteStage && event.propertyName === 'transform') {
+            completeMove();
+          }
+        };
+
+        walkTransitionCleanup = () => {
+          spriteStage.removeEventListener('transitionend', handleWalkTransitionEnd);
+        };
+
+        spriteStage.addEventListener('transitionend', handleWalkTransitionEnd);
+        walkTransitionTimer = setTimeout(completeMove, durationMs + 250);
+        walkX = boundedTargetX;
+        applyWalkPosition(durationMs);
+      });
+    }
+
+    function handlePanelDoubleClick(event) {
+      event.preventDefault();
+      moveBuddyToPanelTarget(getPanelTargetX(event));
+    }
+
+    function handlePanelMouseDown(event) {
+      if (event.detail >= 2) {
+        event.preventDefault();
+      }
     }
 
     function spawnCookie() {
@@ -2782,6 +2900,8 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     spriteStage?.addEventListener('click', triggerBuddyClick);
+    stage?.addEventListener('mousedown', handlePanelMouseDown);
+    stage?.addEventListener('dblclick', handlePanelDoubleClick);
     spriteStage?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
