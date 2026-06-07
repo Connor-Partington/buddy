@@ -31,7 +31,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - Three-heart health meter with one heart lost every three local wall-clock hours, cookie and sandwich feeding to recover, cake-granted gold heart shields, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
-- Gentle attention meter below Buddy's level and XP that slowly drops over time and refills from care actions.
+- Gentle attention meter below Buddy's level and XP that drops across an 8-hour workday and refills from care actions.
 - Locally saved level-up card PNGs when Buddy levels up while the panel is open.
 - Dash behavior when Buddy goes after treats.
 - Command-click panel cookie drops so Buddy eats at the spot you choose.
@@ -72,7 +72,7 @@ Buddy tracks the current life across sessions with a day counter in the panel. T
 
 Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, coffee activates a 2x XP multiplier for 30 minutes, Git commits detected by VS Code earn 20 XP, and a successful push from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
 
-Buddy's attention meter is a softer daily care goal, not a life-or-death need. It slowly drops when Buddy has not received attention and refills when you feed Buddy, tap him for love, or double-click the panel to make him chase to a spot. When attention gets low, Buddy may give a friendly reminder in a speech bubble.
+Buddy's attention meter is a softer daily care goal, not a life-or-death need. It drops from full to empty across about 8 hours when Buddy has not received attention and refills when you feed Buddy, tap him for love, or double-click the panel to make him chase to a spot. When attention gets low, Buddy may give a friendly reminder in a speech bubble.
 
 Treats have distinct effects: cookies restore one red heart, sandwiches refill missing red hearts, cake grants up to two gold heart shields after the three red hearts, and coffee gives Buddy an XP boost. Timed heart loss consumes gold hearts before red hearts.
 

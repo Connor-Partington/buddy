@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 export const maxBuddyAttention = 100;
-export const buddyAttentionDecayIntervalMs = 12 * 60 * 60 * 1000;
+export const buddyAttentionDecayIntervalMs = (8 * 60 * 60 * 1000) / maxBuddyAttention;
 export const buddyAttentionCareAmount = 34;
 
 export type BuddyAttention = {
