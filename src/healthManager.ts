@@ -1,22 +1,26 @@
 import * as vscode from 'vscode';
 
 export const maxBuddyHearts = 3;
+export const maxBuddyGoldHearts = 2;
 export const buddyHeartLossIntervalMs = 3 * 60 * 60 * 1000;
 
 export type BuddyHealth = {
   hearts: number;
+  goldHearts: number;
   isDead: boolean;
   aliveSince?: number;
   aliveDays: number;
 };
 
 const heartsKey = 'buddyHealth.hearts';
+const goldHeartsKey = 'buddyHealth.goldHearts';
 const aliveSinceKey = 'buddyHealth.aliveSince';
 const nextHeartLossAtKey = 'buddyHealth.nextHeartLossAt';
 const oneDayMs = 24 * 60 * 60 * 1000;
 
 export class BuddyHealthManager implements vscode.Disposable {
   private hearts: number;
+  private goldHearts: number;
   private aliveSince?: number;
   private heartLossTimer?: ReturnType<typeof setTimeout>;
   private nextHeartLossAt?: number;
@@ -24,6 +28,7 @@ export class BuddyHealthManager implements vscode.Disposable {
 
   public constructor(private readonly globalState: vscode.Memento) {
     this.hearts = normalizeHearts(globalState.get<number>(heartsKey, maxBuddyHearts));
+    this.goldHearts = normalizeGoldHearts(globalState.get<number>(goldHeartsKey, 0));
     this.aliveSince = normalizeTimestamp(globalState.get<number>(aliveSinceKey));
     this.nextHeartLossAt = normalizeTimerTimestamp(globalState.get<number>(nextHeartLossAtKey));
 
@@ -43,6 +48,7 @@ export class BuddyHealthManager implements vscode.Disposable {
 
     return {
       hearts: this.hearts,
+      goldHearts: this.goldHearts,
       isDead,
       aliveSince: isDead ? undefined : this.aliveSince,
       aliveDays: isDead ? 0 : getAliveDays(this.aliveSince),
@@ -67,7 +73,7 @@ export class BuddyHealthManager implements vscode.Disposable {
 
   public async loseHeart(): Promise<void> {
     this.clearHeartLossTimer();
-    await this.setHearts(this.hearts - 1);
+    await this.applyHeartLoss(1);
     await this.scheduleNextHeartLoss();
 
     if (!this.health.isDead) {
@@ -82,8 +88,30 @@ export class BuddyHealthManager implements vscode.Disposable {
     return restoredHeartIndex;
   }
 
+  public async feedSandwich(): Promise<number[]> {
+    const restoredHeartIndexes = Array.from(
+      { length: maxBuddyHearts - this.hearts },
+      (_, index) => this.hearts + index,
+    );
+    await this.setHearts(maxBuddyHearts);
+
+    return restoredHeartIndexes;
+  }
+
+  public async feedCake(): Promise<number | undefined> {
+    if (this.goldHearts >= maxBuddyGoldHearts || this.health.isDead) {
+      return undefined;
+    }
+
+    const restoredHeartIndex = maxBuddyHearts + this.goldHearts;
+    await this.setGoldHearts(this.goldHearts + 1);
+
+    return restoredHeartIndex;
+  }
+
   public async revive(): Promise<void> {
     await this.setHearts(maxBuddyHearts);
+    await this.setGoldHearts(0);
     await this.scheduleNextHeartLoss();
 
     this.startHeartLossTimer();
@@ -92,6 +120,7 @@ export class BuddyHealthManager implements vscode.Disposable {
   public async kill(): Promise<void> {
     this.clearHeartLossTimer();
     await this.setHearts(0);
+    await this.setGoldHearts(0);
     await this.globalState.update(nextHeartLossAtKey, undefined);
     this.nextHeartLossAt = undefined;
   }
@@ -133,6 +162,37 @@ export class BuddyHealthManager implements vscode.Disposable {
     this.listeners.forEach((listener) => listener(this.health));
   }
 
+  private async setGoldHearts(goldHearts: number): Promise<void> {
+    const nextGoldHearts = normalizeGoldHearts(goldHearts);
+    if (nextGoldHearts === this.goldHearts) {
+      return;
+    }
+
+    this.goldHearts = nextGoldHearts;
+    await this.globalState.update(goldHeartsKey, this.goldHearts);
+    this.listeners.forEach((listener) => listener(this.health));
+  }
+
+  private async applyHeartLoss(losses: number): Promise<void> {
+    let remainingLosses = Math.max(0, Math.round(losses));
+    if (remainingLosses <= 0) {
+      return;
+    }
+
+    const nextGoldHearts = Math.max(0, this.goldHearts - remainingLosses);
+    remainingLosses = Math.max(0, remainingLosses - this.goldHearts);
+
+    if (nextGoldHearts !== this.goldHearts) {
+      this.goldHearts = nextGoldHearts;
+      await this.globalState.update(goldHeartsKey, this.goldHearts);
+    }
+
+    await this.setHearts(this.hearts - remainingLosses);
+    if (remainingLosses <= 0) {
+      this.listeners.forEach((listener) => listener(this.health));
+    }
+  }
+
   private clearHeartLossTimer(): void {
     if (this.heartLossTimer) {
       clearTimeout(this.heartLossTimer);
@@ -150,7 +210,7 @@ export class BuddyHealthManager implements vscode.Disposable {
     const now = Date.now();
     const nextLossAt = this.nextHeartLossAt ?? now;
     const losses = Math.max(1, Math.floor((now - nextLossAt) / buddyHeartLossIntervalMs) + 1);
-    await this.setHearts(this.hearts - losses);
+    await this.applyHeartLoss(losses);
 
     if (this.health.isDead) {
       await this.globalState.update(nextHeartLossAtKey, undefined);
@@ -184,6 +244,14 @@ function normalizeHearts(hearts: number | undefined): number {
   }
 
   return Math.min(maxBuddyHearts, Math.max(0, Math.round(hearts)));
+}
+
+function normalizeGoldHearts(goldHearts: number | undefined): number {
+  if (typeof goldHearts !== 'number' || !Number.isFinite(goldHearts)) {
+    return 0;
+  }
+
+  return Math.min(maxBuddyGoldHearts, Math.max(0, Math.round(goldHearts)));
 }
 
 function normalizeTimestamp(timestamp: number | undefined): number | undefined {

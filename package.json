@@ -29,6 +29,9 @@
     "onUri",
     "onCommand:buddy.kill",
     "onCommand:buddy.spawnCookie",
+    "onCommand:buddy.spawnCoffee",
+    "onCommand:buddy.spawnSandwich",
+    "onCommand:buddy.spawnCake",
     "onCommand:buddy.toggleBreakPrompt",
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.addXp",
@@ -112,6 +115,18 @@
           "light": "media/cookie-light.svg",
           "dark": "media/cookie-dark.svg"
         }
+      },
+      {
+        "command": "buddy.spawnCoffee",
+        "title": "Buddy: Spawn Coffee"
+      },
+      {
+        "command": "buddy.spawnSandwich",
+        "title": "Buddy: Spawn Sandwich"
+      },
+      {
+        "command": "buddy.spawnCake",
+        "title": "Buddy: Spawn Cake"
       },
       {
         "command": "buddy.toggleBreakPrompt",

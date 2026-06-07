@@ -2,6 +2,13 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## Unreleased
+
+- Added coffee, sandwich, and cake treat drops with distinct rewards.
+- Added gold heart shields, with cake granting up to two gold hearts after Buddy's three red hearts.
+- Changed timed heart loss to consume gold hearts before red hearts.
+- Added Command Palette commands for spawning coffee, sandwich, and cake treats.
+
 ## 0.5.0
 
 - Added Command-click panel cookie drops so Buddy eats at the clicked spot.

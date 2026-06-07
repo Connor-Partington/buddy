@@ -28,17 +28,17 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
 - First-open spawn animation with a Buddy greeting and heart reveal.
-- Three-heart health meter with one heart lost every three local wall-clock hours, cookie feeding to recover, and a floating soul when Buddy dies.
+- Three-heart health meter with one heart lost every three local wall-clock hours, cookie and sandwich feeding to recover, cake-granted gold heart shields, and a floating soul when Buddy dies.
 - Persistent alive day counter that scrambles into place and only resets after Buddy dies.
 - Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
 - Locally saved level-up card PNGs when Buddy levels up while the panel is open.
-- Dash behavior when Buddy goes after cookies.
+- Dash behavior when Buddy goes after treats.
 - Command-click panel cookie drops so Buddy eats at the spot you choose.
 - Double-click panel movement so Buddy walks or dashes to the spot you choose.
 - Cursor-aware look sprites when your pointer gets close to Buddy.
 - Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
 - Editor-aware reactions while you write, navigate, save, and run terminal commands.
-- Feed Buddy a cookie to keep him alive.
+- Feed Buddy cookies, coffee, sandwiches, and cake for different care rewards.
 - Command Palette controls for showing Buddy, previewing animations, and testing states.
 
 ## Installation
@@ -69,7 +69,9 @@ Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy wi
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
 
-Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, Git commits detected by VS Code earn 20 XP, and a successful push from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
+Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, coffee earns 15 XP, Git commits detected by VS Code earn 20 XP, and a successful push from the integrated terminal earns 30 XP. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
+
+Treats have distinct effects: cookies restore one red heart, sandwiches refill missing red hearts, cake grants up to two gold heart shields after the three red hearts, and coffee gives Buddy an XP boost. Timed heart loss consumes gold hearts before red hearts.
 
 ## Actions
 
@@ -87,6 +89,9 @@ Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, 
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
 | `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
+| `Buddy: Spawn Coffee` | Drops coffee for Buddy to walk over, drink, and gain bonus XP. |
+| `Buddy: Spawn Sandwich` | Drops a sandwich for Buddy to walk over, eat, and refill missing red hearts. |
+| `Buddy: Spawn Cake` | Drops cake for Buddy to walk over, eat, and gain a gold heart shield. |
 | `Buddy: Toggle Break Prompt` | Shows or hides Buddy's break reminder speech bubble. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |

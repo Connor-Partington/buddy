@@ -4,12 +4,13 @@ import { BuddyActivityController } from './activityController';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyHearts } from './healthManager';
-import { Provider, type BuddySize, type LevelUpCardCapture } from './Provider';
+import { Provider, type BuddySize, type FoodType, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
 import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
 
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
+const coffeeXpAwardAmount = 15;
 const xpMultiplierOptions = [0.5, 1, 1.5, 2, 3];
 const demoStepMs = 1200;
 const demoStateStepMs: Partial<Record<(typeof buddyStates)[number], number>> = {
@@ -43,18 +44,13 @@ export async function activate(context: vscode.ExtensionContext) {
   const stateSubscription = stateManager.onDidChangeState((state) => {
     provider.setState(state);
   });
-  const feedCookieSubscription = provider.onDidFeedCookie(() => {
+  const feedCookieSubscription = provider.onDidFeedCookie((food) => {
     if (healthManager.health.isDead) {
       provider.setHealth(healthManager.health);
       return;
     }
 
-    void healthManager.feedCookie().then((restoredHeartIndex) => {
-      void xpManager.awardXp({ source: 'feed', amount: feedBuddyXpAwardAmount });
-      if (restoredHeartIndex !== undefined) {
-        provider.playHeartFill(restoredHeartIndex);
-      }
-    });
+    void handleFoodEaten(food);
   });
   const introSubscription = provider.onDidPlayIntro(() => {
     void context.globalState.update('buddyIntro.hasPlayed', true);
@@ -117,6 +113,15 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     provider.spawnCookie();
+  });
+  const spawnCoffeeCommand = vscode.commands.registerCommand('buddy.spawnCoffee', () => {
+    provider.spawnFood('coffee');
+  });
+  const spawnSandwichCommand = vscode.commands.registerCommand('buddy.spawnSandwich', () => {
+    provider.spawnFood('sandwich');
+  });
+  const spawnCakeCommand = vscode.commands.registerCommand('buddy.spawnCake', () => {
+    provider.spawnFood('cake');
   });
   const toggleBreakPromptCommand = vscode.commands.registerCommand('buddy.toggleBreakPrompt', () => {
     provider.toggleBreakPrompt();
@@ -293,6 +298,9 @@ export async function activate(context: vscode.ExtensionContext) {
     showSidebarCommand,
     toggleSizeCommand,
     spawnCookieCommand,
+    spawnCoffeeCommand,
+    spawnSandwichCommand,
+    spawnCakeCommand,
     toggleBreakPromptCommand,
     removeHeartCommand,
     addXpCommand,
@@ -311,6 +319,37 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
   provider.setXp(xpManager.xp);
+
+  async function handleFoodEaten(food: FoodType): Promise<void> {
+    if (food === 'coffee') {
+      await xpManager.awardXp({ source: 'feed', amount: coffeeXpAwardAmount });
+      return;
+    }
+
+    if (food === 'sandwich') {
+      const restoredHeartIndexes = await healthManager.feedSandwich();
+      await xpManager.awardXp({ source: 'feed', amount: feedBuddyXpAwardAmount });
+      restoredHeartIndexes.forEach((heartIndex) => {
+        provider.playHeartFill(heartIndex);
+      });
+      return;
+    }
+
+    if (food === 'cake') {
+      const restoredHeartIndex = await healthManager.feedCake();
+      await xpManager.awardXp({ source: 'feed', amount: feedBuddyXpAwardAmount });
+      if (restoredHeartIndex !== undefined) {
+        provider.playHeartFill(restoredHeartIndex);
+      }
+      return;
+    }
+
+    const restoredHeartIndex = await healthManager.feedCookie();
+    await xpManager.awardXp({ source: 'feed', amount: feedBuddyXpAwardAmount });
+    if (restoredHeartIndex !== undefined) {
+      provider.playHeartFill(restoredHeartIndex);
+    }
+  }
 }
 
 export function deactivate() {}
