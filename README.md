@@ -62,7 +62,7 @@ Cmd+Shift+P on macOS
 
 Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
-Buddy tracks health, attention, XP, daily quests, milestones, focus mode, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
+Buddy tracks health, attention, XP, daily quests, care streaks, milestones, focus mode, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
 
 Care difficulty is configurable in VS Code settings. You can tune heart drain timing, break prompt timing, XP gain multiplier, death penalty, and whether Buddy can die.
 

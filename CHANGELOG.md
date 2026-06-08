@@ -4,6 +4,7 @@ All notable changes to Buddy will be documented in this file.
 
 ## 0.7.0
 
+- Added persisted care streak counts with a two-day mercy allowance so missed days do not immediately reset the streak.
 - Added `Buddy: Toggle Focus Mode`, which lets Buddy sleep through deep work while pausing heart loss and quieting break prompts.
 - Added configurable care difficulty settings for heart drain interval, break prompt interval, XP multiplier, death penalty, and whether Buddy can die.
 - Added daily quests that reset each day, track saves, commits, break prompts, and pushes in the sidebar, and award XP on completion.

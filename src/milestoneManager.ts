@@ -22,6 +22,16 @@ export type BuddyMilestoneReaction = {
   xpBonus: number;
 };
 
+export type BuddyCareStreak = {
+  count: number;
+  bestCount: number;
+  graceDaysRemaining: number;
+  maxGraceDays: number;
+  lastCompletedDate: string;
+};
+
+type StoredCareStreakState = Partial<Omit<BuddyCareStreak, 'maxGraceDays'>>;
+
 const configurationSection = 'buddy.milestoneReactions';
 const firstCommitDateKey = 'buddyMilestones.firstCommitDate';
 const firstPushCompletedKey = 'buddyMilestones.firstPushCompleted';
@@ -30,10 +40,12 @@ const fedBuddyDateKey = 'buddyMilestones.fedBuddyDate';
 const gaveBuddyAttentionDateKey = 'buddyMilestones.gaveBuddyAttentionDate';
 const firstSaveDateKey = 'buddyMilestones.firstSaveDate';
 const careStreakDateKey = 'buddyMilestones.careStreakDate';
+const careStreakStateKey = 'buddyMilestones.careStreakState';
 const coffeeTimeDateKey = 'buddyMilestones.coffeeTimeDate';
 const completedLevelMilestonesKey = 'buddyMilestones.completedLevelMilestones';
 const defaultFocusedSessionMinutes = 90;
 const defaultMilestoneXpBonus = 15;
+const maxCareStreakGraceDays = 2;
 
 export class BuddyMilestoneManager implements vscode.Disposable {
   private focusedSessionStartedAt: number | undefined;
@@ -144,6 +156,26 @@ export class BuddyMilestoneManager implements vscode.Disposable {
     });
   }
 
+  public getCareStreak(): BuddyCareStreak {
+    const state = this.globalState.get<StoredCareStreakState>(careStreakStateKey);
+    if (state) {
+      return this.normalizeCareStreakState(state);
+    }
+
+    const lastCompletedDate = normalizeDateKey(this.globalState.get<string>(careStreakDateKey));
+    if (!lastCompletedDate) {
+      return this.normalizeCareStreakState(undefined);
+    }
+
+    return {
+      count: 1,
+      bestCount: 1,
+      graceDaysRemaining: maxCareStreakGraceDays,
+      maxGraceDays: maxCareStreakGraceDays,
+      lastCompletedDate,
+    };
+  }
+
   public async reset(): Promise<void> {
     this.clearFocusedSessionTimer();
     this.focusedSessionStartedAt = vscode.window.state.focused ? Date.now() : undefined;
@@ -155,6 +187,7 @@ export class BuddyMilestoneManager implements vscode.Disposable {
       this.globalState.update(gaveBuddyAttentionDateKey, undefined),
       this.globalState.update(firstSaveDateKey, undefined),
       this.globalState.update(careStreakDateKey, undefined),
+      this.globalState.update(careStreakStateKey, undefined),
       this.globalState.update(coffeeTimeDateKey, undefined),
       this.globalState.update(completedLevelMilestonesKey, undefined),
     ]);
@@ -227,12 +260,52 @@ export class BuddyMilestoneManager implements vscode.Disposable {
       return;
     }
 
-    await this.recordDailyMilestone(careStreakDateKey, {
+    if (this.globalState.get<string>(careStreakDateKey) === today) {
+      return;
+    }
+
+    const careStreak = this.getNextCareStreak(today);
+    await this.globalState.update(careStreakDateKey, today);
+    await this.globalState.update(careStreakStateKey, careStreak);
+    this.emitReaction({
       id: 'careStreak',
-      label: 'Care Streak',
-      message: 'CARE STREAK TODAY',
+      label: `Care Streak ${careStreak.count}`,
+      message: `CARE STREAK ${careStreak.count} DAY${careStreak.count === 1 ? '' : 'S'}`,
       xpBonus: this.getXpBonus(),
     });
+  }
+
+  private getNextCareStreak(today: string): BuddyCareStreak {
+    const current = this.getCareStreak();
+    const missedDays = getCalendarDayDistance(current.lastCompletedDate, today) - 1;
+    if (current.count === 0 || missedDays < 0 || missedDays > current.graceDaysRemaining) {
+      return {
+        count: 1,
+        bestCount: Math.max(current.bestCount, 1),
+        graceDaysRemaining: maxCareStreakGraceDays,
+        maxGraceDays: maxCareStreakGraceDays,
+        lastCompletedDate: today,
+      };
+    }
+
+    const count = current.count + 1;
+    return {
+      count,
+      bestCount: Math.max(current.bestCount, count),
+      graceDaysRemaining: maxCareStreakGraceDays - Math.max(0, missedDays),
+      maxGraceDays: maxCareStreakGraceDays,
+      lastCompletedDate: today,
+    };
+  }
+
+  private normalizeCareStreakState(state: StoredCareStreakState | undefined): BuddyCareStreak {
+    return {
+      count: normalizeCount(state?.count),
+      bestCount: normalizeCount(state?.bestCount),
+      graceDaysRemaining: Math.min(maxCareStreakGraceDays, normalizeCount(state?.graceDaysRemaining)),
+      maxGraceDays: maxCareStreakGraceDays,
+      lastCompletedDate: normalizeDateKey(state?.lastCompletedDate),
+    };
   }
 
   private async recordDailyMilestone(stateKey: string, reaction: BuddyMilestoneReaction): Promise<void> {
@@ -292,4 +365,32 @@ function getLocalDateKey(date = new Date()): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function normalizeCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function normalizeDateKey(value: unknown): string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+}
+
+function getCalendarDayDistance(fromDateKey: string, toDateKey: string): number {
+  const from = getDateKeyUtcTime(fromDateKey);
+  const to = getDateKeyUtcTime(toDateKey);
+  if (from === undefined || to === undefined) {
+    return 0;
+  }
+
+  return Math.floor((to - from) / (24 * 60 * 60 * 1000));
+}
+
+function getDateKeyUtcTime(dateKey: string): number | undefined {
+  const normalized = normalizeDateKey(dateKey);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const [year, month, day] = normalized.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
 }

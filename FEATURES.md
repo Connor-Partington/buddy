@@ -71,7 +71,7 @@ Milestone reactions add a configurable XP bonus, visual toast, and XP burst. Cur
 - First save of the day.
 - First feeding of the day.
 - First attention action of the day.
-- Daily care streak after feeding Buddy and giving attention on the same day.
+- Daily care streak after feeding Buddy and giving attention on the same day. Buddy keeps a current and best care streak, forgives up to two missed local calendar days, and restores the grace allowance after the next completed care day.
 - First coffee boost of the day.
 - First commit of each day.
 - First successful push.

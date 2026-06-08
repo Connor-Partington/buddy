@@ -819,6 +819,7 @@ export async function activate(context: vscode.ExtensionContext) {
       heartDrainIntervalMs: healthManager.heartLossIntervalMs,
       focusMode: focusModeManager.isEnabled,
       attention: attentionManager.attention,
+      careStreak: milestoneManager.getCareStreak(),
       dailyQuests: dailyQuestManager.dailyQuests,
       canEatFood: healthManager.canEatFood(),
       coffeeDropCommitCount,
@@ -1115,6 +1116,12 @@ export async function activate(context: vscode.ExtensionContext) {
           ['Low', yesNo(snapshot.attention?.isLow)],
           ['Next decay', snapshot.attention?.nextDecayAt],
         ], snapshot.attention?.progress),
+        card('Care Streak', [
+          ['Current', snapshot.careStreak?.count],
+          ['Best', snapshot.careStreak?.bestCount],
+          ['Grace days', snapshot.careStreak?.graceDaysRemaining + ' / ' + snapshot.careStreak?.maxGraceDays],
+          ['Last completed', snapshot.careStreak?.lastCompletedDate || 'Never'],
+        ], safeRatio(snapshot.careStreak?.graceDaysRemaining, snapshot.careStreak?.maxGraceDays)),
         card('Daily Quests', [
           ['Date', snapshot.dailyQuests?.date],
           ['Completed', snapshot.dailyQuests?.completedCount + ' / ' + snapshot.dailyQuests?.totalCount],
