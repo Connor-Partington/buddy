@@ -12,7 +12,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 ## Health And Care
 
-Buddy has a three-heart health meter. One heart is lost every three local wall-clock hours, and Buddy shows a floating soul when all hearts are gone.
+Buddy has a three-heart health meter. By default, one heart is lost every three local wall-clock hours, and Buddy shows a floating soul when all hearts are gone.
 
 Treats have distinct effects:
 
@@ -47,7 +47,7 @@ Buddy tracks XP across sessions:
 
 Coffee activates a 2x XP multiplier for 30 minutes. Every fifth detected Git commit drops coffee for Buddy, unless a higher-priority recovery or celebration treat has just dropped. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state.
 
-Buddy has levels up to 100. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough.
+Buddy has levels up to 100. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses a configurable percentage of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough.
 
 When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it. `Buddy: Open Level-Up Gallery` lets you browse and reopen saved cards later.
 
@@ -85,6 +85,18 @@ Milestone reactions are local and configurable through VS Code settings:
 | `buddy.milestoneReactions.enabled` | `true` | Turns milestone visual and XP reactions on or off. |
 | `buddy.milestoneReactions.focusedSessionMinutes` | `90` | Sets the continuous VS Code focus time needed for the long focused session milestone. |
 | `buddy.milestoneReactions.xpBonus` | `15` | Sets the XP bonus awarded by each milestone reaction. |
+
+## Care Difficulty
+
+Care difficulty settings are local VS Code settings:
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `buddy.care.heartDrainIntervalMinutes` | `180` | Sets the minutes between automatic heart loss events. |
+| `buddy.care.breakPromptIntervalMinutes` | `25` | Sets the minutes between automatic break prompts. |
+| `buddy.care.xpMultiplier` | `1` | Multiplies future XP gains before temporary coffee boosts are applied. |
+| `buddy.care.deathPenaltyPercent` | `25` | Sets the current-level XP requirement percentage lost when Buddy dies. |
+| `buddy.care.canDie` | `true` | Controls whether Buddy can reach zero hearts and enter the death state. |
 
 ## Attention
 

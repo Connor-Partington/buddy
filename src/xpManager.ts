@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+import { BuddyCareSettings, defaultBuddyCareSettings } from './careSettings';
+
 export const maxBuddyLevel = 100;
 export const targetMaxBuddyXp = 85000;
 export const defaultBuddyXpMultiplier = 1;
@@ -48,7 +50,6 @@ export type BuddyXpBoost = {
 };
 
 const totalXpKey = 'buddyXp.totalXp';
-const xpMultiplierKey = 'buddyXp.multiplier';
 const coffeeXpBoostExpiresAtKey = 'buddyXp.coffeeBoostExpiresAt';
 
 export class BuddyXpManager implements vscode.Disposable {
@@ -59,9 +60,12 @@ export class BuddyXpManager implements vscode.Disposable {
   private readonly listeners = new Set<(change: BuddyXpChange) => void>();
   private readonly boostListeners = new Set<(boost: BuddyXpBoost) => void>();
 
-  public constructor(private readonly globalState: vscode.Memento) {
+  public constructor(
+    private readonly globalState: vscode.Memento,
+    private careSettings: BuddyCareSettings = defaultBuddyCareSettings,
+  ) {
     this.totalXp = normalizeTotalXp(globalState.get<number>(totalXpKey, 0));
-    this.xpMultiplier = normalizeXpMultiplier(globalState.get<number>(xpMultiplierKey, defaultBuddyXpMultiplier));
+    this.xpMultiplier = normalizeXpMultiplier(careSettings.xpMultiplier);
     this.coffeeXpBoostExpiresAt = normalizeBoostExpiresAt(globalState.get<number>(coffeeXpBoostExpiresAtKey, 0));
     this.scheduleCoffeeXpBoostExpiry();
   }
@@ -138,7 +142,10 @@ export class BuddyXpManager implements vscode.Disposable {
   }
 
   public async deductDeathPenalty(): Promise<BuddyXpChange | undefined> {
-    return this.deductXp({ source: 'death', amount: getBuddyDeathXpPenalty(this.xp) });
+    return this.deductXp({
+      source: 'death',
+      amount: getBuddyDeathXpPenalty(this.xp, this.careSettings.deathPenaltyPercent),
+    });
   }
 
   public async resetXp(): Promise<BuddyXpChange | undefined> {
@@ -170,7 +177,6 @@ export class BuddyXpManager implements vscode.Disposable {
     }
 
     await this.globalState.update(totalXpKey, this.totalXp);
-    await this.globalState.update(xpMultiplierKey, this.xpMultiplier);
     await this.globalState.update(coffeeXpBoostExpiresAtKey, undefined);
 
     const change: BuddyXpChange = {
@@ -187,9 +193,13 @@ export class BuddyXpManager implements vscode.Disposable {
 
   public async setMultiplier(multiplier: number): Promise<number> {
     this.xpMultiplier = normalizeXpMultiplier(multiplier);
-    await this.globalState.update(xpMultiplierKey, this.xpMultiplier);
 
     return this.xpMultiplier;
+  }
+
+  public setCareSettings(settings: BuddyCareSettings): void {
+    this.careSettings = settings;
+    this.xpMultiplier = normalizeXpMultiplier(settings.xpMultiplier);
   }
 
   public async activateCoffeeXpBoost(): Promise<BuddyXpBoost> {
@@ -310,13 +320,18 @@ function getBuddyXp(totalXp: number): BuddyXp {
   };
 }
 
-export function getBuddyDeathXpPenalty(xp: BuddyXp): number {
+export function getBuddyDeathXpPenalty(xp: BuddyXp, deathPenaltyPercent = defaultBuddyCareSettings.deathPenaltyPercent): number {
   if (xp.totalXp <= 0) {
     return 0;
   }
 
   const currentLevelRequirement = getXpRequirementForLevel(xp.level);
-  return Math.min(xp.totalXp, Math.max(1, Math.round(currentLevelRequirement * 0.25)));
+  const penaltyRatio = Math.min(100, Math.max(0, deathPenaltyPercent)) / 100;
+  if (penaltyRatio <= 0) {
+    return 0;
+  }
+
+  return Math.min(xp.totalXp, Math.max(1, Math.round(currentLevelRequirement * penaltyRatio)));
 }
 
 function getLevelForTotalXp(totalXp: number): number {

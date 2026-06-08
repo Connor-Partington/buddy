@@ -64,6 +64,8 @@ Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy wi
 
 Buddy tracks health, attention, XP, daily quests, milestones, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
 
+Care difficulty is configurable in VS Code settings. You can tune heart drain timing, break prompt timing, XP gain multiplier, death penalty, and whether Buddy can die.
+
 ## Actions
 
 - Command-click inside the Buddy panel to offer a cookie at that spot.
@@ -89,7 +91,7 @@ Buddy tracks health, attention, XP, daily quests, milestones, and the current li
 | `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |
 | `Buddy: Reset All State` | Clears Buddy's local testing state, including health, XP, attention, daily quests, milestones, and auto-reward counters. |
 | `Buddy: Run Feature Demo` | Opens the Buddy sidebar and runs the automated recording demo sequence. |
-| `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
+| `Buddy: Set XP Multiplier` | Changes the configured XP multiplier for future XP gains. |
 | `Buddy: Show Debug Dashboard` | Opens a VS Code dashboard with health, XP, attention, and auto-reward state snapshots. |
 | `Buddy: Open Level-Up Gallery` | Lists locally saved level-up cards and opens the selected card image. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |

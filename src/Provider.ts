@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { BuddyAttention } from './attentionManager';
+import { BuddyCareSettings, defaultBuddyCareSettings, getBreakPromptIntervalMs } from './careSettings';
 import type { BuddyDailyQuestReward, BuddyDailyQuests } from './dailyQuestManager';
 import { BuddyHealth, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
 import type { BuddyMilestoneReaction } from './milestoneManager';
@@ -96,6 +97,7 @@ export class Provider implements vscode.WebviewViewProvider {
   };
   private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
   private xpBoost: BuddyXpBoost = { multiplier: 2, expiresAt: 0, isActive: false };
+  private careSettings: BuddyCareSettings = defaultBuddyCareSettings;
   private dailyQuests: BuddyDailyQuests = { date: '', completedCount: 0, totalCount: 0, quests: [] };
   private attention: BuddyAttention = {
     value: 100,
@@ -206,6 +208,11 @@ export class Provider implements vscode.WebviewViewProvider {
   public setAttention(attention: BuddyAttention): void {
     this.attention = attention;
     this.postAttention();
+  }
+
+  public setCareSettings(settings: BuddyCareSettings): void {
+    this.careSettings = settings;
+    this.postCareSettings();
   }
 
   public spawnCookie(): Thenable<boolean> {
@@ -340,6 +347,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postCareSettings(): void {
+    this.postMessage({
+      type: 'setCareSettings',
+      careSettings: this.careSettings,
+    });
+  }
+
   private postMessage(message: unknown): Thenable<boolean> {
     return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
@@ -352,6 +366,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postXpBoost();
     this.postDailyQuests();
     this.postAttention();
+    this.postCareSettings();
   }
 
   private getHtml(
@@ -366,6 +381,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const xpBoost = this.xpBoost;
     const dailyQuests = this.dailyQuests;
     const attention = this.attention;
+    const careSettings = this.careSettings;
     const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
     const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
 
@@ -1430,7 +1446,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const spawnDropDurationMs = 360;
     const introHeartPopMs = 260;
     const heartFillDurationMs = 1100;
-    const breakPromptIntervalMs = 25 * 60 * 1000;
+    let breakPromptIntervalMs = ${getBreakPromptIntervalMs(careSettings)};
     const breakPromptScrambleMs = 1800;
     const breakPromptVisibleMs = 9000;
     const statusPromptVisibleMs = 3200;
@@ -1809,6 +1825,12 @@ export class Provider implements vscode.WebviewViewProvider {
         breakPromptTimer = undefined;
         showBreakPrompt();
       }, breakPromptIntervalMs);
+    }
+
+    function setCareSettings(settings) {
+      const breakPromptMinutes = Math.max(1, Number(settings?.breakPromptIntervalMinutes) || ${defaultBuddyCareSettings.breakPromptIntervalMinutes});
+      breakPromptIntervalMs = Math.round(breakPromptMinutes * 60 * 1000);
+      scheduleBreakPrompt(true);
     }
 
     function dismissBreakPrompt() {
@@ -3660,6 +3682,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setDailyQuests(message.dailyQuests);
       } else if (message.type === 'setAttention') {
         setAttention(message.attention);
+      } else if (message.type === 'setCareSettings') {
+        setCareSettings(message.careSettings);
       } else if (message.type === 'showMilestoneReaction') {
         showMilestoneReaction(message.reaction);
       } else if (message.type === 'showDailyQuestReward') {
@@ -3693,6 +3717,7 @@ export class Provider implements vscode.WebviewViewProvider {
     setXpBoost(${JSON.stringify(xpBoost)});
     setDailyQuests(${JSON.stringify(dailyQuests)});
     setAttention(${JSON.stringify(attention)});
+    setCareSettings(${JSON.stringify(careSettings)});
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();

@@ -4,6 +4,7 @@ All notable changes to Buddy will be documented in this file.
 
 ## 0.7.0
 
+- Added configurable care difficulty settings for heart drain interval, break prompt interval, XP multiplier, death penalty, and whether Buddy can die.
 - Added daily quests that reset each day, track saves, commits, break prompts, and pushes in the sidebar, and award XP on completion.
 - Added configurable milestone reactions with visual toasts and bonus XP for first commit of the day, first successful push, long focused sessions, and levels 10, 25, 50, 75, and 100.
 - Added daily milestone reactions for first save, feeding Buddy, giving Buddy attention, daily care streaks, and first coffee boost.

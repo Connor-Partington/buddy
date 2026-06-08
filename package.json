@@ -230,6 +230,36 @@
           "default": 15,
           "minimum": 0,
           "description": "XP awarded for each Buddy milestone reaction."
+        },
+        "buddy.care.heartDrainIntervalMinutes": {
+          "type": "number",
+          "default": 180,
+          "minimum": 1,
+          "description": "Minutes between automatic Buddy heart loss events."
+        },
+        "buddy.care.breakPromptIntervalMinutes": {
+          "type": "number",
+          "default": 25,
+          "minimum": 1,
+          "description": "Minutes between automatic Buddy break reminder prompts."
+        },
+        "buddy.care.xpMultiplier": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.1,
+          "description": "Base multiplier applied to future Buddy XP gains."
+        },
+        "buddy.care.deathPenaltyPercent": {
+          "type": "number",
+          "default": 25,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percent of the current level XP requirement Buddy loses when he dies."
+        },
+        "buddy.care.canDie": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow Buddy to die when red hearts reach zero."
         }
       }
     }

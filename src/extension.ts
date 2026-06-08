@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyActivityController } from './activityController';
 import { BuddyAttentionManager } from './attentionManager';
+import { careSettingsSection, getBuddyCareSettings } from './careSettings';
 import { BuddyDailyQuestManager } from './dailyQuestManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
@@ -16,6 +17,7 @@ const feedBuddyXpAwardAmount = 5;
 const xpMultiplierOptions = [0.5, 1, 1.5, 2, 3];
 const coffeeDropCommitInterval = 5;
 const coffeeDropCommitCountKey = 'buddyCoffeeDrop.commitCount';
+const legacyXpMultiplierKey = 'buddyXp.multiplier';
 const autoFoodSpawnDebounceMs = 1000;
 const autoSandwichCooldownMs = 6 * 60 * 60 * 1000;
 const autoSandwichProductiveActionThreshold = 10;
@@ -54,13 +56,15 @@ export async function activate(context: vscode.ExtensionContext) {
     context.globalState.get<number>(autoSandwichProductiveActionCountKey, 0),
   );
   let isDemoRunning = false;
+  let careSettings = getBuddyCareSettings();
+  careSettings = await migrateLegacyXpMultiplierSetting(context, careSettings);
   let lastAutoFoodRequestedAt = 0;
   let debugDashboardPanel: vscode.WebviewPanel | undefined;
   const debugOutput = vscode.window.createOutputChannel('Buddy Debug');
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false));
   const stateManager = new BuddyStateManager();
-  const healthManager = new BuddyHealthManager(context.globalState);
-  const xpManager = new BuddyXpManager(context.globalState);
+  const healthManager = new BuddyHealthManager(context.globalState, careSettings);
+  const xpManager = new BuddyXpManager(context.globalState, careSettings);
   const attentionManager = new BuddyAttentionManager(context.globalState);
   const dailyQuestManager = new BuddyDailyQuestManager(
     context.globalState,
@@ -258,12 +262,20 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const multiplier = await xpManager.setMultiplier(selected.multiplier);
+    await vscode.workspace
+      .getConfiguration(careSettingsSection)
+      .update('xpMultiplier', multiplier, vscode.ConfigurationTarget.Global);
     vscode.window.showInformationMessage(`Buddy XP multiplier set to ${multiplier}x.`);
   });
   const killCommand = vscode.commands.registerCommand('buddy.kill', async () => {
     if (healthManager.health.isDead) {
       provider.setHealth(healthManager.health);
       vscode.window.showInformationMessage('Buddy is dead.');
+      return;
+    }
+
+    if (!careSettings.canDie) {
+      vscode.window.showInformationMessage('Buddy cannot die while care difficulty disables death.');
       return;
     }
 
@@ -301,6 +313,17 @@ export async function activate(context: vscode.ExtensionContext) {
         await runFeatureDemo();
       }
     },
+  });
+  const careSettingsSubscription = vscode.workspace.onDidChangeConfiguration((event) => {
+    if (!event.affectsConfiguration(careSettingsSection)) {
+      return;
+    }
+
+    careSettings = getBuddyCareSettings();
+    xpManager.setCareSettings(careSettings);
+    provider.setCareSettings(careSettings);
+    void healthManager.updateCareSettings(careSettings);
+    appendDebugLine('care settings changed', careSettings);
   });
 
   async function setBuddySize(size: BuddySize): Promise<void> {
@@ -421,6 +444,7 @@ export async function activate(context: vscode.ExtensionContext) {
     runDemoCommand,
     ...demoTriggerWatchers,
     uriHandler,
+    careSettingsSubscription,
     ...stateCommands,
   );
 
@@ -433,6 +457,7 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setXpBoost(xpManager.xpBoost);
   provider.setDailyQuests(dailyQuestManager.dailyQuests);
   provider.setAttention(attentionManager.attention);
+  provider.setCareSettings(careSettings);
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
     await milestoneManager.recordFedBuddy();
@@ -721,6 +746,8 @@ export async function activate(context: vscode.ExtensionContext) {
       health: healthManager.health,
       xp: xpManager.xp,
       xpBoost: xpManager.xpBoost,
+      careSettings,
+      heartDrainIntervalMs: healthManager.heartLossIntervalMs,
       attention: attentionManager.attention,
       dailyQuests: dailyQuestManager.dailyQuests,
       canEatFood: healthManager.canEatFood(),
@@ -1274,6 +1301,33 @@ async function openLevelUpGallery(context: vscode.ExtensionContext): Promise<voi
 
 function getLevelUpCardsDirectory(context: vscode.ExtensionContext): vscode.Uri {
   return vscode.Uri.joinPath(context.globalStorageUri, 'level-up-cards');
+}
+
+async function migrateLegacyXpMultiplierSetting(
+  context: vscode.ExtensionContext,
+  careSettings: ReturnType<typeof getBuddyCareSettings>,
+): Promise<ReturnType<typeof getBuddyCareSettings>> {
+  const legacyMultiplier = context.globalState.get<number>(legacyXpMultiplierKey);
+  if (typeof legacyMultiplier !== 'number' || !Number.isFinite(legacyMultiplier) || legacyMultiplier <= 0) {
+    return careSettings;
+  }
+
+  const xpMultiplierSetting = vscode.workspace.getConfiguration(careSettingsSection).inspect<number>('xpMultiplier');
+  const hasConfiguredXpMultiplier =
+    xpMultiplierSetting?.globalValue !== undefined ||
+    xpMultiplierSetting?.workspaceValue !== undefined ||
+    xpMultiplierSetting?.workspaceFolderValue !== undefined;
+  if (hasConfiguredXpMultiplier) {
+    await context.globalState.update(legacyXpMultiplierKey, undefined);
+    return careSettings;
+  }
+
+  await vscode.workspace
+    .getConfiguration(careSettingsSection)
+    .update('xpMultiplier', legacyMultiplier, vscode.ConfigurationTarget.Global);
+  await context.globalState.update(legacyXpMultiplierKey, undefined);
+
+  return getBuddyCareSettings();
 }
 
 function normalizeBuddySize(size: string | undefined): BuddySize {
