@@ -5,6 +5,7 @@ import { BuddyAttentionManager } from './attentionManager';
 import { careSettingsSection, getBuddyCareSettings } from './careSettings';
 import { BuddyDailyQuestManager } from './dailyQuestManager';
 import { BuddyDemoController } from './demoController';
+import { BuddyFocusModeManager } from './focusModeManager';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
 import { BuddyMilestoneManager, buddyLevelMilestones, type BuddyMilestoneReaction } from './milestoneManager';
@@ -46,6 +47,7 @@ const demoDeathHeartLossMs = 5600;
 const demoDeathBeforeReviveMs = 6000;
 const demoTriggerFileName = '.buddy-demo-trigger';
 const debugDashboardViewType = 'buddy.debugDashboard';
+const focusModeContextKey = 'buddy.focusMode';
 
 export async function activate(context: vscode.ExtensionContext) {
   let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
@@ -64,6 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false));
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState, careSettings);
+  const focusModeManager = new BuddyFocusModeManager(context.globalState);
   const xpManager = new BuddyXpManager(context.globalState, careSettings);
   const attentionManager = new BuddyAttentionManager(context.globalState);
   const dailyQuestManager = new BuddyDailyQuestManager(
@@ -179,6 +182,17 @@ export async function activate(context: vscode.ExtensionContext) {
   const dailyQuestSubscription = dailyQuestManager.onDidChangeDailyQuests((dailyQuests) => {
     provider.setDailyQuests(dailyQuests);
   });
+  const focusModeSubscription = focusModeManager.onDidChangeFocusMode((enabled) => {
+    void vscode.commands.executeCommand('setContext', focusModeContextKey, enabled);
+    provider.setFocusMode(enabled);
+    stateManager.setState(enabled ? 'sleeping' : 'idle');
+    if (enabled) {
+      void healthManager.pauseHeartLossTimer();
+    } else {
+      void healthManager.resumeHeartLossTimer();
+    }
+    appendDebugLine('focus mode changed', { enabled });
+  });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
   });
@@ -209,22 +223,50 @@ export async function activate(context: vscode.ExtensionContext) {
     await openLevelUpGallery(context);
   });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
+    if (shouldBlockFocusModeAction('Buddy feeding is disabled while focus mode is on.')) {
+      return;
+    }
+
     void requestFoodSpawn({ food: 'cookie' });
   });
   const spawnCoffeeCommand = vscode.commands.registerCommand('buddy.spawnCoffee', () => {
+    if (shouldBlockFocusModeAction('Buddy feeding is disabled while focus mode is on.')) {
+      return;
+    }
+
     void requestFoodSpawn({ food: 'coffee' });
   });
   const spawnSandwichCommand = vscode.commands.registerCommand('buddy.spawnSandwich', () => {
+    if (shouldBlockFocusModeAction('Buddy feeding is disabled while focus mode is on.')) {
+      return;
+    }
+
     void requestFoodSpawn({ food: 'sandwich' });
   });
   const spawnCakeCommand = vscode.commands.registerCommand('buddy.spawnCake', () => {
+    if (shouldBlockFocusModeAction('Buddy feeding is disabled while focus mode is on.')) {
+      return;
+    }
+
     void requestFoodSpawn({ food: 'cake' });
   });
   const toggleBreakPromptCommand = vscode.commands.registerCommand('buddy.toggleBreakPrompt', () => {
+    if (shouldBlockFocusModeAction('Buddy break prompts are disabled while focus mode is on.')) {
+      return;
+    }
+
     provider.toggleBreakPrompt();
     void dailyQuestManager.recordBreak();
   });
+  const toggleFocusModeCommand = vscode.commands.registerCommand('buddy.toggleFocusMode', async () => {
+    const enabled = await focusModeManager.toggle();
+    vscode.window.showInformationMessage(enabled ? 'Buddy focus mode on. Buddy will nap quietly.' : 'Buddy focus mode off.');
+  });
   const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
+    if (shouldBlockFocusModeAction('Buddy health changes are disabled while focus mode is on.')) {
+      return;
+    }
+
     await healthManager.loseHeart();
   });
   const addXpCommand = vscode.commands.registerCommand('buddy.addXp', async () => {
@@ -268,6 +310,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage(`Buddy XP multiplier set to ${multiplier}x.`);
   });
   const killCommand = vscode.commands.registerCommand('buddy.kill', async () => {
+    if (shouldBlockFocusModeAction('Buddy health changes are disabled while focus mode is on.')) {
+      return;
+    }
+
     if (healthManager.health.isDead) {
       provider.setHealth(healthManager.health);
       vscode.window.showInformationMessage('Buddy is dead.');
@@ -282,6 +328,10 @@ export async function activate(context: vscode.ExtensionContext) {
     await healthManager.kill();
   });
   const reviveCommand = vscode.commands.registerCommand('buddy.revive', async () => {
+    if (shouldBlockFocusModeAction('Buddy health changes are disabled while focus mode is on.')) {
+      return;
+    }
+
     if (!healthManager.health.isDead) {
       vscode.window.showInformationMessage('Buddy is already alive.');
       return;
@@ -408,6 +458,7 @@ export async function activate(context: vscode.ExtensionContext) {
     xpManager,
     attentionManager,
     dailyQuestManager,
+    focusModeManager,
     milestoneManager,
     debugOutput,
     stateSubscription,
@@ -423,6 +474,7 @@ export async function activate(context: vscode.ExtensionContext) {
     xpBoostSubscription,
     attentionSubscription,
     dailyQuestSubscription,
+    focusModeSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
@@ -434,6 +486,7 @@ export async function activate(context: vscode.ExtensionContext) {
     spawnSandwichCommand,
     spawnCakeCommand,
     toggleBreakPromptCommand,
+    toggleFocusModeCommand,
     removeHeartCommand,
     addXpCommand,
     resetXpCommand,
@@ -448,9 +501,14 @@ export async function activate(context: vscode.ExtensionContext) {
     ...stateCommands,
   );
 
-  healthManager.startHeartLossTimer();
+  void vscode.commands.executeCommand('setContext', focusModeContextKey, focusModeManager.isEnabled);
+  if (focusModeManager.isEnabled) {
+    void healthManager.pauseHeartLossTimer();
+  } else {
+    healthManager.startHeartLossTimer();
+  }
   attentionManager.startAttentionTimer();
-  provider.setState(stateManager.state);
+  provider.setState(focusModeManager.isEnabled ? 'sleeping' : stateManager.state);
   provider.setBuddySize(buddySize);
   provider.setHealth(healthManager.health);
   provider.setXp(xpManager.xp);
@@ -458,6 +516,16 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setDailyQuests(dailyQuestManager.dailyQuests);
   provider.setAttention(attentionManager.attention);
   provider.setCareSettings(careSettings);
+  provider.setFocusMode(focusModeManager.isEnabled);
+
+  function shouldBlockFocusModeAction(message: string): boolean {
+    if (!focusModeManager.isEnabled) {
+      return false;
+    }
+
+    vscode.window.showInformationMessage(message);
+    return true;
+  }
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
     await milestoneManager.recordFedBuddy();
@@ -692,7 +760,7 @@ export async function activate(context: vscode.ExtensionContext) {
   async function resetAllState(): Promise<void> {
     const resetAction = 'Reset Buddy';
     const selected = await vscode.window.showWarningMessage(
-      'Reset all Buddy stats and local state for testing? This clears health, XP, attention, milestones, auto-reward counters, size, and intro state.',
+      'Reset all Buddy stats and local state for testing? This clears health, XP, attention, milestones, focus mode, auto-reward counters, size, and intro state.',
       { modal: true },
       resetAction,
     );
@@ -714,6 +782,7 @@ export async function activate(context: vscode.ExtensionContext) {
       context.globalState.update(introHasPlayedKey, undefined),
       context.globalState.update(buddySizeKey, undefined),
       healthManager.reset(),
+      focusModeManager.reset(),
       xpManager.reset(),
       attentionManager.reset(),
       dailyQuestManager.reset(),
@@ -748,6 +817,7 @@ export async function activate(context: vscode.ExtensionContext) {
       xpBoost: xpManager.xpBoost,
       careSettings,
       heartDrainIntervalMs: healthManager.heartLossIntervalMs,
+      focusMode: focusModeManager.isEnabled,
       attention: attentionManager.attention,
       dailyQuests: dailyQuestManager.dailyQuests,
       canEatFood: healthManager.canEatFood(),

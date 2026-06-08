@@ -98,6 +98,7 @@ export class Provider implements vscode.WebviewViewProvider {
   private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
   private xpBoost: BuddyXpBoost = { multiplier: 2, expiresAt: 0, isActive: false };
   private careSettings: BuddyCareSettings = defaultBuddyCareSettings;
+  private isFocusModeEnabled = false;
   private dailyQuests: BuddyDailyQuests = { date: '', completedCount: 0, totalCount: 0, quests: [] };
   private attention: BuddyAttention = {
     value: 100,
@@ -213,6 +214,11 @@ export class Provider implements vscode.WebviewViewProvider {
   public setCareSettings(settings: BuddyCareSettings): void {
     this.careSettings = settings;
     this.postCareSettings();
+  }
+
+  public setFocusMode(enabled: boolean): void {
+    this.isFocusModeEnabled = enabled;
+    this.postFocusMode();
   }
 
   public spawnCookie(): Thenable<boolean> {
@@ -354,6 +360,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postFocusMode(): void {
+    this.postMessage({
+      type: 'setFocusMode',
+      enabled: this.isFocusModeEnabled,
+    });
+  }
+
   private postMessage(message: unknown): Thenable<boolean> {
     return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
@@ -367,6 +380,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postDailyQuests();
     this.postAttention();
     this.postCareSettings();
+    this.postFocusMode();
   }
 
   private getHtml(
@@ -476,6 +490,31 @@ export class Provider implements vscode.WebviewViewProvider {
       text-align: center;
       text-transform: uppercase;
       pointer-events: none;
+    }
+
+    .focus-indicator {
+      position: absolute;
+      top: 34px;
+      right: 8px;
+      z-index: 3;
+      min-width: 86px;
+      padding: 2px 6px;
+      border: 1px solid rgb(144 213 255 / 70%);
+      border-radius: 4px;
+      color: var(--vscode-sideBar-foreground);
+      background: color-mix(in srgb, var(--vscode-sideBar-background) 78%, #90d5ff);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .focus-indicator[hidden] {
+      display: none;
     }
 
     .xp-meter {
@@ -1303,7 +1342,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
   </style>
 </head>
-<body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}" data-intro-phase="${shouldPlayIntro ? 'spawning' : 'done'}">
+<body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}" data-intro-phase="${shouldPlayIntro ? 'spawning' : 'done'}" data-focus-mode="${this.isFocusModeEnabled}">
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
       <div class="health-meter" aria-label="Buddy health">
@@ -1328,6 +1367,7 @@ export class Provider implements vscode.WebviewViewProvider {
         ${renderDailyQuests(dailyQuests)}
       </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
+      <div class="focus-indicator" aria-live="polite" aria-label="Focus mode is on" ${this.isFocusModeEnabled ? '' : 'hidden'}>FOCUS MODE ON</div>
       <div class="milestone-toast" aria-live="polite" aria-atomic="true">
         <span class="milestone-toast__message"></span>
         <span class="milestone-toast__xp"></span>
@@ -1362,6 +1402,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const stage = document.querySelector('.stage');
     const healthMeter = document.querySelector('.health-meter');
     const lifeCounter = document.querySelector('.life-counter');
+    const focusIndicator = document.querySelector('.focus-indicator');
     const xpMeter = document.querySelector('.xp-meter');
     const xpLevel = document.querySelector('.xp-meter__level');
     const xpValue = document.querySelector('.xp-meter__value');
@@ -1413,6 +1454,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let isReviving = false;
     let isIntroPlaying = ${JSON.stringify(shouldPlayIntro)};
     let isBreakPromptActive = false;
+    let isFocusModeEnabled = ${JSON.stringify(this.isFocusModeEnabled)};
     let currentHearts = ${JSON.stringify(health.hearts)};
     let previousHearts = ${JSON.stringify(health.hearts)};
     let currentGoldHearts = ${JSON.stringify(health.goldHearts)};
@@ -1817,7 +1859,7 @@ export class Provider implements vscode.WebviewViewProvider {
         clearBreakPromptTimer();
       }
 
-      if (breakPromptTimer || isDead || isReviving) {
+      if (breakPromptTimer || isDead || isReviving || isFocusModeEnabled) {
         return;
       }
 
@@ -1831,6 +1873,39 @@ export class Provider implements vscode.WebviewViewProvider {
       const breakPromptMinutes = Math.max(1, Number(settings?.breakPromptIntervalMinutes) || ${defaultBuddyCareSettings.breakPromptIntervalMinutes});
       breakPromptIntervalMs = Math.round(breakPromptMinutes * 60 * 1000);
       scheduleBreakPrompt(true);
+    }
+
+    function setFocusMode(enabled) {
+      isFocusModeEnabled = Boolean(enabled);
+      document.body.dataset.focusMode = String(isFocusModeEnabled);
+      if (focusIndicator) {
+        focusIndicator.hidden = !isFocusModeEnabled;
+      }
+
+      if (isFocusModeEnabled) {
+        clearBreakPromptTimer();
+        hideBreakPrompt();
+        if (!isDead && !isReviving && !isIntroPlaying && !isCookieInteractionActive()) {
+          clearLookReaction({ resumeWalk: false });
+          clearClickReaction();
+          clearRandomWalk();
+          currentState = 'sleeping';
+          document.body.dataset.state = 'sleeping';
+          vscode.setState({ state: 'sleeping', buddySize });
+          setSpriteForState('sleeping');
+        }
+        return;
+      }
+
+      if (currentState === 'sleeping' && lastState !== 'sleeping') {
+        currentState = lastState || 'idle';
+        document.body.dataset.state = currentState;
+        vscode.setState({ state: currentState, buddySize });
+        setSpriteForState(activeLookState || currentState);
+      }
+
+      scheduleBreakPrompt(true);
+      scheduleRandomWalk();
     }
 
     function dismissBreakPrompt() {
@@ -3595,6 +3670,12 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setState(state) {
+      if (isFocusModeEnabled) {
+        clearLookReaction({ resumeWalk: false });
+        lastState = state;
+        return;
+      }
+
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive) {
         clearLookReaction({ resumeWalk: false });
         lastState = state;
@@ -3684,6 +3765,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setAttention(message.attention);
       } else if (message.type === 'setCareSettings') {
         setCareSettings(message.careSettings);
+      } else if (message.type === 'setFocusMode') {
+        setFocusMode(message.enabled);
       } else if (message.type === 'showMilestoneReaction') {
         showMilestoneReaction(message.reaction);
       } else if (message.type === 'showDailyQuestReward') {
@@ -3718,6 +3801,7 @@ export class Provider implements vscode.WebviewViewProvider {
     setDailyQuests(${JSON.stringify(dailyQuests)});
     setAttention(${JSON.stringify(attention)});
     setCareSettings(${JSON.stringify(careSettings)});
+    setFocusMode(${JSON.stringify(this.isFocusModeEnabled)});
     scheduleLifeCounterTick();
     updateCookieSize();
     clampWalkPosition();

@@ -92,6 +92,28 @@ export class BuddyHealthManager implements vscode.Disposable {
     }, delayMs);
   }
 
+  public async pauseHeartLossTimer(): Promise<void> {
+    this.clearHeartLossTimer();
+
+    if (this.health.isDead) {
+      return;
+    }
+
+    this.nextHeartLossAt = undefined;
+    await this.globalState.update(nextHeartLossAtKey, undefined);
+  }
+
+  public async resumeHeartLossTimer(): Promise<void> {
+    this.clearHeartLossTimer();
+
+    if (this.health.isDead) {
+      return;
+    }
+
+    await this.scheduleNextHeartLoss();
+    this.startHeartLossTimer();
+  }
+
   public async loseHeart(): Promise<void> {
     this.clearHeartLossTimer();
     await this.applyHeartLoss(1);

@@ -62,7 +62,7 @@ Cmd+Shift+P on macOS
 
 Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
-Buddy tracks health, attention, XP, daily quests, milestones, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
+Buddy tracks health, attention, XP, daily quests, milestones, focus mode, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
 
 Care difficulty is configurable in VS Code settings. You can tune heart drain timing, break prompt timing, XP gain multiplier, death penalty, and whether Buddy can die.
 
@@ -86,6 +86,7 @@ Care difficulty is configurable in VS Code settings. You can tune heart drain ti
 | `Buddy: Spawn Sandwich` | Drops a sandwich for Buddy to walk over, eat, and refill missing red hearts. |
 | `Buddy: Spawn Cake` | Drops cake for Buddy to walk over, eat, and gain a gold heart shield. |
 | `Buddy: Toggle Break Prompt` | Shows or hides Buddy's break reminder speech bubble. |
+| `Buddy: Toggle Focus Mode` | Puts Buddy down for a quiet nap, shows `FOCUS MODE ON`, and pauses heart loss, break prompts, and panel care actions until focus mode ends. |
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |
 | `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |

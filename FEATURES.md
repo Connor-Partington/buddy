@@ -98,6 +98,10 @@ Care difficulty settings are local VS Code settings:
 | `buddy.care.deathPenaltyPercent` | `25` | Sets the current-level XP requirement percentage lost when Buddy dies. |
 | `buddy.care.canDie` | `true` | Controls whether Buddy can reach zero hearts and enter the death state. |
 
+## Focus Mode
+
+Run `Buddy: Toggle Focus Mode` during deep work to let Buddy nap quietly. Focus mode persists across VS Code reloads, shows Buddy's sleeping animation and a `FOCUS MODE ON` panel indicator, pauses automatic heart loss, hides panel care actions, and stops automatic or manual break prompts until it is turned off.
+
 ## Attention
 
 Buddy's attention meter is a softer daily care goal, not a life-or-death need. It drops from full to empty across about 8 hours when Buddy has not received attention and refills when you feed Buddy, tap him for love, or double-click the panel to make him chase to a spot.

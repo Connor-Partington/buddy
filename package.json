@@ -33,6 +33,7 @@
     "onCommand:buddy.spawnSandwich",
     "onCommand:buddy.spawnCake",
     "onCommand:buddy.toggleBreakPrompt",
+    "onCommand:buddy.toggleFocusMode",
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.addXp",
     "onCommand:buddy.resetXp",
@@ -139,6 +140,10 @@
         }
       },
       {
+        "command": "buddy.toggleFocusMode",
+        "title": "Buddy: Toggle Focus Mode"
+      },
+      {
         "command": "buddy.revive",
         "title": "Buddy: Revive",
         "icon": {
@@ -191,22 +196,22 @@
       "view/title": [
         {
           "command": "buddy.spawnCookie",
-          "when": "view == buddy.companion",
+          "when": "view == buddy.companion && !buddy.focusMode",
           "group": "navigation@1"
         },
         {
           "command": "buddy.revive",
-          "when": "view == buddy.companion",
+          "when": "view == buddy.companion && !buddy.focusMode",
           "group": "navigation@2"
         },
         {
           "command": "buddy.kill",
-          "when": "view == buddy.companion",
+          "when": "view == buddy.companion && !buddy.focusMode",
           "group": "navigation@3"
         },
         {
           "command": "buddy.toggleBreakPrompt",
-          "when": "view == buddy.companion",
+          "when": "view == buddy.companion && !buddy.focusMode",
           "group": "navigation@4"
         }
       ]
