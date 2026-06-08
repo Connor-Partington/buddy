@@ -1,17 +1,17 @@
 import * as vscode from 'vscode';
 
 import { BuddyActivityController } from './activityController';
-import { BuddyAttentionManager } from './attentionManager';
+import { BuddyAttentionManager, type BuddyAttention } from './attentionManager';
 import { careSettingsSection, getBuddyCareSettings } from './careSettings';
-import { BuddyDailyQuestManager } from './dailyQuestManager';
+import { BuddyDailyQuestManager, type BuddyDailyQuests } from './dailyQuestManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyFocusModeManager } from './focusModeManager';
 import { BuddyGitActivityController } from './gitActivityController';
-import { BuddyHealthManager, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
+import { BuddyHealthManager, maxBuddyGoldHearts, maxBuddyHearts, type BuddyHealth } from './healthManager';
 import { BuddyMilestoneManager, buddyLevelMilestones, type BuddyMilestoneReaction } from './milestoneManager';
 import { Provider, type BuddySize, type FoodRequest, type FoodType, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
-import { BuddyXpManager, defaultBuddyXpMultiplier, type BuddyXpAward } from './xpManager';
+import { BuddyXpManager, defaultBuddyXpMultiplier, type BuddyXp, type BuddyXpAward } from './xpManager';
 
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
@@ -45,6 +45,25 @@ const demoReturnToCenterMs = 2200;
 const demoBreakPromptMs = 5000;
 const demoDeathHeartLossMs = 5600;
 const demoDeathBeforeReviveMs = 6000;
+const previewFoodMs = 8200;
+const previewIntroMs = 7600;
+const previewRevealStepMs = 900;
+const previewMovementMs = 3200;
+const previewCenterMs = 2600;
+const previewLookMs = 2600;
+const previewStateBeatMs = 2600;
+const previewSizeMs = 2600;
+const previewBreakMs = 11200;
+const previewHealthChangeMs = 2600;
+const previewHeartFillMs = 3200;
+const previewHeartLossPromptMs = 4200;
+const previewXpMs = 2600;
+const previewXpBoostMs = 3200;
+const previewToastMs = 4800;
+const previewDeathMs = 6400;
+const previewDeathPenaltyMs = 2200;
+const previewReviveMs = 4200;
+const previewSleepMs = 3600;
 const demoTriggerFileName = '.buddy-demo-trigger';
 const debugDashboardViewType = 'buddy.debugDashboard';
 const focusModeContextKey = 'buddy.focusMode';
@@ -58,6 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.globalState.get<number>(autoSandwichProductiveActionCountKey, 0),
   );
   let isDemoRunning = false;
+  let isPreviewAnimationRunning = false;
   let careSettings = getBuddyCareSettings();
   careSettings = await migrateLegacyXpMultiplierSetting(context, careSettings);
   let lastAutoFoodRequestedAt = 0;
@@ -96,9 +116,17 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const demoController = new BuddyDemoController(stateManager);
   const stateSubscription = stateManager.onDidChangeState((state) => {
+    if (isPreviewAnimationRunning) {
+      return;
+    }
+
     provider.setState(state);
   });
   const feedCookieSubscription = provider.onDidFeedCookie((food) => {
+    if (isPreviewAnimationRunning) {
+      return;
+    }
+
     if (healthManager.health.isDead) {
       provider.setHealth(healthManager.health);
       return;
@@ -107,6 +135,11 @@ export async function activate(context: vscode.ExtensionContext) {
     void handleFoodEaten(food);
   });
   const foodReachedSubscription = provider.onDidReachFood(async () => {
+    if (isPreviewAnimationRunning) {
+      provider.acceptFood();
+      return;
+    }
+
     if (healthManager.health.isDead) {
       provider.setHealth(healthManager.health);
       provider.refuseFood();
@@ -122,9 +155,18 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.acceptFood();
   });
   const foodRequestSubscription = provider.onDidRequestFood((request) => {
+    if (isPreviewAnimationRunning) {
+      void provider.spawnFood(request.food, request.targetX);
+      return;
+    }
+
     void requestFoodSpawn(request);
   });
   const careActionSubscription = provider.onDidCareAction((action) => {
+    if (isPreviewAnimationRunning) {
+      return;
+    }
+
     void attentionManager.recordCareAction();
     if (action === 'love' || action === 'chase') {
       void milestoneManager.recordGaveBuddyAttention();
@@ -201,8 +243,8 @@ export async function activate(context: vscode.ExtensionContext) {
       stateManager.setState(state);
     }),
   );
-  const previewCommand = vscode.commands.registerCommand('buddy.previewAnimations', () => {
-    demoController.play();
+  const previewCommand = vscode.commands.registerCommand('buddy.previewAnimations', async () => {
+    await playPreviewAnimations();
   });
   const showSidebarCommand = vscode.commands.registerCommand('buddy.showSidebar', async () => {
     await vscode.commands.executeCommand('workbench.view.extension.buddy');
@@ -446,6 +488,165 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage('Buddy feature demo finished.');
     } finally {
       isDemoRunning = false;
+    }
+  }
+
+  async function playPreviewAnimations(): Promise<void> {
+    if (isPreviewAnimationRunning) {
+      vscode.window.showInformationMessage('Buddy animation preview is already running.');
+      return;
+    }
+
+    if (isDemoRunning) {
+      vscode.window.showInformationMessage('Buddy feature demo is already running.');
+      return;
+    }
+
+    const originalState = stateManager.state;
+    isPreviewAnimationRunning = true;
+    await vscode.commands.executeCommand('buddy.showSidebar');
+    vscode.window.showInformationMessage('Buddy animation preview started.');
+
+    try {
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+      provider.setPreviewReveal('blank');
+      await delay(previewRevealStepMs);
+      provider.setHealth(getPreviewHealth({ hearts: maxBuddyHearts, goldHearts: 0 }));
+      provider.setXp(getPreviewXp({ totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100 }));
+      provider.setXpBoost({ multiplier: 2, expiresAt: 0, isActive: false });
+      provider.setAttention(getPreviewAttention({ value: 100 }));
+      provider.setDailyQuests(getPreviewDailyQuests({ saveProgress: 0, completedCount: 0 }));
+      provider.setState('idle');
+      provider.setPreviewReveal('buddy');
+      provider.playIntroPreview();
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('hearts');
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('day');
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('level');
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('attention');
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('daily');
+      await delay(previewRevealStepMs);
+      provider.setPreviewReveal('done');
+      await delay(previewIntroMs - previewRevealStepMs * 6);
+
+      provider.moveTo(110);
+      await delay(previewMovementMs);
+      provider.playLookPreview();
+      await delay(previewLookMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.setState('thinking');
+      await delay(previewStateBeatMs);
+      provider.setState('jump');
+      await delay(previewStateBeatMs);
+      provider.setState('happy');
+      await delay(previewStateBeatMs);
+      provider.setState('idle');
+
+      provider.setBuddySize('small');
+      await delay(previewSizeMs);
+      provider.setBuddySize('default');
+      await delay(previewSizeMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.toggleBreakPrompt();
+      await delay(previewBreakMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.setHealth(getPreviewHealth({ hearts: 2, goldHearts: 0 }));
+      await delay(previewHealthChangeMs);
+      provider.showPreviewSpeech('I LOST A HEART');
+      await delay(previewHeartLossPromptMs);
+
+      await provider.spawnFood('cookie');
+      await delay(previewFoodMs);
+      provider.setXp(getPreviewXp({ totalXp: 5, level: 1, currentLevelXp: 5, nextLevelXp: 100 }));
+      provider.setHealth(getPreviewHealth({ hearts: maxBuddyHearts, goldHearts: 0 }));
+      provider.playHeartFill(maxBuddyHearts - 1);
+      await delay(previewHeartFillMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.setDailyQuests(getPreviewDailyQuests({ saveProgress: 10, completedCount: 1 }));
+      provider.showDailyQuestReward({
+        id: 'saveFiles',
+        label: 'Save 10 files',
+        message: 'DAILY QUEST',
+        xpBonus: 10,
+      });
+      await delay(previewToastMs);
+
+      await provider.spawnFood('coffee');
+      await delay(previewFoodMs);
+      provider.setXpBoost({ multiplier: 2, expiresAt: Date.now() + 30 * 60 * 1000, isActive: true });
+      await delay(previewXpBoostMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.setXp(getPreviewXp({ totalXp: 25, level: 1, currentLevelXp: 25, nextLevelXp: 100 }));
+      await delay(previewXpMs);
+
+      provider.setXp(getPreviewXp({ totalXp: 120, level: 2, currentLevelXp: 20, nextLevelXp: 120 }));
+      provider.showMilestoneReaction({
+        id: 'level10',
+        label: 'Level Up',
+        message: 'LEVEL UP',
+        xpBonus: 15,
+      });
+      await delay(previewToastMs);
+
+      await provider.spawnFood('cake');
+      await delay(previewFoodMs);
+      provider.setHealth(getPreviewHealth({ hearts: maxBuddyHearts, goldHearts: 1 }));
+      provider.playHeartFill(maxBuddyHearts);
+      await delay(previewHeartFillMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+
+      provider.showMilestoneReaction({
+        id: 'fedBuddy',
+        label: 'Fed Buddy',
+        message: 'BEST FRIEND BONUS',
+        xpBonus: 15,
+      });
+      await delay(previewToastMs);
+
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+      provider.setHealth(getPreviewHealth({ hearts: 0, goldHearts: 0, isDead: true }));
+      await delay(previewDeathPenaltyMs);
+      provider.setXpBoost({ multiplier: 2, expiresAt: 0, isActive: false });
+      provider.setXp(getPreviewXp({ totalXp: 80, level: 1, currentLevelXp: 80, nextLevelXp: 100 }));
+      await delay(previewDeathMs - previewDeathPenaltyMs);
+      provider.setHealth(getPreviewHealth({ hearts: maxBuddyHearts, goldHearts: 0 }));
+      provider.setState('idle');
+      await delay(previewReviveMs);
+      provider.returnToCenter();
+      await delay(previewCenterMs);
+      provider.setState('sleeping');
+      await delay(previewSleepMs);
+
+      vscode.window.showInformationMessage('Buddy animation preview finished.');
+    } finally {
+      isPreviewAnimationRunning = false;
+      provider.setPreviewReveal('done');
+      provider.returnToCenter();
+      provider.setBuddySize(buddySize);
+      provider.setFocusMode(focusModeManager.isEnabled);
+      provider.setHealth(healthManager.health);
+      provider.setXp(xpManager.xp);
+      provider.setXpBoost(xpManager.xpBoost);
+      provider.setAttention(attentionManager.attention);
+      provider.setDailyQuests(dailyQuestManager.dailyQuests);
+      stateManager.setState(originalState);
     }
   }
 
@@ -1227,6 +1428,92 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function getPreviewHealth(options: { hearts: number; goldHearts: number; isDead?: boolean; aliveDays?: number }): BuddyHealth {
+  const isDead = options.isDead ?? options.hearts <= 0;
+  const aliveDays = isDead ? 0 : Math.max(1, Math.round(options.aliveDays ?? 1));
+
+  return {
+    hearts: options.hearts,
+    goldHearts: options.goldHearts,
+    isDead,
+    aliveSince: isDead ? undefined : Date.now() - (aliveDays - 1) * 24 * 60 * 60 * 1000,
+    aliveDays,
+  };
+}
+
+function getPreviewXp(options: {
+  totalXp: number;
+  level: number;
+  currentLevelXp: number;
+  nextLevelXp: number;
+}): BuddyXp {
+  return {
+    totalXp: options.totalXp,
+    level: options.level,
+    currentLevelXp: options.currentLevelXp,
+    nextLevelXp: options.nextLevelXp,
+    progress: options.currentLevelXp / options.nextLevelXp,
+    isMaxLevel: false,
+  };
+}
+
+function getPreviewAttention(options: { value: number }): BuddyAttention {
+  const now = Date.now();
+  const value = Math.max(0, Math.min(100, options.value));
+
+  return {
+    value,
+    progress: value / 100,
+    isLow: value <= 35,
+    lastInteractionAt: now,
+    nextDecayAt: now + 5 * 60 * 1000,
+  };
+}
+
+function getPreviewDailyQuests(options: { saveProgress: number; completedCount: number }): BuddyDailyQuests {
+  const saveProgress = Math.max(0, Math.min(10, Math.round(options.saveProgress)));
+
+  return {
+    date: getLocalDateKey(),
+    completedCount: options.completedCount,
+    totalCount: 4,
+    quests: [
+      {
+        id: 'saveFiles',
+        label: 'Save 10 files',
+        progress: saveProgress,
+        target: 10,
+        completed: saveProgress >= 10,
+        rewardXp: 10,
+      },
+      {
+        id: 'makeCommit',
+        label: 'Make 1 commit',
+        progress: 0,
+        target: 1,
+        completed: false,
+        rewardXp: 10,
+      },
+      {
+        id: 'takeBreak',
+        label: 'Take a break',
+        progress: 0,
+        target: 1,
+        completed: false,
+        rewardXp: 10,
+      },
+      {
+        id: 'pushWork',
+        label: "Push today's work",
+        progress: 0,
+        target: 1,
+        completed: false,
+        rewardXp: 10,
+      },
+    ],
+  };
 }
 
 function normalizeCoffeeDropCommitCount(value: number | undefined): number {

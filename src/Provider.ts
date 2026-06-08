@@ -239,6 +239,39 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  public moveTo(targetX: number): void {
+    this.postMessage({
+      type: 'moveBuddy',
+      targetX,
+    });
+  }
+
+  public playIntroPreview(): void {
+    this.postMessage({
+      type: 'playIntroPreview',
+    });
+  }
+
+  public playLookPreview(): void {
+    this.postMessage({
+      type: 'playLookPreview',
+    });
+  }
+
+  public showPreviewSpeech(message: string): void {
+    this.postMessage({
+      type: 'showPreviewSpeech',
+      message,
+    });
+  }
+
+  public setPreviewReveal(step: string): void {
+    this.postMessage({
+      type: 'setPreviewReveal',
+      step,
+    });
+  }
+
   public acceptFood(): void {
     this.postMessage({
       type: 'acceptFood',
@@ -469,6 +502,36 @@ export class Provider implements vscode.WebviewViewProvider {
 
     .heart.is-empty {
       filter: none;
+    }
+
+    body[data-preview-reveal="blank"] .health-meter,
+    body[data-preview-reveal="blank"] .xp-meter,
+    body[data-preview-reveal="blank"] .attention-meter,
+    body[data-preview-reveal="blank"] .daily-quests,
+    body[data-preview-reveal="blank"] .life-counter,
+    body[data-preview-reveal="blank"] .focus-indicator,
+    body[data-preview-reveal="blank"] .milestone-toast,
+    body[data-preview-reveal="blank"] .fox,
+    body[data-preview-reveal="blank"] .frame-stage,
+    body[data-preview-reveal="blank"] .cookie-treat,
+    body[data-preview-reveal="buddy"] .health-meter,
+    body[data-preview-reveal="buddy"] .xp-meter,
+    body[data-preview-reveal="buddy"] .attention-meter,
+    body[data-preview-reveal="buddy"] .daily-quests,
+    body[data-preview-reveal="buddy"] .life-counter,
+    body[data-preview-reveal="hearts"] .xp-meter,
+    body[data-preview-reveal="hearts"] .attention-meter,
+    body[data-preview-reveal="hearts"] .daily-quests,
+    body[data-preview-reveal="hearts"] .life-counter,
+    body[data-preview-reveal="day"] .xp-meter,
+    body[data-preview-reveal="day"] .attention-meter,
+    body[data-preview-reveal="day"] .daily-quests,
+    body[data-preview-reveal="level"] .attention-meter,
+    body[data-preview-reveal="level"] .daily-quests,
+    body[data-preview-reveal="attention"] .daily-quests {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     .life-counter {
@@ -1797,7 +1860,7 @@ export class Provider implements vscode.WebviewViewProvider {
       }, introHeartPopMs);
     }
 
-    function playIntroSequence() {
+    function playIntroSequence(options = {}) {
       if (!isIntroPlaying || isDead) {
         return;
       }
@@ -1845,13 +1908,60 @@ export class Provider implements vscode.WebviewViewProvider {
                 visibleMs: 5000,
               });
               isIntroPlaying = false;
-              vscode.postMessage({ type: 'introPlayed' });
+              if (options.postIntroPlayed !== false) {
+                vscode.postMessage({ type: 'introPlayed' });
+              }
               scheduleBreakPrompt(true);
               scheduleRandomWalk();
             }, spawnDropDurationMs);
           });
         });
       }, spawnGifDurationMs);
+    }
+
+    function playIntroPreview() {
+      if (isDead || isReviving) {
+        return;
+      }
+
+      isIntroPlaying = true;
+      currentHearts = ${maxBuddyHearts};
+      previousHearts = ${maxBuddyHearts};
+      currentGoldHearts = 0;
+      previousGoldHearts = 0;
+      currentState = 'idle';
+      document.body.dataset.state = 'idle';
+      playIntroSequence({ postIntroPlayed: false });
+    }
+
+    function playLookPreview() {
+      if (!isLookEligible()) {
+        return;
+      }
+
+      clearRandomWalk();
+      const previewLookStates = ['lookTopRight', 'lookRight', 'lookBottomRight', 'lookLeft'];
+      previewLookStates.forEach((lookState, index) => {
+        setTimeout(() => {
+          if (isLookEligible() || activeLookState) {
+            setLookState(lookState);
+          }
+        }, index * 520);
+      });
+
+      setTimeout(() => {
+        clearLookReaction({ resumeWalk: false });
+      }, previewLookStates.length * 520 + 260);
+    }
+
+    function setPreviewReveal(step) {
+      const normalizedStep = String(step || 'done');
+      if (normalizedStep === 'done') {
+        delete document.body.dataset.previewReveal;
+        return;
+      }
+
+      document.body.dataset.previewReveal = normalizedStep;
     }
 
     function scheduleBreakPrompt(reset = false) {
@@ -3785,6 +3895,20 @@ export class Provider implements vscode.WebviewViewProvider {
         showFoodRefusal();
       } else if (message.type === 'returnToCenter') {
         returnToCenter();
+      } else if (message.type === 'moveBuddy') {
+        moveBuddyToPanelTarget(message.targetX);
+      } else if (message.type === 'playIntroPreview') {
+        playIntroPreview();
+      } else if (message.type === 'playLookPreview') {
+        playLookPreview();
+      } else if (message.type === 'showPreviewSpeech') {
+        showSpeechMessage(String(message.message || ''), {
+          lockBuddy: false,
+          scheduleNextBreak: false,
+          visibleMs: statusPromptVisibleMs,
+        });
+      } else if (message.type === 'setPreviewReveal') {
+        setPreviewReveal(message.step);
       } else if (message.type === 'toggleBreakPrompt') {
         toggleBreakPrompt();
       }

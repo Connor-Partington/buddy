@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.7.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
@@ -80,7 +80,7 @@ Care difficulty is configurable in VS Code settings. You can tune heart drain ti
 | --- | --- |
 | `Buddy: Show Sidebar` | Opens the Buddy Activity Bar view. |
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
-| `Buddy: Preview Animations` | Cycles through Buddy's animation states. |
+| `Buddy: Preview Animations` | Runs a temporary story preview from Buddy's birth and greeting through movement, look, thinking, jump, happy, size, break, care, quests, coffee XP boost, level up, milestone cake, gold heart, death, revive, and sleep without changing persisted Buddy stats. |
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
 | `Buddy: Spawn Coffee` | Drops coffee for Buddy to walk over, drink, and gain bonus XP. |
 | `Buddy: Spawn Sandwich` | Drops a sandwich for Buddy to walk over, eat, and refill missing red hearts. |
@@ -136,7 +136,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.7.0.vsix --force
+code --install-extension buddy-ide-companion-0.8.0.vsix --force
 ```
 
 To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:
