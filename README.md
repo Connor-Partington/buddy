@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
@@ -18,30 +18,23 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - [Preview](#preview)
 - [Features](#features)
+- [Feature Guide](FEATURES.md)
 - [Installation](#installation)
 - [Using Buddy](#using-buddy)
+- [Actions](#actions)
 - [Commands](#commands)
 - [Development](#development)
 - [License](#license)
 
 ## Features
 
-- Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
-- First-open spawn animation with a Buddy greeting and heart reveal.
-- Three-heart health meter with one heart lost every three local wall-clock hours, cookie and sandwich feeding to recover, cake-granted gold heart shields, and a floating soul when Buddy dies.
-- Persistent alive day counter that scrambles into place and only resets after Buddy dies.
-- Persistent XP counter with levels up to 100, including progress bursts for saves, feeding, commits, successful terminal `git push` work, and level-scaled XP loss when Buddy dies.
-- Automatic coffee drops every five Git commits detected by VS Code.
-- Gentle attention meter below Buddy's level and XP that drops across an 8-hour workday and refills from care actions.
-- Locally saved level-up card PNGs when Buddy levels up while the panel is open.
-- Dash behavior when Buddy goes after treats.
-- Command-click panel cookie drops so Buddy eats at the spot you choose.
-- Double-click panel movement so Buddy walks or dashes to the spot you choose.
-- Cursor-aware look sprites when your pointer gets close to Buddy.
-- Speech bubbles for break reminders, heart loss, and cookie eating, with scrambled text that decodes into Buddy's message.
-- Editor-aware reactions while you write, navigate, save, and run terminal commands.
-- Feed Buddy cookies, coffee, sandwiches, and cake for different care rewards.
-- Command Palette controls for showing Buddy, previewing animations, and testing states.
+- Animated sidebar companion that reacts to editing, navigation, saves, terminal commands, Git commits, and pushes.
+- Three-heart health, treats, gold heart shields, death/revive behavior, and a persistent life counter.
+- XP, levels up to 100, coffee boosts, level-up cards, and configurable milestone reactions.
+- Attention meter, break prompts, cursor-aware look sprites, panel movement, and treat-chasing animations.
+- Command Palette controls for showing Buddy, feeding treats, previewing animations, and testing states.
+
+See the [Feature Guide](FEATURES.md) for the full behavior reference.
 
 ## Installation
 
@@ -69,13 +62,7 @@ Cmd+Shift+P on macOS
 
 Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
-Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
-
-Buddy also tracks XP across sessions. Saving a supported local file earns 1 XP, feeding Buddy earns 5 XP, coffee activates a 2x XP multiplier for 30 minutes, Git commits detected by VS Code earn 20 XP, and a successful push from the integrated terminal earns 30 XP. Every fifth detected Git commit also drops coffee for Buddy. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough. When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
-
-Buddy's attention meter is a softer daily care goal, not a life-or-death need. It drops from full to empty across about 8 hours when Buddy has not received attention and refills when you feed Buddy, tap him for love, or double-click the panel to make him chase to a spot. When attention gets low, Buddy may give a friendly reminder in a speech bubble.
-
-Treats have distinct effects: cookies restore one red heart, sandwiches refill missing red hearts, cake grants up to two gold heart shields after the three red hearts, and coffee gives Buddy an XP boost. Coffee can be spawned manually or dropped automatically after every five detected Git commits. After four treats within 30 minutes, Buddy refuses extra food with a full-status bubble before another treat drops, but losing a heart resets that fullness. Timed heart loss consumes gold hearts before red hearts.
+Buddy tracks health, attention, XP, milestones, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
 
 ## Actions
 
@@ -143,7 +130,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.5.0.vsix --force
+code --install-extension buddy-ide-companion-0.6.0.vsix --force
 ```
 
 To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:

@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",
@@ -196,6 +196,28 @@
           "group": "navigation@4"
         }
       ]
+    },
+    "configuration": {
+      "title": "Buddy",
+      "properties": {
+        "buddy.milestoneReactions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable visual and XP reactions for Buddy milestones."
+        },
+        "buddy.milestoneReactions.focusedSessionMinutes": {
+          "type": "number",
+          "default": 90,
+          "minimum": 1,
+          "description": "Minutes of continuous VS Code window focus before Buddy triggers the long focused session milestone."
+        },
+        "buddy.milestoneReactions.xpBonus": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "description": "XP awarded for each Buddy milestone reaction."
+        }
+      }
     }
   },
   "scripts": {

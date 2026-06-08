@@ -2,6 +2,13 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.6.0
+
+- Added configurable milestone reactions with visual toasts and bonus XP for first commit of the day, first successful push, long focused sessions, and levels 10, 25, 50, 75, and 100.
+- Added daily milestone reactions for first save, feeding Buddy, giving Buddy attention, daily care streaks, and first coffee boost.
+- Added VS Code settings for enabling milestone reactions, setting the focused-session duration, and tuning the milestone XP bonus.
+- Added a dedicated feature guide to keep the README focused on setup and quick reference.
+
 ## 0.5.1
 
 - Added an overfeeding guard so Buddy refuses extra treats before they drop after four within 30 minutes, resetting once Buddy loses a heart.

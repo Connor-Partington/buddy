@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyAttention } from './attentionManager';
 import { BuddyHealth, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
+import type { BuddyMilestoneReaction } from './milestoneManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
 import { maxBuddyLevel } from './xpManager';
 import type { BuddyXp, BuddyXpBoost } from './xpManager';
@@ -254,6 +255,13 @@ export class Provider implements vscode.WebviewViewProvider {
       type: 'captureLevelUpCard',
       level,
       xp: this.xp,
+    });
+  }
+
+  public showMilestoneReaction(reaction: BuddyMilestoneReaction): Thenable<boolean> {
+    return this.postMessage({
+      type: 'showMilestoneReaction',
+      reaction,
     });
   }
 
@@ -690,6 +698,49 @@ export class Provider implements vscode.WebviewViewProvider {
       will-change: transform, opacity;
     }
 
+    .milestone-toast {
+      position: absolute;
+      top: 84px;
+      left: 8px;
+      z-index: 4;
+      max-width: min(168px, calc(100vw - 16px));
+      padding: 6px 8px;
+      border: 1px solid rgb(144 213 255 / 78%);
+      border-radius: 4px;
+      color: var(--vscode-editorWidget-foreground, var(--vscode-sideBar-foreground));
+      background: color-mix(in srgb, var(--vscode-sideBar-background) 74%, #90d5ff);
+      box-shadow:
+        0 0 0 1px rgb(0 0 0 / 16%),
+        3px 3px 0 rgb(0 0 0 / 20%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .milestone-toast[data-visible="true"] {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .milestone-toast__message {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .milestone-toast__xp {
+      display: block;
+      margin-top: 3px;
+      color: #fbf236;
+    }
+
     .cookie-treat {
       position: absolute;
       left: 50%;
@@ -1119,6 +1170,10 @@ export class Provider implements vscode.WebviewViewProvider {
         <div class="attention-meter__track" aria-hidden="true"><span class="attention-meter__fill"></span></div>
       </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
+      <div class="milestone-toast" aria-live="polite" aria-atomic="true">
+        <span class="milestone-toast__message"></span>
+        <span class="milestone-toast__xp"></span>
+      </div>
       <div class="fox" role="img" aria-label="Buddy waiting in the sidebar">
         <div class="thought-cloud" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="zzz" aria-hidden="true">Zzz</div>
@@ -1155,6 +1210,9 @@ export class Provider implements vscode.WebviewViewProvider {
     const xpBoostIndicator = document.querySelector('.xp-boost');
     const attentionMeter = document.querySelector('.attention-meter');
     const attentionValue = document.querySelector('.attention-meter__value');
+    const milestoneToast = document.querySelector('.milestone-toast');
+    const milestoneToastMessage = document.querySelector('.milestone-toast__message');
+    const milestoneToastXp = document.querySelector('.milestone-toast__xp');
     const spriteImage = document.querySelector('.sprite-image');
     const spriteStage = document.querySelector('.frame-stage');
     const speechBubble = document.querySelector('.speech-bubble');
@@ -1179,6 +1237,7 @@ export class Provider implements vscode.WebviewViewProvider {
     let lifeCounterScrambleTimer;
     let introTimer;
     let introHeartTimer;
+    let milestoneToastTimer;
     let currentXpBoost = ${JSON.stringify(xpBoost)};
     let breakPromptTimer;
     let breakScrambleTimer;
@@ -1958,12 +2017,12 @@ export class Provider implements vscode.WebviewViewProvider {
       return 'Buddy is level ' + xp.level + ' with ' + xp.currentLevelXp + ' of ' + xp.nextLevelXp + ' XP';
     }
 
-    function playXpBurst() {
+    function playXpBurst(customBurstCount) {
       if (!spriteStage || !imageSources.xp) {
         return;
       }
 
-      const burstCount = 4 + Math.floor(Math.random() * 3);
+      const burstCount = Math.max(1, Math.floor(Number(customBurstCount) || (4 + Math.floor(Math.random() * 3))));
       for (let index = 0; index < burstCount; index += 1) {
         const xpBurst = document.createElement('img');
         const startX = -18 + Math.random() * 36;
@@ -1986,6 +2045,34 @@ export class Provider implements vscode.WebviewViewProvider {
         }, { once: true });
         spriteStage.appendChild(xpBurst);
       }
+    }
+
+    function showMilestoneReaction(reaction) {
+      if (!milestoneToast || isDead || isIntroPlaying) {
+        return;
+      }
+
+      if (milestoneToastTimer) {
+        clearTimeout(milestoneToastTimer);
+        milestoneToastTimer = undefined;
+      }
+
+      const message = String(reaction?.message || 'MILESTONE REACHED');
+      const xpBonus = Math.max(0, Math.floor(Number(reaction?.xpBonus) || 0));
+      if (milestoneToastMessage) {
+        milestoneToastMessage.textContent = message;
+      }
+      if (milestoneToastXp) {
+        milestoneToastXp.textContent = xpBonus > 0 ? '+' + xpBonus + ' XP' : '';
+      }
+      milestoneToast.dataset.visible = 'true';
+      showStatusSpeechMessage([message]);
+      playXpBurst(9);
+
+      milestoneToastTimer = setTimeout(() => {
+        milestoneToast.dataset.visible = 'false';
+        milestoneToastTimer = undefined;
+      }, 4200);
     }
 
     function captureLevelUpCard(level, xp = currentXp) {
@@ -3302,6 +3389,8 @@ export class Provider implements vscode.WebviewViewProvider {
         setXpBoost(message.boost);
       } else if (message.type === 'setAttention') {
         setAttention(message.attention);
+      } else if (message.type === 'showMilestoneReaction') {
+        showMilestoneReaction(message.reaction);
       } else if (message.type === 'captureLevelUpCard') {
         captureLevelUpCard(message.level, message.xp);
       } else if (message.type === 'playHeartFill') {

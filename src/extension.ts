@@ -5,9 +5,10 @@ import { BuddyAttentionManager } from './attentionManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyHearts } from './healthManager';
+import { BuddyMilestoneManager } from './milestoneManager';
 import { Provider, type BuddySize, type FoodRequest, type FoodType, type LevelUpCardCapture } from './Provider';
 import { BuddyStateManager, buddyStates } from './stateManager';
-import { BuddyXpManager, defaultBuddyXpMultiplier } from './xpManager';
+import { BuddyXpManager, defaultBuddyXpMultiplier, type BuddyXpAward } from './xpManager';
 
 const testXpAwardAmount = 25;
 const feedBuddyXpAwardAmount = 5;
@@ -40,8 +41,17 @@ export async function activate(context: vscode.ExtensionContext) {
   const healthManager = new BuddyHealthManager(context.globalState);
   const xpManager = new BuddyXpManager(context.globalState);
   const attentionManager = new BuddyAttentionManager(context.globalState);
+  const milestoneManager = new BuddyMilestoneManager(
+    context.globalState,
+    (reaction) => {
+      void provider.showMilestoneReaction(reaction);
+    },
+    (award) => {
+      void xpManager.awardXp(award);
+    },
+  );
   const activityController = new BuddyActivityController(stateManager, (award) => {
-    void xpManager.awardXp(award);
+    void handleActivityAward(award);
   });
   const gitActivityController = await BuddyGitActivityController.create((award) => {
     void handleGitCommitAward(award);
@@ -76,8 +86,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const foodRequestSubscription = provider.onDidRequestFood((request) => {
     requestFoodSpawn(request);
   });
-  const careActionSubscription = provider.onDidCareAction(() => {
+  const careActionSubscription = provider.onDidCareAction((action) => {
     void attentionManager.recordCareAction();
+    if (action === 'love' || action === 'chase') {
+      void milestoneManager.recordGaveBuddyAttention();
+    }
   });
   const introSubscription = provider.onDidPlayIntro(() => {
     void context.globalState.update('buddyIntro.hasPlayed', true);
@@ -110,6 +123,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setXp(change.xp);
     if (change.leveledUp) {
       vscode.window.showInformationMessage(`Buddy reached level ${change.xp.level}.`);
+      void milestoneManager.recordLevel(change.xp.level);
       void provider.captureLevelUpCard(change.xp.level).then((didPost) => {
         if (!didPost) {
           vscode.window.showInformationMessage('Open the Buddy sidebar to save level-up cards.');
@@ -321,6 +335,7 @@ export async function activate(context: vscode.ExtensionContext) {
     healthManager,
     xpManager,
     attentionManager,
+    milestoneManager,
     stateSubscription,
     feedCookieSubscription,
     foodReachedSubscription,
@@ -364,8 +379,11 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setAttention(attentionManager.attention);
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
+    await milestoneManager.recordFedBuddy();
+
     if (food === 'coffee') {
       await xpManager.activateCoffeeXpBoost();
+      await milestoneManager.recordCoffeeTime();
       return;
     }
 
@@ -394,8 +412,21 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
+  async function handleActivityAward(award: BuddyXpAward): Promise<void> {
+    await xpManager.awardXp(award);
+
+    if (award.source === 'save') {
+      await milestoneManager.recordSave();
+    }
+
+    if (award.source === 'gitPush') {
+      await milestoneManager.recordGitPush();
+    }
+  }
+
   async function handleGitCommitAward(award: Parameters<BuddyXpManager['awardXp']>[0]): Promise<void> {
     await xpManager.awardXp(award);
+    await milestoneManager.recordGitCommit();
 
     coffeeDropCommitCount = normalizeCoffeeDropCommitCount(coffeeDropCommitCount + 1);
     await context.globalState.update(coffeeDropCommitCountKey, coffeeDropCommitCount);
