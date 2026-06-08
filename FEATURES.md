@@ -49,7 +49,7 @@ Coffee activates a 2x XP multiplier for 30 minutes. Every fifth detected Git com
 
 Buddy has levels up to 100. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough.
 
-When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it.
+When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it. `Buddy: Open Level-Up Gallery` lets you browse and reopen saved cards later.
 
 ## Milestone Reactions
 

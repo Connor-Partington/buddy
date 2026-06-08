@@ -181,6 +181,10 @@
       {
         "command": "buddy.showDebugMonitor",
         "title": "Buddy: Show Debug Dashboard"
+      },
+      {
+        "command": "buddy.openLevelUpGallery",
+        "title": "Buddy: Open Level-Up Gallery"
       }
     ],
     "menus": {

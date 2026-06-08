@@ -188,6 +188,9 @@ export async function activate(context: vscode.ExtensionContext) {
     appendDebugSnapshot('manual snapshot');
     showDebugDashboard();
   });
+  const openLevelUpGalleryCommand = vscode.commands.registerCommand('buddy.openLevelUpGallery', async () => {
+    await openLevelUpGallery(context);
+  });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     void requestFoodSpawn({ food: 'cookie' });
   });
@@ -386,6 +389,7 @@ export async function activate(context: vscode.ExtensionContext) {
     showSidebarCommand,
     toggleSizeCommand,
     showDebugMonitorCommand,
+    openLevelUpGalleryCommand,
     spawnCookieCommand,
     spawnCoffeeCommand,
     spawnSandwichCommand,
@@ -1179,7 +1183,7 @@ async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelU
     throw new Error('Buddy level-up card capture did not contain PNG data.');
   }
 
-  const cardsDirectory = vscode.Uri.joinPath(context.globalStorageUri, 'level-up-cards');
+  const cardsDirectory = getLevelUpCardsDirectory(context);
   await vscode.workspace.fs.createDirectory(cardsDirectory);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1191,6 +1195,54 @@ async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelU
   if (selected === openAction) {
     await vscode.commands.executeCommand('vscode.open', fileUri);
   }
+}
+
+async function openLevelUpGallery(context: vscode.ExtensionContext): Promise<void> {
+  const cardsDirectory = getLevelUpCardsDirectory(context);
+  let entries: [string, vscode.FileType][];
+
+  try {
+    entries = await vscode.workspace.fs.readDirectory(cardsDirectory);
+  } catch {
+    vscode.window.showInformationMessage('Buddy has not saved any level-up cards yet.');
+    return;
+  }
+
+  const cards = entries
+    .filter(([name, type]) => type === vscode.FileType.File && /^buddy-level-\d+-.*\.png$/u.test(name))
+    .map(([name]) => {
+      const level = name.match(/^buddy-level-(\d+)-/u)?.[1] ?? '?';
+      const savedAt = name
+        .replace(/^buddy-level-\d+-/u, '')
+        .replace(/\.png$/u, '');
+      const timestamp = savedAt.replace(
+        /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-\d+Z$/u,
+        '$1-$2-$3 $4:$5:$6 UTC',
+      );
+      return {
+        label: `Level ${level}`,
+        description: timestamp,
+        fileUri: vscode.Uri.joinPath(cardsDirectory, name),
+      };
+    })
+    .sort((first, second) => second.description.localeCompare(first.description));
+
+  if (cards.length === 0) {
+    vscode.window.showInformationMessage('Buddy has not saved any level-up cards yet.');
+    return;
+  }
+
+  const selected = await vscode.window.showQuickPick(cards, {
+    placeHolder: 'Open a saved Buddy level-up card',
+  });
+
+  if (selected) {
+    await vscode.commands.executeCommand('vscode.open', selected.fileUri);
+  }
+}
+
+function getLevelUpCardsDirectory(context: vscode.ExtensionContext): vscode.Uri {
+  return vscode.Uri.joinPath(context.globalStorageUri, 'level-up-cards');
 }
 
 function normalizeBuddySize(size: string | undefined): BuddySize {

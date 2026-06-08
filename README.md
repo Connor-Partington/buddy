@@ -91,6 +91,7 @@ Buddy tracks health, attention, XP, milestones, and the current life across sess
 | `Buddy: Run Feature Demo` | Opens the Buddy sidebar and runs the automated recording demo sequence. |
 | `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
 | `Buddy: Show Debug Dashboard` | Opens a VS Code dashboard with health, XP, attention, and auto-reward state snapshots. |
+| `Buddy: Open Level-Up Gallery` | Lists locally saved level-up cards and opens the selected card image. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
