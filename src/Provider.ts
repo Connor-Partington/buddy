@@ -201,12 +201,12 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postAttention();
   }
 
-  public spawnCookie(): void {
-    this.spawnFood('cookie');
+  public spawnCookie(): Thenable<boolean> {
+    return this.spawnFood('cookie');
   }
 
-  public spawnFood(food: FoodType, targetX?: number): void {
-    this.postMessage({
+  public spawnFood(food: FoodType, targetX?: number): Thenable<boolean> {
+    return this.postMessage({
       type: 'spawnCookie',
       food,
       targetX,

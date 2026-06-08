@@ -81,6 +81,21 @@ export class BuddyAttentionManager implements vscode.Disposable {
     }
   }
 
+  public async reset(): Promise<void> {
+    if (this.tickTimer) {
+      clearTimeout(this.tickTimer);
+      this.tickTimer = undefined;
+    }
+
+    const now = Date.now();
+    this.value = maxBuddyAttention;
+    this.lastInteractionAt = now;
+    this.nextDecayAt = now + buddyAttentionDecayIntervalMs;
+    await this.persist();
+    this.notify();
+    this.startAttentionTimer();
+  }
+
   public onDidChangeAttention(listener: (attention: BuddyAttention) => void): vscode.Disposable {
     this.listeners.add(listener);
 

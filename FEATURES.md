@@ -25,6 +25,8 @@ Treats have distinct effects:
 
 Timed heart loss consumes gold hearts before red hearts. After four treats within 30 minutes, Buddy refuses extra food with a full-status bubble before another treat drops, but losing a heart resets that fullness.
 
+Buddy can also drop care and celebration treats automatically. When Buddy is down to one red heart, every tenth productive action such as a save, commit, or push can drop a sandwich on a cooldown. Cake is rarer: it can drop for major level milestones, first push, care streaks, and occasional level-up, push, or first-commit celebrations when Buddy already has full red hearts and room for a gold heart. Automatic treat drops use the same overfeeding guard as manual treats.
+
 ## Movement And Interaction
 
 - Command-click inside the Buddy panel to offer a cookie at that spot.
@@ -43,7 +45,7 @@ Buddy tracks XP across sessions:
 | Git commit detected by VS Code | 20 |
 | Successful integrated-terminal `git push` | 30 |
 
-Coffee activates a 2x XP multiplier for 30 minutes. Every fifth detected Git commit drops coffee for Buddy. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state.
+Coffee activates a 2x XP multiplier for 30 minutes. Every fifth detected Git commit drops coffee for Buddy, unless a higher-priority recovery or celebration treat has just dropped. Commits made from the Source Control panel count because Buddy listens to VS Code's built-in Git repository state.
 
 Buddy has levels up to 100. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses 25% of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough.
 

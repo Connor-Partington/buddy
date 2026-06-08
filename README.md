@@ -29,7 +29,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 ## Features
 
 - Animated sidebar companion that reacts to editing, navigation, saves, terminal commands, Git commits, and pushes.
-- Three-heart health, treats, gold heart shields, death/revive behavior, and a persistent life counter.
+- Three-heart health, treats, automatic care and celebration drops, gold heart shields, death/revive behavior, and a persistent life counter.
 - XP, levels up to 100, coffee boosts, level-up cards, and configurable milestone reactions.
 - Attention meter, break prompts, cursor-aware look sprites, panel movement, and treat-chasing animations.
 - Command Palette controls for showing Buddy, feeding treats, previewing animations, and testing states.
@@ -87,8 +87,10 @@ Buddy tracks health, attention, XP, milestones, and the current life across sess
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |
 | `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |
+| `Buddy: Reset All State` | Clears Buddy's local testing state, including health, XP, attention, milestones, and auto-reward counters. |
 | `Buddy: Run Feature Demo` | Opens the Buddy sidebar and runs the automated recording demo sequence. |
 | `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
+| `Buddy: Show Debug Dashboard` | Opens a VS Code dashboard with health, XP, attention, and auto-reward state snapshots. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
 | `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |

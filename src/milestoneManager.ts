@@ -144,6 +144,23 @@ export class BuddyMilestoneManager implements vscode.Disposable {
     });
   }
 
+  public async reset(): Promise<void> {
+    this.clearFocusedSessionTimer();
+    this.focusedSessionStartedAt = vscode.window.state.focused ? Date.now() : undefined;
+    await Promise.all([
+      this.globalState.update(firstCommitDateKey, undefined),
+      this.globalState.update(firstPushCompletedKey, undefined),
+      this.globalState.update(focusedSessionDateKey, undefined),
+      this.globalState.update(fedBuddyDateKey, undefined),
+      this.globalState.update(gaveBuddyAttentionDateKey, undefined),
+      this.globalState.update(firstSaveDateKey, undefined),
+      this.globalState.update(careStreakDateKey, undefined),
+      this.globalState.update(coffeeTimeDateKey, undefined),
+      this.globalState.update(completedLevelMilestonesKey, undefined),
+    ]);
+    this.scheduleFocusedSessionTimer();
+  }
+
   public dispose(): void {
     this.clearFocusedSessionTimer();
     this.subscriptions.forEach((subscription) => subscription.dispose());

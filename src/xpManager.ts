@@ -160,6 +160,31 @@ export class BuddyXpManager implements vscode.Disposable {
     return change;
   }
 
+  public async reset(): Promise<BuddyXpChange> {
+    this.totalXp = 0;
+    this.xpMultiplier = defaultBuddyXpMultiplier;
+    this.coffeeXpBoostExpiresAt = 0;
+    if (this.coffeeXpBoostTimer) {
+      clearTimeout(this.coffeeXpBoostTimer);
+      this.coffeeXpBoostTimer = undefined;
+    }
+
+    await this.globalState.update(totalXpKey, this.totalXp);
+    await this.globalState.update(xpMultiplierKey, this.xpMultiplier);
+    await this.globalState.update(coffeeXpBoostExpiresAtKey, undefined);
+
+    const change: BuddyXpChange = {
+      xp: this.xp,
+      award: { source: 'reset', amount: 0 },
+      leveledUp: false,
+      leveledDown: false,
+    };
+    this.listeners.forEach((listener) => listener(change));
+    this.emitBoost();
+
+    return change;
+  }
+
   public async setMultiplier(multiplier: number): Promise<number> {
     this.xpMultiplier = normalizeXpMultiplier(multiplier);
     await this.globalState.update(xpMultiplierKey, this.xpMultiplier);

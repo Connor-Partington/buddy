@@ -144,6 +144,23 @@ export class BuddyHealthManager implements vscode.Disposable {
     this.nextHeartLossAt = undefined;
   }
 
+  public async reset(): Promise<void> {
+    this.clearHeartLossTimer();
+    this.hearts = maxBuddyHearts;
+    this.goldHearts = 0;
+    this.aliveSince = Date.now();
+    this.foodTimestamps = [];
+
+    await this.globalState.update(heartsKey, this.hearts);
+    await this.globalState.update(goldHeartsKey, this.goldHearts);
+    await this.globalState.update(aliveSinceKey, this.aliveSince);
+    await this.globalState.update(foodTimestampsKey, this.foodTimestamps);
+    await this.scheduleNextHeartLoss();
+
+    this.listeners.forEach((listener) => listener(this.health));
+    this.startHeartLossTimer();
+  }
+
   public onDidChangeHealth(listener: (health: BuddyHealth) => void): vscode.Disposable {
     this.listeners.add(listener);
 

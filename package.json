@@ -36,8 +36,10 @@
     "onCommand:buddy.removeHeart",
     "onCommand:buddy.addXp",
     "onCommand:buddy.resetXp",
+    "onCommand:buddy.resetAllState",
     "onCommand:buddy.runDemo",
     "onCommand:buddy.setXpMultiplier",
+    "onCommand:buddy.showDebugMonitor",
     "onCommand:buddy.revive",
     "onCommand:buddy.showSidebar",
     "onStartupFinished",
@@ -165,12 +167,20 @@
         "title": "Buddy: Reset XP"
       },
       {
+        "command": "buddy.resetAllState",
+        "title": "Buddy: Reset All State"
+      },
+      {
         "command": "buddy.runDemo",
         "title": "Buddy: Run Feature Demo"
       },
       {
         "command": "buddy.setXpMultiplier",
         "title": "Buddy: Set XP Multiplier"
+      },
+      {
+        "command": "buddy.showDebugMonitor",
+        "title": "Buddy: Show Debug Dashboard"
       }
     ],
     "menus": {
