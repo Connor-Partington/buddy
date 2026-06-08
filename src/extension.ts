@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { BuddyActivityController } from './activityController';
 import { BuddyAttentionManager } from './attentionManager';
+import { BuddyDailyQuestManager } from './dailyQuestManager';
 import { BuddyDemoController } from './demoController';
 import { BuddyGitActivityController } from './gitActivityController';
 import { BuddyHealthManager, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
@@ -61,6 +62,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const healthManager = new BuddyHealthManager(context.globalState);
   const xpManager = new BuddyXpManager(context.globalState);
   const attentionManager = new BuddyAttentionManager(context.globalState);
+  const dailyQuestManager = new BuddyDailyQuestManager(
+    context.globalState,
+    (reward) => {
+      void provider.showDailyQuestReward(reward);
+    },
+    (award) => {
+      void xpManager.awardXp(award);
+    },
+  );
   const milestoneManager = new BuddyMilestoneManager(
     context.globalState,
     (reaction) => {
@@ -162,6 +172,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const attentionSubscription = attentionManager.onDidChangeAttention((attention) => {
     provider.setAttention(attention);
   });
+  const dailyQuestSubscription = dailyQuestManager.onDidChangeDailyQuests((dailyQuests) => {
+    provider.setDailyQuests(dailyQuests);
+  });
   const disposable = vscode.commands.registerCommand('buddy.wakeUp', () => {
     vscode.window.showInformationMessage('Buddy is awake.');
   });
@@ -205,6 +218,7 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const toggleBreakPromptCommand = vscode.commands.registerCommand('buddy.toggleBreakPrompt', () => {
     provider.toggleBreakPrompt();
+    void dailyQuestManager.recordBreak();
   });
   const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
     await healthManager.loseHeart();
@@ -370,6 +384,7 @@ export async function activate(context: vscode.ExtensionContext) {
     healthManager,
     xpManager,
     attentionManager,
+    dailyQuestManager,
     milestoneManager,
     debugOutput,
     stateSubscription,
@@ -384,6 +399,7 @@ export async function activate(context: vscode.ExtensionContext) {
     xpSubscription,
     xpBoostSubscription,
     attentionSubscription,
+    dailyQuestSubscription,
     disposable,
     previewCommand,
     showSidebarCommand,
@@ -415,6 +431,7 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setHealth(healthManager.health);
   provider.setXp(xpManager.xp);
   provider.setXpBoost(xpManager.xpBoost);
+  provider.setDailyQuests(dailyQuestManager.dailyQuests);
   provider.setAttention(attentionManager.attention);
 
   async function handleFoodEaten(food: FoodType): Promise<void> {
@@ -457,10 +474,12 @@ export async function activate(context: vscode.ExtensionContext) {
     const didDropRecoveryFood = await tryAutoSandwichReward();
 
     if (award.source === 'save') {
+      await dailyQuestManager.recordSave();
       await milestoneManager.recordSave();
     }
 
     if (award.source === 'gitPush') {
+      await dailyQuestManager.recordGitPush();
       await milestoneManager.recordGitPush();
       if (!didDropRecoveryFood) {
         await tryAutoCakeReward({
@@ -475,6 +494,7 @@ export async function activate(context: vscode.ExtensionContext) {
   async function handleGitCommitAward(award: Parameters<BuddyXpManager['awardXp']>[0]): Promise<void> {
     await xpManager.awardXp(award);
     const didDropRecoveryFood = await tryAutoSandwichReward();
+    await dailyQuestManager.recordGitCommit();
     await milestoneManager.recordGitCommit();
 
     coffeeDropCommitCount = normalizeCoffeeDropCommitCount(coffeeDropCommitCount + 1);
@@ -671,6 +691,7 @@ export async function activate(context: vscode.ExtensionContext) {
       healthManager.reset(),
       xpManager.reset(),
       attentionManager.reset(),
+      dailyQuestManager.reset(),
       milestoneManager.reset(),
     ]);
 
@@ -679,6 +700,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setHealth(healthManager.health);
     provider.setXp(xpManager.xp);
     provider.setXpBoost(xpManager.xpBoost);
+    provider.setDailyQuests(dailyQuestManager.dailyQuests);
     provider.setAttention(attentionManager.attention);
     appendDebugSnapshot('reset all state');
     showDebugDashboard();
@@ -700,6 +722,7 @@ export async function activate(context: vscode.ExtensionContext) {
       xp: xpManager.xp,
       xpBoost: xpManager.xpBoost,
       attention: attentionManager.attention,
+      dailyQuests: dailyQuestManager.dailyQuests,
       canEatFood: healthManager.canEatFood(),
       coffeeDropCommitCount,
       autoSandwich: {
@@ -995,6 +1018,14 @@ export async function activate(context: vscode.ExtensionContext) {
           ['Low', yesNo(snapshot.attention?.isLow)],
           ['Next decay', snapshot.attention?.nextDecayAt],
         ], snapshot.attention?.progress),
+        card('Daily Quests', [
+          ['Date', snapshot.dailyQuests?.date],
+          ['Completed', snapshot.dailyQuests?.completedCount + ' / ' + snapshot.dailyQuests?.totalCount],
+          ...((snapshot.dailyQuests?.quests || []).map((quest) => [
+            quest.label,
+            quest.progress + ' / ' + quest.target + (quest.completed ? ' complete' : ''),
+          ])),
+        ], safeRatio(snapshot.dailyQuests?.completedCount, snapshot.dailyQuests?.totalCount)),
         card('Auto Sandwich', [
           ['Actions', snapshot.autoSandwich?.productiveActionCount + ' / ' + snapshot.autoSandwich?.threshold],
           ['Persisted actions', snapshot.autoSandwich?.persistedProductiveActionCount],

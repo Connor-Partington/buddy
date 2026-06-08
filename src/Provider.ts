@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { BuddyAttention } from './attentionManager';
+import type { BuddyDailyQuestReward, BuddyDailyQuests } from './dailyQuestManager';
 import { BuddyHealth, maxBuddyGoldHearts, maxBuddyHearts } from './healthManager';
 import type { BuddyMilestoneReaction } from './milestoneManager';
 import { BuddyState, BuddyStateMessage } from './stateManager';
@@ -95,6 +96,7 @@ export class Provider implements vscode.WebviewViewProvider {
   };
   private xp: BuddyXp = { totalXp: 0, level: 1, currentLevelXp: 0, nextLevelXp: 100, progress: 0, isMaxLevel: false };
   private xpBoost: BuddyXpBoost = { multiplier: 2, expiresAt: 0, isActive: false };
+  private dailyQuests: BuddyDailyQuests = { date: '', completedCount: 0, totalCount: 0, quests: [] };
   private attention: BuddyAttention = {
     value: 100,
     progress: 1,
@@ -196,6 +198,11 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postXpBoost();
   }
 
+  public setDailyQuests(dailyQuests: BuddyDailyQuests): void {
+    this.dailyQuests = dailyQuests;
+    this.postDailyQuests();
+  }
+
   public setAttention(attention: BuddyAttention): void {
     this.attention = attention;
     this.postAttention();
@@ -265,6 +272,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  public showDailyQuestReward(reward: BuddyDailyQuestReward): Thenable<boolean> {
+    return this.postMessage({
+      type: 'showDailyQuestReward',
+      reward,
+    });
+  }
+
   private postState(): void {
     const message: BuddyStateMessage = {
       type: 'setState',
@@ -319,6 +333,13 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
+  private postDailyQuests(): void {
+    this.postMessage({
+      type: 'setDailyQuests',
+      dailyQuests: this.dailyQuests,
+    });
+  }
+
   private postMessage(message: unknown): Thenable<boolean> {
     return this.webviewView?.webview.postMessage(message) ?? Promise.resolve(false);
   }
@@ -329,6 +350,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postBuddySize();
     this.postXp();
     this.postXpBoost();
+    this.postDailyQuests();
     this.postAttention();
   }
 
@@ -342,6 +364,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const health = this.health;
     const xp = this.xp;
     const xpBoost = this.xpBoost;
+    const dailyQuests = this.dailyQuests;
     const attention = this.attention;
     const shouldPlayIntro = this.shouldPlayIntro && !health.isDead;
     const initialSpriteState: SpriteKey = shouldPlayIntro ? 'spawn' : health.isDead ? 'soul' : this.state;
@@ -700,10 +723,10 @@ export class Provider implements vscode.WebviewViewProvider {
 
     .milestone-toast {
       position: absolute;
-      top: 84px;
+      top: 110px;
       left: 8px;
       z-index: 4;
-      max-width: min(168px, calc(100vw - 16px));
+      width: min(168px, calc(100vw - 16px));
       padding: 6px 8px;
       border: 1px solid rgb(144 213 255 / 78%);
       border-radius: 4px;
@@ -739,6 +762,122 @@ export class Provider implements vscode.WebviewViewProvider {
       display: block;
       margin-top: 3px;
       color: #fbf236;
+    }
+
+    .daily-quests[data-collapsed="false"] ~ .milestone-toast {
+      top: 160px;
+    }
+
+    .daily-quests {
+      position: absolute;
+      top: 84px;
+      left: 8px;
+      z-index: 3;
+      width: min(168px, calc(100vw - 16px));
+      padding: 2px 6px;
+      border: 1px solid var(--vscode-editorWidget-border, rgb(128 128 128 / 48%));
+      border-radius: 4px;
+      color: var(--vscode-sideBar-foreground);
+      background: var(--vscode-sideBar-background);
+      box-shadow: 2px 2px 0 rgb(0 0 0 / 18%);
+      font-family: "Courier New", "Menlo", "Monaco", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      pointer-events: auto;
+    }
+
+    .daily-quests__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      width: 100%;
+      margin: 0;
+      border: 0;
+      padding: 0;
+      text-transform: uppercase;
+      color: inherit;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .daily-quests__toggle:focus-visible {
+      outline: 1px solid var(--vscode-focusBorder);
+      outline-offset: 2px;
+    }
+
+    .daily-quests__summary {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .daily-quests__chevron {
+      display: inline-block;
+      width: 6px;
+      color: var(--vscode-descriptionForeground, var(--vscode-sideBar-foreground));
+    }
+
+    .daily-quests[data-collapsed="false"] .daily-quests__chevron {
+      transform: rotate(90deg);
+    }
+
+    .daily-quests__count {
+      color: var(--vscode-descriptionForeground, var(--vscode-sideBar-foreground));
+    }
+
+    .daily-quests__list {
+      display: grid;
+      gap: 2px;
+      margin: 3px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .daily-quests[data-collapsed="true"] .daily-quests__list {
+      display: none;
+    }
+
+    .daily-quest {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      font-size: 9px;
+      color: var(--vscode-descriptionForeground, var(--vscode-sideBar-foreground));
+    }
+
+    .daily-quest[data-completed="true"] {
+      color: var(--vscode-sideBar-foreground);
+    }
+
+    .daily-quest__mark {
+      width: 6px;
+      height: 6px;
+      border: 1px solid currentColor;
+      border-radius: 1px;
+    }
+
+    .daily-quest[data-completed="true"] .daily-quest__mark {
+      border-color: #6abe30;
+      background: #6abe30;
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 28%);
+    }
+
+    .daily-quest__label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .daily-quest__progress {
+      font-size: 8px;
+      color: inherit;
     }
 
     .cookie-treat {
@@ -1169,6 +1308,9 @@ export class Provider implements vscode.WebviewViewProvider {
         </div>
         <div class="attention-meter__track" aria-hidden="true"><span class="attention-meter__fill"></span></div>
       </div>
+      <div class="daily-quests" data-collapsed="true" aria-live="polite" aria-label="${getDailyQuestsLabel(dailyQuests)}">
+        ${renderDailyQuests(dailyQuests)}
+      </div>
       <div class="life-counter" aria-live="polite" aria-label="${getAliveDaysLabel(health)}">${getAliveDayCounterText(health)}</div>
       <div class="milestone-toast" aria-live="polite" aria-atomic="true">
         <span class="milestone-toast__message"></span>
@@ -1210,6 +1352,7 @@ export class Provider implements vscode.WebviewViewProvider {
     const xpBoostIndicator = document.querySelector('.xp-boost');
     const attentionMeter = document.querySelector('.attention-meter');
     const attentionValue = document.querySelector('.attention-meter__value');
+    const dailyQuestPanel = document.querySelector('.daily-quests');
     const milestoneToast = document.querySelector('.milestone-toast');
     const milestoneToastMessage = document.querySelector('.milestone-toast__message');
     const milestoneToastXp = document.querySelector('.milestone-toast__xp');
@@ -1261,6 +1404,8 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentAliveSince = ${JSON.stringify(health.aliveSince ?? null)};
     let currentLifeCounterText = ${JSON.stringify(getAliveDayCounterText(health))};
     let currentXp = ${JSON.stringify(xp)};
+    let currentDailyQuests = ${JSON.stringify(dailyQuests)};
+    let isDailyQuestPanelCollapsed = true;
     let currentAttention = ${JSON.stringify(attention)};
     let activeLookState;
     let heartLostMessageCount = 0;
@@ -1943,6 +2088,103 @@ export class Provider implements vscode.WebviewViewProvider {
       xpBoostIndicator.setAttribute('aria-label', getXpBoostAriaLabel(currentXpBoost));
     }
 
+    function setDailyQuests(dailyQuests) {
+      const quests = Array.isArray(dailyQuests?.quests)
+        ? dailyQuests.quests.map((quest) => {
+          const target = Math.max(1, Number(quest?.target) || 1);
+          const progress = Math.max(0, Math.min(target, Number(quest?.progress) || 0));
+          return {
+            id: String(quest?.id || ''),
+            label: String(quest?.label || 'Daily quest'),
+            progress,
+            target,
+            completed: Boolean(quest?.completed || progress >= target),
+            rewardXp: Math.max(0, Number(quest?.rewardXp) || 0),
+          };
+        })
+        : [];
+
+      currentDailyQuests = {
+        date: String(dailyQuests?.date || ''),
+        quests,
+        completedCount: Math.max(0, Number(dailyQuests?.completedCount) || quests.filter((quest) => quest.completed).length),
+        totalCount: Math.max(quests.length, Number(dailyQuests?.totalCount) || quests.length),
+      };
+
+      renderDailyQuestPanel();
+    }
+
+    function renderDailyQuestPanel() {
+      if (!dailyQuestPanel) {
+        return;
+      }
+
+      dailyQuestPanel.setAttribute('aria-label', getDailyQuestsAriaLabel(currentDailyQuests));
+      dailyQuestPanel.dataset.collapsed = String(isDailyQuestPanelCollapsed);
+      dailyQuestPanel.replaceChildren();
+
+      const toggle = document.createElement('button');
+      toggle.className = 'daily-quests__toggle';
+      toggle.type = 'button';
+      toggle.setAttribute('aria-expanded', String(!isDailyQuestPanelCollapsed));
+      toggle.addEventListener('click', () => {
+        isDailyQuestPanelCollapsed = !isDailyQuestPanelCollapsed;
+        renderDailyQuestPanel();
+      });
+
+      const summary = document.createElement('span');
+      summary.className = 'daily-quests__summary';
+
+      const chevron = document.createElement('span');
+      chevron.className = 'daily-quests__chevron';
+      chevron.textContent = '>';
+      chevron.setAttribute('aria-hidden', 'true');
+      summary.appendChild(chevron);
+
+      const title = document.createElement('span');
+      title.textContent = 'Daily';
+      summary.appendChild(title);
+      toggle.appendChild(summary);
+
+      const count = document.createElement('span');
+      count.className = 'daily-quests__count';
+      count.textContent = currentDailyQuests.completedCount + '/' + currentDailyQuests.totalCount;
+      toggle.appendChild(count);
+      dailyQuestPanel.appendChild(toggle);
+
+      const list = document.createElement('ul');
+      list.className = 'daily-quests__list';
+      currentDailyQuests.quests.forEach((quest) => {
+        const item = document.createElement('li');
+        item.className = 'daily-quest';
+        item.dataset.completed = String(quest.completed);
+
+        const mark = document.createElement('span');
+        mark.className = 'daily-quest__mark';
+        mark.setAttribute('aria-hidden', 'true');
+        item.appendChild(mark);
+
+        const label = document.createElement('span');
+        label.className = 'daily-quest__label';
+        label.textContent = quest.label;
+        item.appendChild(label);
+
+        const progress = document.createElement('span');
+        progress.className = 'daily-quest__progress';
+        progress.textContent = quest.progress + '/' + quest.target;
+        item.appendChild(progress);
+
+        list.appendChild(item);
+      });
+      dailyQuestPanel.appendChild(list);
+    }
+
+    function getDailyQuestsAriaLabel(dailyQuests) {
+      const completedCount = Math.max(0, Number(dailyQuests?.completedCount) || 0);
+      const totalCount = Math.max(0, Number(dailyQuests?.totalCount) || 0);
+      return 'Buddy daily quests, ' + completedCount + ' of ' + totalCount + ' complete';
+    }
+
     function setAttention(attention) {
       const wasLow = Boolean(currentAttention?.isLow);
       const value = Math.max(0, Math.min(100, Number(attention?.value) || 0));
@@ -2066,8 +2308,35 @@ export class Provider implements vscode.WebviewViewProvider {
         milestoneToastXp.textContent = xpBonus > 0 ? '+' + xpBonus + ' XP' : '';
       }
       milestoneToast.dataset.visible = 'true';
-      showStatusSpeechMessage([message]);
       playXpBurst(9);
+
+      milestoneToastTimer = setTimeout(() => {
+        milestoneToast.dataset.visible = 'false';
+        milestoneToastTimer = undefined;
+      }, 4200);
+    }
+
+    function showDailyQuestReward(reward) {
+      if (!milestoneToast || isDead || isIntroPlaying) {
+        return;
+      }
+
+      if (milestoneToastTimer) {
+        clearTimeout(milestoneToastTimer);
+        milestoneToastTimer = undefined;
+      }
+
+      const label = String(reward?.label || 'Daily quest');
+      const message = String(reward?.message || 'DAILY QUEST COMPLETE');
+      const xpBonus = Math.max(0, Math.floor(Number(reward?.xpBonus) || 0));
+      if (milestoneToastMessage) {
+        milestoneToastMessage.textContent = message + ': ' + label;
+      }
+      if (milestoneToastXp) {
+        milestoneToastXp.textContent = xpBonus > 0 ? '+' + xpBonus + ' XP' : '';
+      }
+      milestoneToast.dataset.visible = 'true';
+      playXpBurst(7);
 
       milestoneToastTimer = setTimeout(() => {
         milestoneToast.dataset.visible = 'false';
@@ -3387,10 +3656,14 @@ export class Provider implements vscode.WebviewViewProvider {
         setXp(message.xp);
       } else if (message.type === 'setXpBoost') {
         setXpBoost(message.boost);
+      } else if (message.type === 'setDailyQuests') {
+        setDailyQuests(message.dailyQuests);
       } else if (message.type === 'setAttention') {
         setAttention(message.attention);
       } else if (message.type === 'showMilestoneReaction') {
         showMilestoneReaction(message.reaction);
+      } else if (message.type === 'showDailyQuestReward') {
+        showDailyQuestReward(message.reward);
       } else if (message.type === 'captureLevelUpCard') {
         captureLevelUpCard(message.level, message.xp);
       } else if (message.type === 'playHeartFill') {
@@ -3418,6 +3691,7 @@ export class Provider implements vscode.WebviewViewProvider {
     updateLifeCounter(true);
     setXp(${JSON.stringify(xp)});
     setXpBoost(${JSON.stringify(xpBoost)});
+    setDailyQuests(${JSON.stringify(dailyQuests)});
     setAttention(${JSON.stringify(attention)});
     scheduleLifeCounterTick();
     updateCookieSize();
@@ -3524,6 +3798,30 @@ function renderHearts(hearts: number, imageSources: Record<ImageKey, string>, go
   return [...redHearts, ...goldHeartImages].join('');
 }
 
+function renderDailyQuests(dailyQuests: BuddyDailyQuests): string {
+  const quests = dailyQuests.quests.length > 0 ? dailyQuests.quests : [];
+
+  return [
+    '<button class="daily-quests__toggle" type="button" aria-expanded="false">',
+    '<span class="daily-quests__summary"><span class="daily-quests__chevron" aria-hidden="true">&gt;</span><span>Daily</span></span>',
+    `<span class="daily-quests__count">${dailyQuests.completedCount}/${dailyQuests.totalCount}</span>`,
+    '</button>',
+    '<ul class="daily-quests__list">',
+    ...quests.map((quest) => [
+      `<li class="daily-quest" data-completed="${quest.completed}">`,
+      '<span class="daily-quest__mark" aria-hidden="true"></span>',
+      `<span class="daily-quest__label">${escapeHtml(quest.label)}</span>`,
+      `<span class="daily-quest__progress">${quest.progress}/${quest.target}</span>`,
+      '</li>',
+    ].join('')),
+    '</ul>',
+  ].join('');
+}
+
+function getDailyQuestsLabel(dailyQuests: BuddyDailyQuests): string {
+  return `Buddy daily quests, ${dailyQuests.completedCount} of ${dailyQuests.totalCount} complete`;
+}
+
 function getAliveDayCounterText(health: BuddyHealth): string {
   return `Day ${health.isDead ? 0 : health.aliveDays}`;
 }
@@ -3572,6 +3870,15 @@ function getXpBoostLabel(boost: BuddyXpBoost): string {
 
 function formatMultiplier(multiplier: number): string {
   return Number.isInteger(multiplier) ? String(multiplier) : String(Math.round(multiplier * 10) / 10);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function normalizeLevel(level: number | undefined): number {

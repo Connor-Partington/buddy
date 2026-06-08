@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",

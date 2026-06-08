@@ -51,6 +51,19 @@ Buddy has levels up to 100. Each level needs more XP than the previous level, wi
 
 When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it. `Buddy: Open Level-Up Gallery` lets you browse and reopen saved cards later.
 
+## Daily Quests
+
+Daily quests are repeatable local goals that reset each calendar day. Buddy shows today's collapsed quest summary in the sidebar, expands it on click, and awards 10 XP when each quest is completed.
+
+Current daily quests:
+
+- Save 10 files.
+- Make 1 commit.
+- Take a break by toggling Buddy's break prompt.
+- Push today's work with a successful integrated-terminal `git push`.
+
+Daily quests are separate from milestone reactions: quests are recurring daily progress, while milestones are one-time or first-of-day celebrations.
+
 ## Milestone Reactions
 
 Milestone reactions add a configurable XP bonus, visual toast, and XP burst. Current milestones include:

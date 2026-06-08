@@ -18,7 +18,7 @@ const buddyLevelXpRequirements = Array.from({ length: levelUpsToMax }, (_, index
 
 export const maxBuddyXp = buddyLevelXpRequirements.reduce((total, xp) => total + xp, 0);
 
-export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush' | 'feed' | 'milestone' | 'test' | 'death' | 'reset';
+export type BuddyXpSource = 'save' | 'gitCommit' | 'gitPush' | 'feed' | 'milestone' | 'dailyQuest' | 'test' | 'death' | 'reset';
 
 export type BuddyXp = {
   totalXp: number;

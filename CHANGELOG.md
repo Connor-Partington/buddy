@@ -2,8 +2,9 @@
 
 All notable changes to Buddy will be documented in this file.
 
-## 0.6.0
+## 0.7.0
 
+- Added daily quests that reset each day, track saves, commits, break prompts, and pushes in the sidebar, and award XP on completion.
 - Added configurable milestone reactions with visual toasts and bonus XP for first commit of the day, first successful push, long focused sessions, and levels 10, 25, 50, 75, and 100.
 - Added daily milestone reactions for first save, feeding Buddy, giving Buddy attention, daily care streaks, and first coffee boost.
 - Added automatic sandwich recovery drops after ten productive actions at one heart, plus rarer cake celebration drops that respect Buddy's overfeeding guard.

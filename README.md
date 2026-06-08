@@ -2,7 +2,7 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
@@ -30,7 +30,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 - Animated sidebar companion that reacts to editing, navigation, saves, terminal commands, Git commits, and pushes.
 - Three-heart health, treats, automatic care and celebration drops, gold heart shields, death/revive behavior, and a persistent life counter.
-- XP, levels up to 100, coffee boosts, level-up cards, and configurable milestone reactions.
+- XP, levels up to 100, coffee boosts, daily quests, level-up cards, and configurable milestone reactions.
 - Attention meter, break prompts, cursor-aware look sprites, panel movement, and treat-chasing animations.
 - Command Palette controls for showing Buddy, feeding treats, previewing animations, and testing states.
 
@@ -62,7 +62,7 @@ Cmd+Shift+P on macOS
 
 Run `Buddy: Show Sidebar` to open the Buddy view from the Activity Bar. Buddy will wake up in the sidebar and react as you edit, navigate, save, or run terminal commands.
 
-Buddy tracks health, attention, XP, milestones, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
+Buddy tracks health, attention, XP, daily quests, milestones, and the current life across sessions without telemetry or source upload. For the full behavior reference, see the [Feature Guide](FEATURES.md).
 
 ## Actions
 
@@ -87,7 +87,7 @@ Buddy tracks health, attention, XP, milestones, and the current life across sess
 | `Buddy: Remove Heart` | Removes one heart for testing death and revive behavior. |
 | `Buddy: Add XP` | Adds 25 XP for testing the XP counter and burst animation. |
 | `Buddy: Reset XP` | Resets Buddy's XP progress to level 1. |
-| `Buddy: Reset All State` | Clears Buddy's local testing state, including health, XP, attention, milestones, and auto-reward counters. |
+| `Buddy: Reset All State` | Clears Buddy's local testing state, including health, XP, attention, daily quests, milestones, and auto-reward counters. |
 | `Buddy: Run Feature Demo` | Opens the Buddy sidebar and runs the automated recording demo sequence. |
 | `Buddy: Set XP Multiplier` | Changes the persisted XP multiplier for future XP gains. |
 | `Buddy: Show Debug Dashboard` | Opens a VS Code dashboard with health, XP, attention, and auto-reward state snapshots. |
@@ -133,7 +133,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.6.0.vsix --force
+code --install-extension buddy-ide-companion-0.7.0.vsix --force
 ```
 
 To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:
