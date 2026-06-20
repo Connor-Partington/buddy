@@ -20,15 +20,18 @@ const heartsKey = 'buddyHealth.hearts';
 const goldHeartsKey = 'buddyHealth.goldHearts';
 const aliveSinceKey = 'buddyHealth.aliveSince';
 const nextHeartLossAtKey = 'buddyHealth.nextHeartLossAt';
+const heartLossRemainingMsKey = 'buddyHealth.heartLossRemainingMs';
 const foodTimestampsKey = 'buddyHealth.foodTimestamps';
 const oneDayMs = 24 * 60 * 60 * 1000;
+const heartLossTickMs = 60 * 1000;
 
 export class BuddyHealthManager implements vscode.Disposable {
   private hearts: number;
   private goldHearts: number;
   private aliveSince?: number;
   private heartLossTimer?: ReturnType<typeof setTimeout>;
-  private nextHeartLossAt?: number;
+  private heartLossRemainingMs?: number;
+  private heartLossLastTickAt?: number;
   private foodTimestamps: number[];
   private readonly listeners = new Set<(health: BuddyHealth) => void>();
 
@@ -39,7 +42,10 @@ export class BuddyHealthManager implements vscode.Disposable {
     this.hearts = normalizeHearts(globalState.get<number>(heartsKey, maxBuddyHearts));
     this.goldHearts = normalizeGoldHearts(globalState.get<number>(goldHeartsKey, 0));
     this.aliveSince = normalizeTimestamp(globalState.get<number>(aliveSinceKey));
-    this.nextHeartLossAt = normalizeTimerTimestamp(globalState.get<number>(nextHeartLossAtKey));
+    this.heartLossRemainingMs = normalizeHeartLossRemainingMs(
+      globalState.get<number>(heartLossRemainingMsKey),
+      this.heartLossIntervalMs,
+    ) ?? getLegacyHeartLossRemainingMs(globalState.get<number>(nextHeartLossAtKey), this.heartLossIntervalMs);
     this.foodTimestamps = normalizeFoodTimestamps(globalState.get<number[]>(foodTimestampsKey, []));
 
     if (!this.careSettings.canDie && this.health.isDead) {
@@ -54,9 +60,9 @@ export class BuddyHealthManager implements vscode.Disposable {
       void this.globalState.update(aliveSinceKey, this.aliveSince);
     }
 
-    if (!this.health.isDead && this.nextHeartLossAt === undefined) {
-      this.nextHeartLossAt = Date.now() + this.heartLossIntervalMs;
-      void this.globalState.update(nextHeartLossAtKey, this.nextHeartLossAt);
+    if (!this.health.isDead && this.heartLossRemainingMs === undefined) {
+      this.heartLossRemainingMs = this.heartLossIntervalMs;
+      void this.globalState.update(heartLossRemainingMsKey, this.heartLossRemainingMs);
     }
   }
 
@@ -81,14 +87,15 @@ export class BuddyHealthManager implements vscode.Disposable {
       return;
     }
 
-    if (this.nextHeartLossAt === undefined) {
-      this.nextHeartLossAt = Date.now() + this.heartLossIntervalMs;
-      void this.globalState.update(nextHeartLossAtKey, this.nextHeartLossAt);
+    if (this.heartLossRemainingMs === undefined) {
+      this.heartLossRemainingMs = this.heartLossIntervalMs;
+      void this.globalState.update(heartLossRemainingMsKey, this.heartLossRemainingMs);
     }
 
-    const delayMs = Math.max(1000, this.nextHeartLossAt - Date.now());
+    this.heartLossLastTickAt = Date.now();
+    const delayMs = Math.max(1000, Math.min(heartLossTickMs, this.heartLossRemainingMs));
     this.heartLossTimer = setTimeout(() => {
-      void this.applyOverdueHeartLoss();
+      void this.applyHeartLossTick();
     }, delayMs);
   }
 
@@ -99,7 +106,9 @@ export class BuddyHealthManager implements vscode.Disposable {
       return;
     }
 
-    this.nextHeartLossAt = undefined;
+    this.heartLossRemainingMs = undefined;
+    this.heartLossLastTickAt = undefined;
+    await this.globalState.update(heartLossRemainingMsKey, undefined);
     await this.globalState.update(nextHeartLossAtKey, undefined);
   }
 
@@ -180,7 +189,9 @@ export class BuddyHealthManager implements vscode.Disposable {
     await this.setGoldHearts(0);
     if (this.careSettings.canDie) {
       await this.globalState.update(nextHeartLossAtKey, undefined);
-      this.nextHeartLossAt = undefined;
+      await this.globalState.update(heartLossRemainingMsKey, undefined);
+      this.heartLossRemainingMs = undefined;
+      this.heartLossLastTickAt = undefined;
     } else {
       await this.scheduleNextHeartLoss();
       this.startHeartLossTimer();
@@ -301,7 +312,7 @@ export class BuddyHealthManager implements vscode.Disposable {
     }
   }
 
-  private async applyOverdueHeartLoss(): Promise<void> {
+  private async applyHeartLossTick(): Promise<void> {
     this.clearHeartLossTimer();
 
     if (this.health.isDead) {
@@ -309,34 +320,44 @@ export class BuddyHealthManager implements vscode.Disposable {
     }
 
     const now = Date.now();
-    const nextLossAt = this.nextHeartLossAt ?? now;
-    const intervalMs = this.heartLossIntervalMs;
-    const losses = Math.max(1, Math.floor((now - nextLossAt) / intervalMs) + 1);
-    await this.applyHeartLoss(losses);
+    const elapsedMs = Math.max(0, Math.min(heartLossTickMs, now - (this.heartLossLastTickAt ?? now)));
+    this.heartLossRemainingMs = Math.max(0, (this.heartLossRemainingMs ?? this.heartLossIntervalMs) - elapsedMs);
 
-    if (this.health.isDead) {
-      await this.globalState.update(nextHeartLossAtKey, undefined);
-      this.nextHeartLossAt = undefined;
+    if (this.heartLossRemainingMs > 0) {
+      await this.globalState.update(heartLossRemainingMsKey, this.heartLossRemainingMs);
+      this.startHeartLossTimer();
       return;
     }
 
-    this.nextHeartLossAt = nextLossAt + losses * intervalMs;
-    while (this.nextHeartLossAt <= now) {
-      this.nextHeartLossAt += intervalMs;
+    await this.applyHeartLoss(1);
+
+    if (this.health.isDead) {
+      await this.globalState.update(nextHeartLossAtKey, undefined);
+      await this.globalState.update(heartLossRemainingMsKey, undefined);
+      this.heartLossRemainingMs = undefined;
+      this.heartLossLastTickAt = undefined;
+      return;
     }
-    await this.globalState.update(nextHeartLossAtKey, this.nextHeartLossAt);
+
+    this.heartLossRemainingMs = this.heartLossIntervalMs;
+    await this.globalState.update(heartLossRemainingMsKey, this.heartLossRemainingMs);
+    await this.globalState.update(nextHeartLossAtKey, undefined);
     this.startHeartLossTimer();
   }
 
   private async scheduleNextHeartLoss(): Promise<void> {
     if (this.health.isDead) {
       await this.globalState.update(nextHeartLossAtKey, undefined);
-      this.nextHeartLossAt = undefined;
+      await this.globalState.update(heartLossRemainingMsKey, undefined);
+      this.heartLossRemainingMs = undefined;
+      this.heartLossLastTickAt = undefined;
       return;
     }
 
-    this.nextHeartLossAt = Date.now() + this.heartLossIntervalMs;
-    await this.globalState.update(nextHeartLossAtKey, this.nextHeartLossAt);
+    this.heartLossRemainingMs = this.heartLossIntervalMs;
+    this.heartLossLastTickAt = undefined;
+    await this.globalState.update(heartLossRemainingMsKey, this.heartLossRemainingMs);
+    await this.globalState.update(nextHeartLossAtKey, undefined);
   }
 }
 
@@ -370,6 +391,23 @@ function normalizeTimerTimestamp(timestamp: number | undefined): number | undefi
   }
 
   return timestamp;
+}
+
+function normalizeHeartLossRemainingMs(remainingMs: number | undefined, intervalMs: number): number | undefined {
+  if (typeof remainingMs !== 'number' || !Number.isFinite(remainingMs) || remainingMs <= 0) {
+    return undefined;
+  }
+
+  return Math.min(intervalMs, Math.max(1000, Math.round(remainingMs)));
+}
+
+function getLegacyHeartLossRemainingMs(nextHeartLossAt: number | undefined, intervalMs: number): number | undefined {
+  const normalizedNextHeartLossAt = normalizeTimerTimestamp(nextHeartLossAt);
+  if (normalizedNextHeartLossAt === undefined) {
+    return undefined;
+  }
+
+  return normalizeHeartLossRemainingMs(normalizedNextHeartLossAt - Date.now(), intervalMs) ?? intervalMs;
 }
 
 function normalizeFoodTimestamps(timestamps: number[] | undefined): number[] {

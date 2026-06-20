@@ -12,7 +12,7 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 ## Health And Care
 
-Buddy has a three-heart health meter. By default, one heart is lost every three local wall-clock hours, and Buddy shows a floating soul when all hearts are gone.
+Buddy has a three-heart health meter. By default, one heart is lost every three active VS Code runtime hours, and Buddy shows a floating soul when all hearts are gone. Time while VS Code is closed or the computer is asleep does not stack up as missed heart loss.
 
 Treats have distinct effects:
 

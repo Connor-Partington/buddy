@@ -2,6 +2,10 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.8.1
+
+- Fixed heart loss so closed VS Code, shutdown, and sleep time no longer stack up and kill Buddy on the next launch.
+
 ## 0.8.0
 
 - Changed `Buddy: Preview Animations` to run a temporary story preview from Buddy's birth and greeting through movement, look, thinking, jump, happy, size, break, care, quests, coffee XP boost, level up, milestone cake, gold heart, death, revive, and sleep without changing persisted Buddy stats.
