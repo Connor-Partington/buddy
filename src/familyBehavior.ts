@@ -28,3 +28,23 @@ export function arrangeFamily(width: number, mainCenter: number, mainWidth: numb
     return position;
   });
 }
+
+/** Move a pair together only inside their unoccupied lane; never cross other sleepers. */
+export function socialOffset(positions: { x: number; bottom: number }[], widths: number[], pair: number[], panelWidth: number, mainX: number, mainWidth: number, wave: number): number {
+  if (pair.length !== 2 || pair.some(i => !positions[i]) || positions[pair[0]].bottom !== positions[pair[1]].bottom) return 0;
+  const row = positions[pair[0]].bottom;
+  const left = Math.min(...pair.map(i => positions[i].x - widths[i] / 2));
+  const right = Math.max(...pair.map(i => positions[i].x + widths[i] / 2));
+  let low = 6 - left, high = panelWidth - 6 - right;
+  const obstacles = positions.map((p,i)=>({x:p.x,width:widths[i],row:p.bottom,index:i}));
+  if(row===8)obstacles.push({x:mainX,width:mainWidth,row:8,index:-1});
+  for(const obstacle of obstacles){
+    if(pair.includes(obstacle.index)||obstacle.row!==row)continue;
+    const end=obstacle.x+obstacle.width/2, start=obstacle.x-obstacle.width/2;
+    if(end<=left)low=Math.max(low,end+8-left);
+    else if(start>=right)high=Math.min(high,start-8-right);
+    else return 0;
+  }
+  if(low>high)return 0;
+  return Math.max(low,Math.min(high,wave*28));
+}

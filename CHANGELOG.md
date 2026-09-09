@@ -2,6 +2,18 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.10.0 — 2026-09-10
+
+- Removed the minimum scene height so shrinking the panel no longer pushes Buddy below the visible area.
+- Added a persistent focus timer with preset/custom durations, countdown, waking stretch, and gentle break invitation.
+- Added six pixel decorations earned through levels and care streaks, with saved menu-based placement.
+- Added neighbor greetings, chases, nearby naps, and family ball nudges while preserving independent activity schedules.
+- Added 100 personalized pixel level-up card designs, using a persistent random seed for each local Buddy profile.
+- Cards snapshot Buddy's color, optional family and their colors, life day, care streak, daily quest completion, XP, and date.
+- Show earned cards inside a dismissible panel overlay; browse saved cards with thumbnails, previous/next controls, and Open Image.
+- Added the existing gallery command to the panel menu and removed the extra level-up/card-save notification prompts.
+- Queue cards earned while the panel is closed and preserve their original snapshots across reloads; keep existing saved cards.
+
 ## 0.9.0 — 2026-09-09
 
 - Added a saved partner and up to four mini Buddys, with independent activities and naps, click-to-wake reactions, and spacing for narrow panels.

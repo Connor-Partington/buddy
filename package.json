@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",
@@ -234,6 +234,14 @@
       {
         "command": "buddy.changeColors",
         "title": "Buddy: Change Colors"
+      },
+      {
+        "command": "buddy.focusTimer",
+        "title": "Buddy: Focus Timer"
+      },
+      {
+        "command": "buddy.decorations",
+        "title": "Buddy: Arrange Decorations"
       }
     ],
     "menus": {
@@ -267,6 +275,21 @@
           "command": "buddy.chooseBackground",
           "when": "view == buddy.companion",
           "group": "appearance@2"
+        },
+        {
+          "command": "buddy.openLevelUpGallery",
+          "when": "view == buddy.companion",
+          "group": "cards@1"
+        },
+        {
+          "command": "buddy.focusTimer",
+          "when": "view == buddy.companion",
+          "group": "activities@1"
+        },
+        {
+          "command": "buddy.decorations",
+          "when": "view == buddy.companion",
+          "group": "activities@1"
         }
       ]
     },
@@ -336,7 +359,7 @@
     "package": "vsce package --allow-missing-repository --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "publish": "vsce publish --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "lint": "eslint src",
-    "test": "npm run compile && node scripts/test-family.cjs && node scripts/test-scene.cjs"
+    "test": "npm run compile && node scripts/test-family.cjs && node scripts/test-scene.cjs && node scripts/test-cards.cjs && node scripts/test-leisure.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -2,6 +2,16 @@
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
 
+## New In 0.10.0
+
+Personalized pixel level-up cards now appear inside the Buddy panel, with a thumbnail gallery and original-image access. A saved local seed makes the 100 level designs personal to your profile; each earned card preserves your Buddy, optional family, colors, and progress at that moment.
+
+The panel menu also includes a gentle **Focus Timer** and **Arrange Decorations**. Focus sessions support presets or 1–180 custom minutes, persist their deadline across reloads, and restore the previous Focus Mode setting when finished or cancelled. A waking stretch and break invitation appear when Buddy leaves focus.
+
+Earn a pixel plant (level 2), cushion (5), lamp (10), and yarn toy (15), plus a bonsai (3-day care streak) and star mobile (7-day streak). Place, move, or remove them using five responsive horizontal positions in the menu. Unlocks and placement stay saved locally, including across Reset All State.
+
+Awake family neighbors greet, chase where space allows, and curl up nearby; family members on the floor can nudge the ball. Sleeping members retain independent schedules. Social play pauses during Focus Mode.
+
 ## New In 0.9.0
 
 Grow a family, give Buddy a ball, and personalize the scene with eight pixel backgrounds and nine companion colors. Family members have their own activity and nap schedules. The compact panel keeps controls in its title bar and menus, opens automatically by default, and starts Buddy at the smaller size.
@@ -55,7 +65,9 @@ Coffee activates a 2x XP multiplier for 30 minutes. Every fifth detected Git com
 
 Buddy has levels up to 100. Each level needs more XP than the previous level, with the level 100 cap tuned to about 85,000 total XP. If Buddy dies, he loses a configurable percentage of the XP requirement for his current level, which can drop him to a lower level when his current XP is low enough.
 
-When Buddy levels up while the panel is open, Buddy saves a local PNG level-up card and offers to open it. `Buddy: Open Level-Up Gallery` lets you browse and reopen saved cards later.
+Level-up cards use 100 deterministic pixel designs personalized by a random seed saved for each local Buddy profile. Scenery, palettes, constellations, and ornaments vary with the seed and level. Each card snapshots the earned level, date, total XP, life day, care streak, today's completed quest count, Buddy's chosen color, and any partner or kids actually present. Solo users receive solo portraits. PNGs and snapshot metadata are saved locally and never regenerated from later state.
+
+New cards appear in an in-panel overlay. Escape or X closes it; Gallery opens thumbnails, Prev/Next browses them, and Open Image opens the original PNG. `Buddy: Open Level-Up Gallery` is also in the panel's … menu. Existing PNG cards remain accessible. Cards earned with the panel closed survive reloads in a pending queue and render on its next opening. Multiple levels gained at once each receive a card. Reset All State keeps the collection and design seed. Previous levels are not backfilled; the level 1 design is available to the renderer, while earning starts at the next level-up.
 
 ## Daily Quests
 
@@ -130,7 +142,7 @@ Buddy: Choose Background in the panel’s … menu or Command Palette offers res
 
 ## Startup And Panel Size
 
-Buddy opens on startup and reload by default (`buddy.openOnStartup: true`). Turn this off to keep your chosen sidebar at startup. Buddy keeps a minimum scene height of 360 px. Its width follows the user’s sidebar width, with vertical scrolling in shorter containers. The panel contains only the scene; actions live in toolbar icons, the panel’s … menu, and the Command Palette. The outer sidebar divider remains controlled by VS Code.
+Buddy opens on startup and reload by default (`buddy.openOnStartup: true`). Turn this off to keep your chosen sidebar at startup. Buddy follows the available panel height and width without a minimum scene height, keeping Buddy anchored to the visible bottom as the panel shrinks. The panel contains only the scene; actions live in toolbar icons, the panel’s … menu, and the Command Palette. The outer sidebar divider remains controlled by VS Code.
 
 ## Companion Colors
 

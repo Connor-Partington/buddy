@@ -1,3 +1,6 @@
+import { FocusTimer } from './focusTimer';
+import { Decorations, decorationCatalog } from './decorations';
+import { LevelUpCards, type CardSnapshot, type SavedCard } from './levelUpCards';
 import * as vscode from 'vscode';
 import { buddyColorPresets, buddyColorsKey, defaultBuddyColors, normalizeBuddyColors, type BuddyColors } from './colorSettings';
 import { pixelBackgroundPresets } from './pixelBackgrounds';
@@ -87,6 +90,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let lastAutoFoodRequestedAt = 0;
   let debugDashboardPanel: vscode.WebviewPanel | undefined;
   const debugOutput = vscode.window.createOutputChannel('Buddy Debug');
+  const cardCollection = await LevelUpCards.create(context.globalState);
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false), context.globalStorageUri);
   let background = normalizeBackground(context.globalState.get<BuddyBackground>(backgroundStateKey));
   provider.setBackground(background);
@@ -227,6 +231,41 @@ export async function activate(context: vscode.ExtensionContext) {
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState, careSettings);
   const focusModeManager = new BuddyFocusModeManager(context.globalState);
+  const focusTimer = new FocusTimer(context.globalState, focusModeManager);
+  if (focusTimer.current) await focusModeManager.setEnabled(true);
+  const decorations = new Decorations(context.globalState);
+  provider.setDecorations(decorations.items);
+  provider.setFocusDeadline(focusTimer.current?.endsAt);
+  const focusTimerCommand = vscode.commands.registerCommand('buddy.focusTimer', async () => {
+    const choice = await vscode.window.showQuickPick([
+      ...[15,25,45,60].map(minutes => ({label: `${minutes} minutes`, minutes})),
+      {label:'Custom duration…',minutes:-1}, {label:'Cancel timer',minutes:0},
+    ], {title:'Buddy focus timer',placeHolder:focusTimer.current ? 'Choose a new duration or cancel the current timer' : 'A quiet focus session, then a gentle break invitation'});
+    if (!choice) return;
+    let minutes = choice.minutes;
+    if (minutes === -1) {
+      const input = await vscode.window.showInputBox({title:'Focus minutes',value:'25',validateInput:value => Number.isFinite(Number(value)) && Number(value)>=1 && Number(value)<=180 ? undefined : 'Enter 1–180 minutes.'});
+      if (input === undefined) return;
+      minutes = Number(input);
+    }
+    if (minutes === 0) await focusTimer.stop(); else await focusTimer.start(minutes);
+    provider.setFocusDeadline(focusTimer.current?.endsAt);
+    if (minutes > 0) await vscode.commands.executeCommand('buddy.showSidebar');
+  });
+  const decorationsCommand = vscode.commands.registerCommand('buddy.decorations', async () => {
+    await unlockDecorations();
+    const selected = await vscode.window.showQuickPick(decorationCatalog.map(item => ({label:item.name,id:item.id,
+      description:decorations.has(item.id) ? (decorations.items.some(placed=>placed.id===item.id) ? 'Placed — move or remove' : 'Unlocked — place in scene') : item.level ? `Unlock at level ${item.level}` : `Unlock with a ${item.streak}-day care streak`,
+    })), {title:'Buddy decorations'});
+    if (!selected) return;
+    if (!decorations.has(selected.id)) { void vscode.window.showInformationMessage('Keep caring for Buddy to unlock this decoration.'); return; }
+    const position = await vscode.window.showQuickPick([
+      {label:'Far left',x:10},{label:'Left',x:30},{label:'Center',x:50},{label:'Right',x:70},{label:'Far right',x:90},{label:'Remove from scene',x:-1},
+    ],{title:`Arrange ${selected.label}`,placeHolder:'Positions follow the panel width; decorations sit behind Buddy'});
+    if (!position) return;
+    await decorations.place(selected.id,position.x<0?undefined:position.x);
+    provider.setDecorations(decorations.items);
+  });
   const xpManager = new BuddyXpManager(context.globalState, careSettings);
   const attentionManager = new BuddyAttentionManager(context.globalState);
   const dailyQuestManager = new BuddyDailyQuestManager(
@@ -315,13 +354,56 @@ export async function activate(context: vscode.ExtensionContext) {
   const introSubscription = provider.onDidPlayIntro(() => {
     void context.globalState.update(introHasPlayedKey, true);
   });
+  const renderingCards = new Set<string>();
+  const knownCards = new Map<string, string>();
+  const flushCards = async () => {
+    if (renderingCards.size) return;
+    for (const snapshot of cardCollection.waiting) {
+      if (renderingCards.has(snapshot.id)) continue;
+      renderingCards.add(snapshot.id);
+      if (!await provider.captureLevelUpCard(snapshot)) renderingCards.delete(snapshot.id);
+      break;
+    }
+  };
+  const cardsReadySubscription = provider.onCardsReady(() => {
+    renderingCards.clear();
+    void flushCards();
+  });
+  const openCards = async () => {
+    try {
+      const cards = await readLevelUpGallery(context);
+      for (const card of cards) knownCards.set(card.id, card.imageUri);
+      await vscode.commands.executeCommand('buddy.showSidebar');
+      provider.showCards(cards, true);
+    } catch (error) {
+      void vscode.window.showWarningMessage('Buddy could not open the card gallery: ' + String(error));
+    }
+  };
+  const cardActionSubscription = provider.onCardAction(action => {
+    if (action.type === 'openCardGallery') void openCards();
+    else if (action.id && knownCards.has(action.id)) {
+      void vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(knownCards.get(action.id)!));
+    }
+  });
   const levelUpCardSubscription = provider.onDidCaptureLevelUpCard((capture) => {
-    void saveLevelUpCard(context, capture).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      vscode.window.showWarningMessage(`Buddy could not save the level-up card: ${message}`);
+    const snapshot = cardCollection.waiting.find(card => card.id === capture.id);
+    if (!snapshot || !renderingCards.has(capture.id)) return;
+    let saved = false;
+    void (async () => {
+      const card = await saveLevelUpCard(context, capture, snapshot);
+      await cardCollection.complete(snapshot.id);
+      knownCards.set(card.id, card.imageUri);
+      provider.showCards([card]);
+      saved = true;
+    })().catch((error) => {
+      vscode.window.showWarningMessage('Buddy could not save the level-up card; it will retry when the panel reopens: ' + String(error));
+    }).finally(() => {
+      renderingCards.delete(capture.id);
+      if (saved) void flushCards();
     });
   });
   const levelUpCardFailureSubscription = provider.onDidFailLevelUpCardCapture((failure) => {
+    for (const card of cardCollection.waiting) if (card.level === failure.level) renderingCards.delete(card.id);
     console.warn(`Buddy failed to capture level ${failure.level} card: ${failure.error}`);
   });
   const healthSubscription = healthManager.onDidChangeHealth((health) => {
@@ -340,18 +422,27 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     }
   });
+  let previousCardLevel = xpManager.xp.level;
   const xpSubscription = xpManager.onDidChangeXp((change) => {
+    const previousLevel = previousCardLevel;
+    previousCardLevel = change.xp.level;
     provider.setXp(change.xp);
     appendDebugLine('xp changed', change);
+    void unlockDecorations();
     if (change.leveledUp) {
-      vscode.window.showInformationMessage(`Buddy reached level ${change.xp.level}.`);
+      const health = healthManager.health;
+      const quests = dailyQuestManager.dailyQuests;
+      const details = { aliveDays: health.aliveDays, careStreak: milestoneManager.getCareStreak().count,
+        questsCompleted: quests.completedCount, questsTotal: quests.totalCount,
+        totalXp: change.xp.totalXp, family: familyManager.family, colors: { ...colors } };
+      void (async () => {
+        for (let level = previousLevel + 1; level <= change.xp.level; level++) {
+          await cardCollection.earn({ ...details, level });
+        }
+        await flushCards();
+      })().catch(error => vscode.window.showWarningMessage('Buddy could not queue the level-up card: ' + String(error)));
       void milestoneManager.recordLevel(change.xp.level);
       void handleLevelUpReward(change.xp.level);
-      void provider.captureLevelUpCard(change.xp.level).then((didPost) => {
-        if (!didPost) {
-          vscode.window.showInformationMessage('Open the Buddy sidebar to save level-up cards.');
-        }
-      });
     }
   });
   const xpBoostSubscription = xpManager.onDidChangeXpBoost((boost) => {
@@ -402,7 +493,7 @@ export async function activate(context: vscode.ExtensionContext) {
     showDebugDashboard();
   });
   const openLevelUpGalleryCommand = vscode.commands.registerCommand('buddy.openLevelUpGallery', async () => {
-    await openLevelUpGallery(context);
+    await openCards();
   });
   const spawnCookieCommand = vscode.commands.registerCommand('buddy.spawnCookie', () => {
     if (shouldBlockFocusModeAction('Buddy feeding is disabled while focus mode is on.')) {
@@ -441,7 +532,9 @@ export async function activate(context: vscode.ExtensionContext) {
     void dailyQuestManager.recordBreak();
   });
   const toggleFocusModeCommand = vscode.commands.registerCommand('buddy.toggleFocusMode', async () => {
-    const enabled = await focusModeManager.toggle();
+    const target = !focusModeManager.isEnabled;
+    if (focusTimer.current) { await focusTimer.stop(); provider.setFocusDeadline(undefined); }
+    const enabled = await focusModeManager.setEnabled(target);
     vscode.window.showInformationMessage(enabled ? 'Buddy focus mode on. Buddy will nap quietly.' : 'Buddy focus mode off.');
   });
   const removeHeartCommand = vscode.commands.registerCommand('buddy.removeHeart', async () => {
@@ -807,6 +900,8 @@ export async function activate(context: vscode.ExtensionContext) {
     attentionManager,
     dailyQuestManager,
     focusModeManager,
+    focusTimerCommand,
+    decorationsCommand,
     milestoneManager,
     debugOutput,
     stateSubscription,
@@ -815,6 +910,8 @@ export async function activate(context: vscode.ExtensionContext) {
     foodRequestSubscription,
     careActionSubscription,
     introSubscription,
+    cardsReadySubscription,
+    cardActionSubscription,
     levelUpCardSubscription,
     levelUpCardFailureSubscription,
     healthSubscription,
@@ -849,6 +946,25 @@ export async function activate(context: vscode.ExtensionContext) {
     ...stateCommands,
   );
 
+  await unlockDecorations();
+  let checkingFocusTimer = false;
+  const checkFocusTimer = async () => {
+    if (checkingFocusTimer) return;
+    checkingFocusTimer = true;
+    try {
+      if (await focusTimer.tick()) {
+        provider.finishFocusTimer();
+        void vscode.window.showInformationMessage('Focus session complete. Stretch and take a short break.', 'Show Buddy').then(action => {
+          if (action) void vscode.commands.executeCommand('buddy.showSidebar');
+        });
+      }
+      provider.setFocusDeadline(focusTimer.current?.endsAt);
+    } catch (error) { console.warn('Buddy focus timer:', error); }
+    finally { checkingFocusTimer = false; }
+  };
+  const focusTimerInterval = setInterval(() => { void checkFocusTimer(); }, 1000);
+  context.subscriptions.push({dispose:()=>clearInterval(focusTimerInterval)});
+  void checkFocusTimer();
   void vscode.commands.executeCommand('setContext', focusModeContextKey, focusModeManager.isEnabled);
   if (focusModeManager.isEnabled) {
     void healthManager.pauseHeartLossTimer();
@@ -952,7 +1068,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
+  async function unlockDecorations(): Promise<void> {
+    const earned = await decorations.unlock(xpManager.xp.level, milestoneManager.getCareStreak().bestCount);
+    if (earned.length) void vscode.window.showInformationMessage('Buddy unlocked: ' + earned.join(', ') + '. Arrange them from the panel menu.');
+  }
   async function handleMilestoneReaction(reaction: BuddyMilestoneReaction): Promise<void> {
+    await unlockDecorations();
     if (reaction.id === 'firstPush') {
       await tryAutoCakeReward({
         force: true,
@@ -1112,6 +1233,8 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   async function resetAllState(): Promise<void> {
+    await focusTimer.stop();
+    provider.setFocusDeadline(undefined);
     const resetAction = 'Reset Buddy';
     const selected = await vscode.window.showWarningMessage(
       'Reset all Buddy stats and local state for testing? This clears health, XP, attention, milestones, focus mode, auto-reward counters, family, colors, background, size, and intro state.',
@@ -1761,68 +1884,34 @@ function isLevelMilestoneReaction(id: BuddyMilestoneReaction['id']): boolean {
   return buddyLevelMilestones.some((milestone) => id === `level${milestone}`);
 }
 
-async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelUpCardCapture): Promise<void> {
+async function saveLevelUpCard(context: vscode.ExtensionContext, capture: LevelUpCardCapture, snapshot: CardSnapshot): Promise<SavedCard> {
   const base64 = capture.dataUri.replace(/^data:image\/png;base64,/, '');
-  if (!base64 || base64 === capture.dataUri) {
-    throw new Error('Buddy level-up card capture did not contain PNG data.');
-  }
-
-  const cardsDirectory = getLevelUpCardsDirectory(context);
-  await vscode.workspace.fs.createDirectory(cardsDirectory);
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const fileUri = vscode.Uri.joinPath(cardsDirectory, `buddy-level-${capture.level}-${timestamp}.png`);
+  if (!base64 || base64 === capture.dataUri) throw new Error('Card capture did not contain PNG data.');
+  const directory = getLevelUpCardsDirectory(context);
+  await vscode.workspace.fs.createDirectory(directory);
+  const name = `buddy-level-${snapshot.level}-${snapshot.earnedAt.replace(/[:.]/g, '-')}-${snapshot.id}`;
+  const fileUri = vscode.Uri.joinPath(directory, name + '.png');
   await vscode.workspace.fs.writeFile(fileUri, Buffer.from(base64, 'base64'));
-
-  const openAction = 'Open Image';
-  const selected = await vscode.window.showInformationMessage(`Buddy level ${capture.level} card saved.`, openAction);
-  if (selected === openAction) {
-    await vscode.commands.executeCommand('vscode.open', fileUri);
-  }
+  await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(directory, name + '.json'), Buffer.from(JSON.stringify(snapshot, null, 2)));
+  return { id: name, level: snapshot.level, label: `Level ${snapshot.level} · ${snapshot.earnedAt.slice(0, 10)}`, imageUri: fileUri.toString() };
 }
 
-async function openLevelUpGallery(context: vscode.ExtensionContext): Promise<void> {
-  const cardsDirectory = getLevelUpCardsDirectory(context);
+async function readLevelUpGallery(context: vscode.ExtensionContext): Promise<SavedCard[]> {
+  const directory = getLevelUpCardsDirectory(context);
   let entries: [string, vscode.FileType][];
-
-  try {
-    entries = await vscode.workspace.fs.readDirectory(cardsDirectory);
-  } catch {
-    vscode.window.showInformationMessage('Buddy has not saved any level-up cards yet.');
-    return;
+  try { entries = await vscode.workspace.fs.readDirectory(directory); }
+  catch (error) {
+    if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') return [];
+    throw error;
   }
-
-  const cards = entries
-    .filter(([name, type]) => type === vscode.FileType.File && /^buddy-level-\d+-.*\.png$/u.test(name))
-    .map(([name]) => {
-      const level = name.match(/^buddy-level-(\d+)-/u)?.[1] ?? '?';
-      const savedAt = name
-        .replace(/^buddy-level-\d+-/u, '')
-        .replace(/\.png$/u, '');
-      const timestamp = savedAt.replace(
-        /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-\d+Z$/u,
-        '$1-$2-$3 $4:$5:$6 UTC',
-      );
-      return {
-        label: `Level ${level}`,
-        description: timestamp,
-        fileUri: vscode.Uri.joinPath(cardsDirectory, name),
-      };
+  return entries.filter(([name, type]) => type === vscode.FileType.File && /^buddy-level-\d+-.*\.png$/u.test(name))
+    .sort(([a], [b]) => {
+      const date = (name: string) => name.replace(/^buddy-level-\d+-/u, '');
+      return date(b).localeCompare(date(a));
     })
-    .sort((first, second) => second.description.localeCompare(first.description));
-
-  if (cards.length === 0) {
-    vscode.window.showInformationMessage('Buddy has not saved any level-up cards yet.');
-    return;
-  }
-
-  const selected = await vscode.window.showQuickPick(cards, {
-    placeHolder: 'Open a saved Buddy level-up card',
-  });
-
-  if (selected) {
-    await vscode.commands.executeCommand('vscode.open', selected.fileUri);
-  }
+    .map(([name]) => ({ id: name.replace(/\.png$/u, ''), level: Number(name.match(/^buddy-level-(\d+)-/u)?.[1]),
+      label: `Level ${name.match(/^buddy-level-(\d+)-/u)?.[1]} · ${name.replace(/^buddy-level-\d+-/u, '').slice(0, 10)}`,
+      imageUri: vscode.Uri.joinPath(directory, name).toString() }));
 }
 
 function getLevelUpCardsDirectory(context: vscode.ExtensionContext): vscode.Uri {

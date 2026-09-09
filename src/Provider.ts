@@ -1,6 +1,9 @@
+import { drawDecoration, type Decoration } from './decorations';
+import { cardDesign, type CardSnapshot, type SavedCard } from './levelUpCards';
+import { drawPersonalCard } from './cardRenderer';
 import * as vscode from 'vscode';
 import { stepBallPlay } from './ballPlay';
-import { arrangeFamily, chooseFamilyActivity } from './familyBehavior';
+import { arrangeFamily, chooseFamilyActivity, socialOffset } from './familyBehavior';
 import { buddyColorPresets, defaultBuddyColors, type BuddyColors } from './colorSettings';
 import { drawPixelScene } from './pixelBackgrounds';
 import { stepBall } from './ballPhysics';
@@ -36,6 +39,7 @@ export type CareAction = 'feed' | 'love' | 'chase';
 type ImageKey = FoodType | 'heart' | 'heartEmpty' | 'heartFill' | 'goldHeart' | 'goldHeartFill' | 'xp';
 export type BuddySize = 'default' | 'small';
 export type LevelUpCardCapture = {
+  id: string;
   dataUri: string;
   level: number;
 };
@@ -51,7 +55,10 @@ type WebviewMessage =
   | { type?: 'foodRequested'; food?: FoodType; targetX?: number }
   | { type?: 'careAction'; action?: CareAction }
   | { type?: 'introPlayed' }
-  | { type?: 'levelUpCardCaptured'; dataUri?: string; level?: number }
+  | { type?: 'cardsReady' }
+  | { type?: 'openCard'; id?: string }
+  | { type?: 'openCardGallery' }
+  | { type?: 'levelUpCardCaptured'; id?: string; dataUri?: string; level?: number }
   | { type?: 'levelUpCardFailed'; error?: string; level?: number };
 
 const baseSpriteCanvasWidth = 64;
@@ -163,6 +170,36 @@ export class Provider implements vscode.WebviewViewProvider {
   private readonly onDidFailLevelUpCardCaptureEmitter = new vscode.EventEmitter<LevelUpCardCaptureFailure>();
   public readonly onDidFailLevelUpCardCapture = this.onDidFailLevelUpCardCaptureEmitter.event;
 
+  private decorationItems: Decoration[] = [];
+  private focusDeadline?: number;
+  private pendingFocusBreak = false;
+  public setDecorations(items: Decoration[]): void { this.decorationItems = items; void this.postMessage({type:'setDecorations',items}); }
+  public setFocusDeadline(endsAt?: number): void { this.focusDeadline = endsAt; void this.postMessage({type:'focusDeadline',endsAt}); }
+  public finishFocusTimer(): void { this.pendingFocusBreak = true; void this.postFocusBreak(); }
+  private async postFocusBreak(): Promise<void> {
+    if (this.webviewView?.visible && this.cardsReady && this.pendingFocusBreak && await this.postMessage({type:'focusComplete'})) this.pendingFocusBreak = false;
+  }
+  private cardsReady = false;
+  private pendingGallery?: { cards: SavedCard[]; gallery: boolean };
+  private readonly cardsReadyEmitter = new vscode.EventEmitter<void>();
+  public readonly onCardsReady = this.cardsReadyEmitter.event;
+  private readonly cardActionEmitter = new vscode.EventEmitter<{ type: 'openCard' | 'openCardGallery'; id?: string }>();
+  public readonly onCardAction = this.cardActionEmitter.event;
+
+  public showCards(cards: SavedCard[], gallery = false): void {
+    this.pendingGallery = { cards, gallery };
+    this.postCards();
+  }
+  private postCards(): void {
+    if (!this.cardsReady || !this.webviewView || !this.pendingGallery) return;
+    const pending = this.pendingGallery;
+    const { cards, gallery } = pending;
+    const message = { type: 'showCards', gallery, cards: cards.map(card => ({ ...card,
+      imageUri: this.webviewView!.webview.asWebviewUri(vscode.Uri.parse(card.imageUri)).toString(),
+    })) };
+    void this.postMessage(message).then(sent => { if (sent && this.pendingGallery === pending) this.pendingGallery = undefined; });
+  }
+
   public constructor(
     private readonly extensionUri: vscode.Uri,
     shouldPlayIntro: boolean,
@@ -173,12 +210,22 @@ export class Provider implements vscode.WebviewViewProvider {
 
   public async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.webviewView = webviewView;
+    this.cardsReady = false;
+    webviewView.onDidDispose(() => { this.cardsReady = false; this.webviewView = undefined; });
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this.extensionUri, ...(this.storageUri ? [this.storageUri] : [])],
     };
     webviewView.webview.onDidReceiveMessage((message: WebviewMessage) => {
-      if (message.type === 'foodEaten') {
+      if (message.type === 'cardsReady') {
+        this.cardsReady = true;
+        this.postCards();
+        this.cardsReadyEmitter.fire();
+        this.setFocusDeadline(this.focusDeadline);
+        void this.postFocusBreak();
+      } else if (message.type === 'openCard' || message.type === 'openCardGallery') {
+        this.cardActionEmitter.fire({ type: message.type, id: message.type === 'openCard' ? message.id : undefined });
+      } else if (message.type === 'foodEaten') {
         this.onDidFeedCookieEmitter.fire(normalizeFoodType(message.food));
       } else if (message.type === 'cookieEaten') {
         this.onDidFeedCookieEmitter.fire('cookie');
@@ -194,8 +241,9 @@ export class Provider implements vscode.WebviewViewProvider {
       } else if (message.type === 'introPlayed') {
         this.shouldPlayIntro = false;
         this.onDidPlayIntroEmitter.fire();
-      } else if (message.type === 'levelUpCardCaptured' && typeof message.dataUri === 'string') {
+      } else if (message.type === 'levelUpCardCaptured' && typeof message.dataUri === 'string' && typeof message.id === 'string') {
         this.onDidCaptureLevelUpCardEmitter.fire({
+          id: message.id,
           dataUri: message.dataUri,
           level: normalizeLevel(message.level),
         });
@@ -209,6 +257,8 @@ export class Provider implements vscode.WebviewViewProvider {
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
         this.syncWebviewState();
+        if (this.cardsReady) this.cardsReadyEmitter.fire();
+        void this.postFocusBreak();
       }
     });
 
@@ -344,12 +394,9 @@ export class Provider implements vscode.WebviewViewProvider {
     });
   }
 
-  public captureLevelUpCard(level: number): Thenable<boolean> {
-    return this.postMessage({
-      type: 'captureLevelUpCard',
-      level,
-      xp: this.xp,
-    });
+  public captureLevelUpCard(snapshot: CardSnapshot): Thenable<boolean> {
+    if (!this.cardsReady) return Promise.resolve(false);
+    return this.postMessage({ type: 'captureLevelUpCard', snapshot });
   }
 
   public showMilestoneReaction(reaction: BuddyMilestoneReaction): Thenable<boolean> {
@@ -446,6 +493,7 @@ export class Provider implements vscode.WebviewViewProvider {
   }
 
   private syncWebviewState(): void {
+    this.setDecorations(this.decorationItems);
     this.setColors(this.colors);
     this.setBackground(this.background);
     this.setFamily(this.family);
@@ -510,12 +558,12 @@ export class Provider implements vscode.WebviewViewProvider {
     .shell {
       min-width: 0;
       width: 100%;
-      min-height: 360px;
-      height: max(360px, 100vh);
+      min-height: 0;
+      height: 100vh;
       display: grid;
       align-content: stretch;
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(360px, 1fr);
+      grid-template-rows: minmax(0, 1fr);
       padding: 0;
     }
 
@@ -524,13 +572,26 @@ export class Provider implements vscode.WebviewViewProvider {
       place-items: end center;
       position: relative;
       height: 100%;
-      min-height: 360px;
+      min-height: 0;
       min-width: 0;
       padding: 8px 0;
       background: transparent;
       overflow: hidden;
     }
 
+    .card-overlay { box-sizing: border-box; width: calc(100% - 16px); max-width: 960px; max-height: calc(100vh - 16px); padding: 12px; overflow: auto; color: #fff1d4; background: #171b31; border: 4px solid #ffcd75; font: bold 12px monospace; }
+    .card-overlay::backdrop { background: #0e102bcc; }
+    .card-overlay header { position: sticky; top: -12px; z-index: 1; background: #171b31; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .card-overlay h2 { font: inherit; margin: 0 0 10px; }
+    .card-overlay button { cursor: pointer; border: 2px solid #9aa7bf; border-radius: 0; color: #fff1d4; background: #252c47; padding: 7px; font: inherit; }
+    .card-overlay button:focus-visible { outline: 2px solid #ffcd75; outline-offset: 2px; }
+    .card-overlay button:disabled { opacity: .4; cursor: default; }
+    .card-overlay nav { position: sticky; bottom: -12px; background: #171b31; padding: 8px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .card-overlay img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 8px; margin: 10px 0; }
+    .card-grid button { min-width: 0; text-align: left; }
+    .card-overlay [hidden] { display: none !important; }
+    .card-caption { overflow-wrap: anywhere; }
     .scene-background {
       position: absolute;
       inset: 0;
@@ -554,6 +615,11 @@ export class Provider implements vscode.WebviewViewProvider {
       pointer-events: none;
       z-index: 2;
     }
+    @keyframes focus-stretch { 0%,100% { transform: scale(1); } 40%,70% { transform: scale(.88,1.25); } }
+    body[data-focus-stretch="true"] .sprite-image { transform-origin: bottom center; animation: focus-stretch 1.4s steps(5); }
+    @media (prefers-reduced-motion: reduce) { body[data-focus-stretch="true"] .sprite-image { animation: none; } }
+    .decorations { position: absolute; inset: 0; pointer-events: none; }
+    .decorations canvas { position: absolute; bottom: 8px; width: 64px; height: 64px; image-rendering: pixelated; transform: translateX(-50%); }
     .family-members { position: absolute; inset: 0; pointer-events: none; }
     .family-member {
       pointer-events: auto;
@@ -894,6 +960,7 @@ export class Provider implements vscode.WebviewViewProvider {
         margin-bottom var(--vertical-duration, 0ms) cubic-bezier(0.18, 0.82, 0.26, 1);
       will-change: transform;
       position: relative;
+      z-index: 1;
       cursor: pointer;
     }
 
@@ -1546,10 +1613,18 @@ export class Provider implements vscode.WebviewViewProvider {
         <div class="speech-bubble" aria-live="polite" aria-atomic="true"><span></span></div>
         <img class="sprite-image" alt="" src="${spriteSources[initialSpriteState]}" />
       </div>
+      <div class="decorations" aria-hidden="true"></div>
       <div class="family-members" role="group" aria-label="Buddy family"></div>
       <img class="cookie-treat" alt="" src="${imageSources.cookie}" hidden />
     </section>
   </main>
+  <dialog class="card-overlay" aria-labelledby="card-heading">
+    <header><h2 id="card-heading">LEVEL UP</h2><button type="button" class="card-close" aria-label="Close cards">X</button></header>
+    <div class="card-view"><img class="card-preview" alt="" /><p class="card-caption"></p></div>
+    <div class="card-grid" hidden></div>
+    <nav aria-label="Card actions"><button class="card-previous">PREV</button><button class="card-next">NEXT</button><button class="card-open">OPEN IMAGE</button><button class="card-gallery">GALLERY</button></nav>
+    <p class="card-empty" hidden>No cards yet. Your next level-up will appear here.</p>
+  </dialog>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const spriteSources = ${JSON.stringify(spriteSources)};
@@ -1560,11 +1635,40 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentFamily = ${JSON.stringify(this.family)};
     const familyMembers = document.querySelector('.family-members');
     const familyActivity = new Map();
+    const socialOffset = ${socialOffset.toString()};
+    let familySocial, nextFamilySocial = performance.now() + 7000;
+    let familyBallCooldown = 0;
+    const drawDecoration = ${drawDecoration.toString()};
+    function setDecorations(items) {
+      const layer = document.querySelector('.decorations'); layer.replaceChildren();
+      for (const item of items) {
+        const canvas = document.createElement('canvas'); canvas.width=32; canvas.height=32;
+        canvas.style.left='clamp(32px, ' + item.x + '%, calc(100% - 32px))';
+        drawDecoration(canvas.getContext('2d'),item.id);layer.append(canvas);
+      }
+    }
+    setDecorations(${JSON.stringify(this.decorationItems)});
+    function updateFocusDeadline(endsAt) {
+      if (!focusIndicator) return;
+      const seconds = Math.max(0, Math.ceil((Number(endsAt) - Date.now()) / 1000));
+      focusIndicator.textContent = endsAt ? 'FOCUS ' + Math.floor(seconds/60) + ':' + String(seconds%60).padStart(2,'0') : 'FOCUS MODE ON';
+    }
+    function finishFocusSession() {
+      if (isDead || isFocusModeEnabled) return;
+      setState('idle');
+      document.body.dataset.focusStretch = 'true';
+      setTimeout(() => {
+        delete document.body.dataset.focusStretch;
+        if (isDead || isFocusModeEnabled) return;
+        showSpeechMessage('NICE WORK! STRETCH AND TAKE A BREAK', {lockBuddy:true,scheduleNextBreak:true,visibleMs:12000});
+      }, 1400);
+    }
     const chooseFamilyActivity = ${chooseFamilyActivity.toString()};
     const arrangeFamily = ${arrangeFamily.toString()};
     let familyTimer;
     let familyPausedAt;
     function renderFamily() {
+      familySocial = undefined;
       const count = currentFamily.hasPartner ? currentFamily.children + 1 : 0;
       while (familyMembers.children.length > count) {
         familyActivity.delete(familyMembers.lastElementChild);
@@ -1584,6 +1688,8 @@ export class Provider implements vscode.WebviewViewProvider {
           event.stopPropagation();
           if (isFocusModeEnabled) return;
           const activity = familyActivity.get(member);
+          familySocial = undefined;
+          nextFamilySocial = performance.now() + 12000;
           activity.state = 'idle';
           activity.reaction = 'love';
           activity.reactionUntil = performance.now() + 1600;
@@ -1601,6 +1707,8 @@ export class Provider implements vscode.WebviewViewProvider {
       const now = performance.now();
       if (document.hidden || isFocusModeEnabled) {
         if (familyPausedAt === undefined) familyPausedAt = now;
+        familySocial = undefined;
+        nextFamilySocial = now + 8000;
         updateFamilySprites();
         return;
       }
@@ -1612,11 +1720,29 @@ export class Provider implements vscode.WebviewViewProvider {
         familyPausedAt = undefined;
       }
       for (const activity of familyActivity.values()) {
+        if (familySocial?.pair.some(index => familyActivity.get(familyMembers.children[index]) === activity)) continue;
         if (now >= activity.nextAt) {
           const next = chooseFamilyActivity(activity.state, Math.random(), Math.random());
           activity.state = next.state;
           activity.nextAt = now + next.duration;
         }
+      }
+      if (familySocial && now >= familySocial.until) familySocial = undefined;
+      if (!familySocial && now >= nextFamilySocial) {
+        const members = [...familyMembers.children];
+        const awake = members.filter(member => familyActivity.get(member).state !== 'sleeping' && now >= familyActivity.get(member).reactionUntil);
+        if (awake.length >= 2) {
+          const pairs = awake.slice(0,-1).map((member,index) => [member,awake[index+1]]).filter(pair => pair[0].style.bottom === pair[1].style.bottom && members.indexOf(pair[1]) === members.indexOf(pair[0])+1);
+          if (pairs.length) {
+            const pair = pairs[Math.floor(Math.random()*pairs.length)].map(member => members.indexOf(member));
+            const kinds = ['greet','chase','curl'];
+            familySocial = {pair, kind:kinds[Math.floor(Math.random()*3)],started:now,until:now+6500};
+            for (const index of pair) familyActivity.get(members[index]).nextAt += 6500;
+          }
+        } else if (awake.length === 1 && !isDead) {
+          const activity = familyActivity.get(awake[0]); activity.reaction='love'; activity.reactionUntil=now+1500;
+        }
+        nextFamilySocial = now + 16000 + Math.random()*18000;
       }
       updateFamilySprites();
       if (familyMembers.children.length) familyTimer = setTimeout(tickFamily, 350);
@@ -1632,18 +1758,22 @@ export class Provider implements vscode.WebviewViewProvider {
       const members = [...familyMembers.children];
       const widths = members.map((member) => 95 * scale * (member.dataset.partner === 'true' ? 0.85 : 0.45));
       const positions = arrangeFamily(width, (actualCenter + targetCenter) / 2, 95 * scale + Math.abs(actualCenter - targetCenter), 140 * scale + 40 + Math.max(0, -spriteY), widths);
+      const offset = familySocial?.kind === 'chase' ? socialOffset(positions,widths,familySocial.pair,width,(actualCenter+targetCenter)/2,95*scale+Math.abs(actualCenter-targetCenter),Math.sin((performance.now()-familySocial.started)/600)) : 0;
       members.forEach((member, index) => {
         const activity = familyActivity.get(member);
         const wander = !isFocusModeEnabled && activity.state === 'walk' ? Math.sin(performance.now() / 700 + index) * 3 : 0;
-        member.style.left = (positions[index].x + wander) + 'px';
+        member.style.left = (positions[index].x + (familySocial?.pair.includes(index) ? offset : wander)) + 'px';
+        member.dataset.social = familySocial?.pair.includes(index) ? familySocial.kind : '';
         member.style.bottom = positions[index].bottom + 'px';
-        member.firstElementChild.style.transform = wander < 0 ? 'scaleX(-1)' : '';
+        const direction = familySocial?.kind === 'chase' && familySocial.pair.includes(index) ? Math.cos((performance.now()-familySocial.started)/600) : wander;
+        member.firstElementChild.style.transform = direction < 0 ? 'scaleX(-1)' : '';
       });
     }
     function updateFamilySprites() {
       for (const member of familyMembers.children) {
         const activity = familyActivity.get(member);
-        const state = isFocusModeEnabled ? 'sleeping' : performance.now() < activity.reactionUntil ? activity.reaction : activity.state;
+        const social = familySocial?.pair.includes([...familyMembers.children].indexOf(member)) ? familySocial.kind : undefined;
+        const state = isFocusModeEnabled ? 'sleeping' : performance.now() < activity.reactionUntil ? activity.reaction : social === 'curl' ? 'sleeping' : social === 'greet' ? 'love' : social === 'chase' ? 'walk' : activity.state;
         member.dataset.activity = state;
         const size = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
         const scale = (member.dataset.partner === 'true' ? 0.85 : 0.45) * buddySizeScales[buddySize];
@@ -2748,41 +2878,67 @@ export class Provider implements vscode.WebviewViewProvider {
       }, 4200);
     }
 
-    function captureLevelUpCard(level, xp = currentXp) {
-      const capturedLevel = Math.max(1, Number(level) || Number(xp?.level) || 1);
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = levelUpCardWidth;
-        canvas.height = levelUpCardHeight;
+    const cardDesign = ${cardDesign.toString()};
+    const drawPersonalCard = ${drawPersonalCard.toString()};
+    function captureLevelUpCard(snapshot) {
+      const canvas = document.createElement('canvas');
+      canvas.width = levelUpCardWidth; canvas.height = levelUpCardHeight;
+      loadLevelUpBuddyImage().then(buddyImage => {
         const context = canvas.getContext('2d');
-        if (!context) {
-          throw new Error('Canvas is not available');
-        }
+        if (!context) throw new Error('Canvas is not available');
+        drawPersonalCard(context, snapshot, buddyImage, cardDesign(snapshot.seed, snapshot.level), drawPixelScene);
+        vscode.postMessage({ type: 'levelUpCardCaptured', id: snapshot.id, level: snapshot.level, dataUri: canvas.toDataURL('image/png') });
+      }).catch(error => vscode.postMessage({ type: 'levelUpCardFailed', level: snapshot.level, error: String(error) }));
+    }
 
-        loadLevelUpBuddyImage()
-          .then((buddyImage) => {
-            drawLevelUpCard(context, capturedLevel, xp || currentXp, buddyImage);
-            vscode.postMessage({
-              type: 'levelUpCardCaptured',
-              level: capturedLevel,
-              dataUri: canvas.toDataURL('image/png'),
-            });
-          })
-          .catch((error) => {
-            vscode.postMessage({
-              type: 'levelUpCardFailed',
-              level: capturedLevel,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          });
-      } catch (error) {
-        vscode.postMessage({
-          type: 'levelUpCardFailed',
-          level: capturedLevel,
-          error: error instanceof Error ? error.message : String(error),
-        });
+    const cardOverlay = document.querySelector('.card-overlay');
+    let savedCards = [], selectedCard = 0, cardReturnFocus;
+    function displayCard(index) {
+      selectedCard = index;
+      cardOverlay.scrollTop = 0;
+      const card = savedCards[index];
+      if (!card) return;
+      document.querySelector('.card-grid').hidden = true;
+      document.querySelector('.card-view').hidden = false;
+      const preview = document.querySelector('.card-preview');
+      preview.src = card.imageUri; preview.alt = card.label;
+      document.querySelector('.card-caption').textContent = card.label;
+      document.querySelector('#card-heading').textContent = 'LEVEL ' + card.level + ' CARD';
+      document.querySelector('.card-previous').disabled = index === 0;
+      document.querySelector('.card-next').disabled = index === savedCards.length - 1;
+      document.querySelector('.card-open').disabled = false;
+    }
+    function showCards(cards, gallery) {
+      savedCards = cards;
+      cardOverlay.scrollTop = 0;
+      const grid = document.querySelector('.card-grid');
+      grid.replaceChildren();
+      document.querySelector('.card-empty').hidden = cards.length !== 0;
+      document.querySelector('.card-view').hidden = gallery || cards.length === 0;
+      grid.hidden = !gallery;
+      document.querySelector('#card-heading').textContent = 'LEVEL-UP GALLERY';
+      for (const card of cards) {
+        const button = document.createElement('button');
+        const image = document.createElement('img');
+        image.src = card.imageUri; image.alt = ''; image.loading = 'lazy';
+        button.append(image, document.createTextNode(card.label));
+        button.addEventListener('click', () => { displayCard(cards.indexOf(card)); document.querySelector('.card-open').focus(); });
+        grid.append(button);
+      }
+      for (const name of ['previous','next','open']) document.querySelector('.card-' + name).disabled = true;
+      if (!gallery && cards.length) displayCard(0);
+      if (!cardOverlay.open) {
+        cardReturnFocus = document.activeElement;
+        cardOverlay.showModal();
+        document.querySelector('.card-close').focus();
       }
     }
+    document.querySelector('.card-close').addEventListener('click', () => cardOverlay.close());
+    cardOverlay.addEventListener('close', () => cardReturnFocus?.focus());
+    document.querySelector('.card-previous').addEventListener('click', () => displayCard(Math.max(0, selectedCard - 1)));
+    document.querySelector('.card-next').addEventListener('click', () => displayCard(Math.min(savedCards.length - 1, selectedCard + 1)));
+    document.querySelector('.card-open').addEventListener('click', () => vscode.postMessage({type:'openCard',id:savedCards[selectedCard]?.id}));
+    document.querySelector('.card-gallery').addEventListener('click', () => vscode.postMessage({type:'openCardGallery'}));
 
     function loadLevelUpBuddyImage() {
       return new Promise((resolve) => {
@@ -2797,164 +2953,6 @@ export class Provider implements vscode.WebviewViewProvider {
         image.addEventListener('error', () => resolve(undefined), { once: true });
         image.src = source;
       });
-    }
-
-    function drawLevelUpCard(context, level, xp, buddyImage) {
-      const styles = getComputedStyle(document.documentElement);
-      const foreground = getCanvasColor(styles, '--vscode-sideBar-foreground', '#23262d');
-      const muted = getCanvasColor(styles, '--vscode-descriptionForeground', '#5f6470');
-      const panel = getCanvasColor(styles, '--vscode-sideBar-background', '#f6f8fb');
-      const border = getCanvasColor(styles, '--vscode-editorWidget-border', '#9aa4b2');
-      const accent = getCanvasColor(styles, '--vscode-button-background', '#2f7dff');
-      const progress = xp?.isMaxLevel ? 1 : Math.max(0, Math.min(1, Number(xp?.progress) || 0));
-
-      context.clearRect(0, 0, levelUpCardWidth, levelUpCardHeight);
-      context.fillStyle = panel;
-      context.fillRect(0, 0, levelUpCardWidth, levelUpCardHeight);
-
-      drawCardPattern(context, accent, border);
-      drawRoundedRect(context, 54, 54, levelUpCardWidth - 108, levelUpCardHeight - 108, 28, 'rgba(255, 255, 255, 0.72)', border);
-      drawRoundedRect(context, 80, 80, levelUpCardWidth - 160, levelUpCardHeight - 160, 22, panel, 'rgba(0, 0, 0, 0.16)');
-
-      context.fillStyle = accent;
-      context.font = '700 34px "Courier New", monospace';
-      context.fillText('BUDDY LEVEL UP', 130, 154);
-
-      context.fillStyle = foreground;
-      context.font = '900 92px "Courier New", monospace';
-      context.fillText('LEVEL ' + level, 128, 254);
-
-      context.fillStyle = muted;
-      context.font = '700 28px "Courier New", monospace';
-      const progressText = xp?.isMaxLevel ? 'Max level reached' : (Number(xp?.currentLevelXp) || 0) + '/' + (Number(xp?.nextLevelXp) || 0) + ' XP to next level';
-      context.fillText(progressText, 132, 312);
-
-      drawRoundedRect(context, 132, 342, 430, 30, 15, 'rgba(0, 0, 0, 0.14)');
-      drawRoundedRect(context, 138, 348, Math.max(18, 418 * progress), 18, 9, accent);
-
-      context.fillStyle = accent;
-      context.font = '700 20px "Courier New", monospace';
-      context.fillText(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(), 132, 422);
-
-      drawBuddyCardSprite(context, buddyImage, accent);
-      drawSparkles(context, accent, foreground);
-    }
-
-    function getCanvasColor(styles, property, fallback) {
-      const value = styles.getPropertyValue(property).trim();
-      return value || fallback;
-    }
-
-    function drawCardPattern(context, accent, border) {
-      context.save();
-      context.globalAlpha = 0.14;
-      context.fillStyle = accent;
-      for (let y = -40; y < levelUpCardHeight; y += 56) {
-        for (let x = -40; x < levelUpCardWidth; x += 56) {
-          context.fillRect(x + ((y / 56) % 2) * 28, y, 18, 18);
-        }
-      }
-      context.globalAlpha = 0.16;
-      context.strokeStyle = border;
-      context.lineWidth = 2;
-      for (let x = -levelUpCardHeight; x < levelUpCardWidth; x += 72) {
-        context.beginPath();
-        context.moveTo(x, 0);
-        context.lineTo(x + levelUpCardHeight, levelUpCardHeight);
-        context.stroke();
-      }
-      context.restore();
-    }
-
-    function drawRoundedRect(context, x, y, width, height, radius, fill, stroke) {
-      context.beginPath();
-      context.moveTo(x + radius, y);
-      context.lineTo(x + width - radius, y);
-      context.quadraticCurveTo(x + width, y, x + width, y + radius);
-      context.lineTo(x + width, y + height - radius);
-      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      context.lineTo(x + radius, y + height);
-      context.quadraticCurveTo(x, y + height, x, y + height - radius);
-      context.lineTo(x, y + radius);
-      context.quadraticCurveTo(x, y, x + radius, y);
-      context.closePath();
-      if (fill) {
-        context.fillStyle = fill;
-        context.fill();
-      }
-      if (stroke) {
-        context.strokeStyle = stroke;
-        context.lineWidth = 3;
-        context.stroke();
-      }
-    }
-
-    function drawBuddyCardSprite(context, buddyImage, accent) {
-      drawRoundedRect(context, 654, 388, 190, 24, 12, 'rgba(0, 0, 0, 0.16)');
-
-      if (!buddyImage?.naturalWidth || !buddyImage?.naturalHeight) {
-        drawPixelBuddyFallback(context, 656, 156, 8, accent);
-        return;
-      }
-
-      const maxWidth = 230;
-      const maxHeight = 290;
-      const scale = Math.min(maxWidth / buddyImage.naturalWidth, maxHeight / buddyImage.naturalHeight);
-      const width = Math.round(buddyImage.naturalWidth * scale);
-      const height = Math.round(buddyImage.naturalHeight * scale);
-      const x = Math.round(748 - width / 2);
-      const y = Math.round(386 - height);
-      context.save();
-      context.imageSmoothingEnabled = false;
-      context.drawImage(buddyImage, x, y, width, height);
-      context.restore();
-    }
-
-    function drawPixelBuddyFallback(context, x, y, scale, accent) {
-      const px = (column, row, width, height, color) => {
-        context.fillStyle = color;
-        context.fillRect(x + column * scale, y + row * scale, width * scale, height * scale);
-      };
-      const pink = '#ff5f8a';
-      const pinkDark = '#cf3f6a';
-      const cream = '#ffcfdd';
-      const ink = '#23262d';
-      const white = '#ffffff';
-
-      px(3, 0, 3, 2, pinkDark);
-      px(12, 0, 3, 2, pinkDark);
-      px(2, 2, 5, 3, pink);
-      px(11, 2, 5, 3, pink);
-      px(4, 4, 10, 3, pink);
-      px(2, 7, 14, 8, pink);
-      px(4, 10, 10, 5, cream);
-      px(5, 9, 2, 2, ink);
-      px(11, 9, 2, 2, ink);
-      px(8, 12, 2, 1, ink);
-      px(6, 15, 6, 2, pinkDark);
-      px(3, 17, 12, 4, pink);
-      px(1, 19, 4, 2, pinkDark);
-      px(13, 19, 4, 2, pinkDark);
-      px(5, 21, 3, 2, ink);
-      px(10, 21, 3, 2, ink);
-      px(13, 2, 1, 1, white);
-      px(3, 26, 12, 2, accent);
-    }
-
-    function drawSparkles(context, accent, foreground) {
-      const sparkle = (x, y, size, color) => {
-        context.fillStyle = color;
-        context.fillRect(x, y + size, size, size);
-        context.fillRect(x + size, y, size, size);
-        context.fillRect(x + size, y + size, size, size);
-        context.fillRect(x + size, y + size * 2, size, size);
-        context.fillRect(x + size * 2, y + size, size, size);
-      };
-
-      sparkle(622, 114, 10, accent);
-      sparkle(846, 158, 8, foreground);
-      sparkle(610, 356, 7, foreground);
-      sparkle(812, 392, 11, accent);
     }
 
     function setHealth(health, options = {}) {
@@ -4066,7 +4064,13 @@ export class Provider implements vscode.WebviewViewProvider {
     window.addEventListener('pagehide', () => clearTimeout(familyTimer));
     window.addEventListener('message', (event) => {
       const message = event.data;
-      if (message.type === 'setColors') {
+      if (message.type === 'setDecorations') {
+        setDecorations(message.items);
+      } else if (message.type === 'focusDeadline') {
+        updateFocusDeadline(message.endsAt);
+      } else if (message.type === 'focusComplete') {
+        finishFocusSession();
+      } else if (message.type === 'setColors') {
         setColors(message.colors);
       } else if (message.type === 'toggleBall') {
         if (ball) removeBall(); else spawnBall();
@@ -4103,7 +4107,9 @@ export class Provider implements vscode.WebviewViewProvider {
       } else if (message.type === 'showDailyQuestReward') {
         showDailyQuestReward(message.reward);
       } else if (message.type === 'captureLevelUpCard') {
-        captureLevelUpCard(message.level, message.xp);
+        captureLevelUpCard(message.snapshot);
+      } else if (message.type === 'showCards') {
+        showCards(message.cards, message.gallery);
       } else if (message.type === 'playHeartFill') {
         playHeartFill(message.heartIndex);
       } else if (message.type === 'spawnCookie') {
@@ -4194,6 +4200,20 @@ export class Provider implements vscode.WebviewViewProvider {
       ballLastTime = time;
       const bounds = stage.getBoundingClientRect();
       if (ballPlay.phase !== 'mouth') ball = stepBall(ball, bounds.width, Math.max(16, bounds.height - 8), dt);
+      if (ballPlay.phase === 'watch' && time > familyBallCooldown && ball.y < 30) {
+        for (const member of familyMembers.children) {
+          const activity = familyActivity.get(member);
+          if (member.dataset.activity === 'sleeping' || familySocial?.kind === 'curl') continue;
+          const box = member.getBoundingClientRect();
+          const x = box.left + box.width/2 - bounds.left;
+          if (Math.abs(x-ball.x) < box.width/2+12 && Math.abs(bounds.bottom-box.bottom-8) < 12) {
+            ball.vx = x < bounds.width/2 ? 130 : -130; ball.vy = 160;
+            familyBallCooldown = time + 2200;
+            activity.reaction='happy';activity.reactionUntil=performance.now()+1300;
+            updateFamilySprites();break;
+          }
+        }
+      }
       const result = stepBallPlay(ballPlay, ball, walkX, bounds.width, getWalkLimit(), dt);
       ballPlay = result.play;
       ball = result.ball;
@@ -4281,6 +4301,7 @@ export class Provider implements vscode.WebviewViewProvider {
     setCareSettings(${JSON.stringify(careSettings)});
     setFocusMode(${JSON.stringify(this.isFocusModeEnabled)});
     scheduleLifeCounterTick();
+    vscode.postMessage({ type: 'cardsReady' });
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
