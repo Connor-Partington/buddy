@@ -2,14 +2,14 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.8.1-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
 ## Preview
 
 <p align="left">
-  <img src="assets/images/buddy-demo.gif" alt="Buddy feature demo" style="width: 100%; max-width: 720px; height: auto;">
+  <img src="assets/images/buddy-demo.gif" alt="Buddy 0.9.0: family, ball play, colors, and pixel backgrounds" style="width: 100%; max-width: 720px; height: auto;">
 </p>
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
@@ -28,6 +28,10 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 
 ## Features
 
+- A saved partner and up to four mini Buddys, with independent activities, naps, and click reactions.
+- A bouncing ball Buddy can stalk, pounce on, catch, and spit back into the air.
+- Eight adaptive pixel backgrounds, custom image imports, and nine saved companion colors.
+- A scene-only panel with matching toolbar icons, a smaller default Buddy, and automatic opening on startup.
 - Animated sidebar companion that reacts to editing, navigation, saves, terminal commands, Git commits, and pushes.
 - Three-heart health, treats, automatic care and celebration drops, gold heart shields, death/revive behavior, and a persistent life counter.
 - XP, levels up to 100, coffee boosts, daily quests, level-up cards, and configurable milestone reactions.
@@ -53,7 +57,9 @@ Download the latest `.vsix` package from the [GitHub releases](https://github.co
 
 ## Using Buddy
 
-After installing Buddy, open the Command Palette:
+Buddy starts at the smaller size; Toggle Size switches to the larger size and remembers your choice. Buddy opens automatically when VS Code starts or reloads. Disable `buddy.openOnStartup` to keep manual control. The content has a minimum scene height of 360 px, with vertical scrolling in shorter containers. Its width follows your sidebar. VS Code controls the outer sidebar size.
+
+To open Buddy manually, open the Command Palette:
 
 ```text
 Ctrl+Shift+P on Windows/Linux
@@ -66,18 +72,35 @@ Buddy tracks health, attention, XP, daily quests, care streaks, milestones, focu
 
 Care difficulty is configurable in VS Code settings. You can tune active VS Code heart drain timing, break prompt timing, XP gain multiplier, death penalty, and whether Buddy can die.
 
+Use the **Manage Family** icon in the panel toolbar: **Spawn partner**, then **Have a kid** to add up to four mini Buddys. The family is saved across reloads. Click a family member for a love animation; **Buddy: Clear Family** in the Command Palette removes the partner and kids. Family members independently look around, fidget, celebrate, and nap on different schedules. Clicking one wakes it for a love reaction. Focus Mode settles everyone down; spacing reserves room for sleep animations and uses another row in narrow panels. There is no separate health or XP to maintain.
+
+Use the **ball icon** in the panel toolbar to give Buddy a toy that gradually bounces and rolls to a stop. Buddy takes turns watching it settle, stalking and pouncing on it, nudging it, or catching it in his mouth and spitting it into the air. Click it again to remove the ball. Feeding, breaks, death, and Focus Mode end ball play so those actions can take over.
+
+Use **Buddy: Choose Background** in the panel’s **…** menu or Command Palette to select adaptive pixel scenes—meadow, night, cherry blossom garden, Japanese temple, space station, neon city, underwater reef, and mushroom forest—or your own PNG/JPEG/WebP/GIF image (up to 10 MB). Custom images are copied into Buddy’s local extension storage and saved across reloads. Choose **Change image scaling…** for **Fill panel**, **Fit whole image**, or **Tile pixels**. Fill preserves proportions and crops edges; Fit shows the whole image; Tile repeats it at 4× pixel scale. Select **Theme background** to restore the default. In an SSH window, the image picker and storage use the extension’s host filesystem.
+
 ## Actions
 
 - Command-click inside the Buddy panel to offer a cookie at that spot.
 - Use the <img src="media/cookie-dark.png" alt="cookie icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to feed Buddy.
 - Use the <img src="media/revive-dark.png" alt="revive icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to revive Buddy.
-- Use the <img src="media/death-dark.png" alt="death icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to kill Buddy.
-- Use the <img src="media/break-dark.png" alt="break prompt icon" width="16" height="16" valign="middle"> icon in the Buddy panel title bar to toggle the break prompt.
+
+The toolbar contains Cookie, Revive, Ball, and Manage Family. Death and break-prompt actions remain available through the Command Palette.
+
+Use **Buddy: Change Colors** in the Command Palette or the panel’s **…** menu to recolor Buddy, his partner, all kids, or everyone together. Choose from nine sprite tints; choices persist across reloads and apply to future family members. **Restore default colors** brings back green Buddy/kids and the blue partner.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
+| `Buddy: Spawn / Remove Ball` | Toggles the bouncing ball from the toolbar. |
+| `Buddy: Change Colors` | Chooses and saves colors for Buddy, partner, kids, or everyone; can restore defaults. |
+| `Buddy: Manage Family` | Opens partner and kid actions. |
+| `Buddy: Spawn Ball` | Starts a bouncing ball for Buddy to chase in the open panel. |
+| `Buddy: Remove Ball` | Ends ball play. |
+| `Buddy: Choose Background` | Selects a pixel scene, imports an image, or changes image scaling. |
+| `Buddy: Spawn Partner` | Adds one partner and opens the sidebar. |
+| `Buddy: Have a Kid` | Adds a mini Buddy after a partner is present, up to four kids. |
+| `Buddy: Clear Family` | Removes the partner and all mini Buddys. |
 | `Buddy: Show Sidebar` | Opens the Buddy Activity Bar view. |
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
 | `Buddy: Preview Animations` | Runs a temporary story preview from Buddy's birth and greeting through movement, look, thinking, jump, happy, size, break, care, quests, coffee XP boost, level up, milestone cake, gold heart, death, revive, and sleep without changing persisted Buddy stats. |
@@ -97,7 +120,7 @@ Care difficulty is configurable in VS Code settings. You can tune active VS Code
 | `Buddy: Open Level-Up Gallery` | Lists locally saved level-up cards and opens the selected card image. |
 | `Buddy: Kill` | Drains all hearts to trigger Buddy's death state. |
 | `Buddy: Revive` | Plays Buddy's revive animation and restores three hearts after death. |
-| `Buddy: Toggle Size` | Switches Buddy between default and small sizes. |
+| `Buddy: Toggle Size` | Switches Buddy between small (the starting size) and large; your choice is saved. |
 | `Buddy: Set State Idle` | Shows the idle state. |
 | `Buddy: Set State Typing` | Shows the typing state. |
 | `Buddy: Set State Searching` | Shows the searching state. |
@@ -129,14 +152,15 @@ npm run watch
 Before sharing a build, compile and package a VSIX:
 
 ```bash
-npm run compile
+npm test
+npm run lint
 npm run package
 ```
 
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.8.1.vsix --force
+code --install-extension buddy-ide-companion-0.9.0.vsix --force
 ```
 
 To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:
@@ -146,6 +170,14 @@ npm run demo
 ```
 
 The demo opens the Buddy sidebar and automatically runs through state changes, one-heart loss, cookie recovery, the break prompt, XP bursts, death, and revive. Keep the Extension Development Host open while it plays.
+
+### Release without GitHub Actions
+
+Build and validate locally with the commands above. Push the release commit, then create a GitHub release and attach the generated VSIX. GitHub Actions workflows are manual-only; no Actions run is needed to build or publish a release.
+
+To update the Marketplace, sign in to [Manage Publishers](https://marketplace.visualstudio.com/manage/publishers/connor-partington), open Buddy’s **… → Update**, and upload the same VSIX. The package includes this README, feature guide, changelog, and preview GIF. A manual upload needs no API token. For CLI publishing, use `vsce login connor-partington` with an Azure DevOps personal access token scoped to **Marketplace (Manage)**, then `vsce publish --packagePath buddy-ide-companion-0.9.0.vsix`. Never commit tokens.
+
+The release preview is rendered from the compiled panel, with temporary demo state. Run `npm run compile && node scripts/build-preview.cjs`, serve the repository locally, and open `out/preview/index.html` to record it. It does not touch your saved Buddy state.
 
 ## License
 

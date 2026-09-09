@@ -1,9 +1,7 @@
 name: Release
 
+# Run manually only; releases are built and uploaded locally.
 on:
-  push:
-    tags:
-      - "v*.*.*"
   workflow_dispatch:
 
 permissions:

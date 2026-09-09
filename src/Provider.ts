@@ -1,4 +1,11 @@
 import * as vscode from 'vscode';
+import { stepBallPlay } from './ballPlay';
+import { arrangeFamily, chooseFamilyActivity } from './familyBehavior';
+import { buddyColorPresets, defaultBuddyColors, type BuddyColors } from './colorSettings';
+import { drawPixelScene } from './pixelBackgrounds';
+import { stepBall } from './ballPhysics';
+import { type BuddyBackground } from './backgroundSettings';
+import { type BuddyFamily } from './familyManager';
 
 import { BuddyAttention } from './attentionManager';
 import { BuddyCareSettings, defaultBuddyCareSettings, getBreakPromptIntervalMs } from './careSettings';
@@ -86,8 +93,41 @@ export class Provider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'buddy.companion';
 
   private webviewView?: vscode.WebviewView;
+  private background: BuddyBackground = { kind: 'none', fit: 'cover' };
+
+  public setBackground(background: BuddyBackground): void {
+    this.background = background;
+    this.postMessage({ type: 'setBackground', background: this.getBackgroundMessage() });
+  }
+
+  private getBackgroundMessage() {
+    return {
+      ...this.background,
+      imageUri: this.background.imageUri && this.webviewView
+        ? this.webviewView.webview.asWebviewUri(vscode.Uri.parse(this.background.imageUri)).toString() : undefined,
+    };
+  }
+
+  public spawnBall(): Thenable<boolean> { return this.postMessage({ type: 'spawnBall' }); }
+  public toggleBall(): Thenable<boolean> { return this.postMessage({ type: 'toggleBall' }); }
+  public removeBall(): void { this.postMessage({ type: 'removeBall' }); }
+
+  private colors: BuddyColors = { ...defaultBuddyColors };
+
+  public setColors(colors: BuddyColors): void {
+    this.colors = colors;
+    this.postMessage({ type: 'setColors', colors });
+  }
+
+  private family: BuddyFamily = { hasPartner: false, children: 0 };
+
+  public setFamily(family: BuddyFamily): void {
+    this.family = family;
+    this.postMessage({ type: 'setFamily', family });
+  }
+
   private state: BuddyState = 'idle';
-  private buddySize: BuddySize = 'default';
+  private buddySize: BuddySize = 'small';
   private health: BuddyHealth = {
     hearts: maxBuddyHearts,
     goldHearts: 0,
@@ -126,6 +166,7 @@ export class Provider implements vscode.WebviewViewProvider {
   public constructor(
     private readonly extensionUri: vscode.Uri,
     shouldPlayIntro: boolean,
+    private readonly storageUri?: vscode.Uri,
   ) {
     this.shouldPlayIntro = shouldPlayIntro;
   }
@@ -134,7 +175,7 @@ export class Provider implements vscode.WebviewViewProvider {
     this.webviewView = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this.extensionUri],
+      localResourceRoots: [this.extensionUri, ...(this.storageUri ? [this.storageUri] : [])],
     };
     webviewView.webview.onDidReceiveMessage((message: WebviewMessage) => {
       if (message.type === 'foodEaten') {
@@ -405,6 +446,9 @@ export class Provider implements vscode.WebviewViewProvider {
   }
 
   private syncWebviewState(): void {
+    this.setColors(this.colors);
+    this.setBackground(this.background);
+    this.setFamily(this.family);
     this.syncHealth();
     this.postState();
     this.postBuddySize();
@@ -455,7 +499,7 @@ export class Provider implements vscode.WebviewViewProvider {
     body {
       height: 100vh;
       margin: 0;
-      overflow: hidden;
+      overflow: auto;
       color: var(--vscode-sideBar-foreground);
       background: var(--vscode-sideBar-background);
       font-family: var(--vscode-font-family);
@@ -464,9 +508,14 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     .shell {
-      height: 100vh;
+      min-width: 0;
+      width: 100%;
+      min-height: 360px;
+      height: max(360px, 100vh);
       display: grid;
       align-content: stretch;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(360px, 1fr);
       padding: 0;
     }
 
@@ -474,12 +523,54 @@ export class Provider implements vscode.WebviewViewProvider {
       display: grid;
       place-items: end center;
       position: relative;
-      height: 100vh;
-      min-height: 0;
+      height: 100%;
+      min-height: 360px;
+      min-width: 0;
       padding: 8px 0;
       background: transparent;
       overflow: hidden;
     }
+
+    .scene-background {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      image-rendering: pixelated;
+    }
+    .custom-background { object-position: center bottom; }
+    .scene-background[hidden] { display: none; }
+    .play-ball {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 16px;
+      height: 16px;
+      background: #ffbc53;
+      border: 3px solid #ed6753;
+      box-shadow: inset 3px 3px #fff0ad, inset -3px -3px #af3d51;
+      clip-path: polygon(25% 0,75% 0,75% 12%,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%,25% 12%);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .family-members { position: absolute; inset: 0; pointer-events: none; }
+    .family-member {
+      pointer-events: auto;
+      position: absolute;
+      bottom: 8px;
+      transform: translateX(-50%);
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      z-index: 1;
+    }
+    .family-member:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+    .family-member img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .sprite-image { filter: hue-rotate(var(--buddy-hue, 0deg)); }
+    .family-member img { filter: hue-rotate(var(--children-hue, 0deg)); }
+    .family-member[data-partner="true"] img { filter: hue-rotate(var(--partner-hue, 110deg)); }
 
     .health-meter {
       position: absolute;
@@ -793,7 +884,7 @@ export class Provider implements vscode.WebviewViewProvider {
     .frame-stage {
       display: grid;
       place-items: end center;
-      width: min(var(--sprite-display-width, ${spriteDisplaySizes[this.state].width}), 100%, calc((100vh - 16px) * var(--sprite-aspect-ratio, ${spriteDisplaySizes[this.state].aspectRatio})));
+      width: min(var(--sprite-display-width, ${spriteDisplaySizes[this.state].width}), 100%);
       aspect-ratio: var(--sprite-aspect-ratio, ${spriteDisplaySizes[this.state].aspectRatio});
       align-self: end;
       transform: translateX(var(--walk-x, 0px));
@@ -1408,6 +1499,9 @@ export class Provider implements vscode.WebviewViewProvider {
 <body data-state="${this.state}" data-dead="${health.isDead}" data-death-phase="${health.isDead ? 'soul' : 'alive'}" data-intro-phase="${shouldPlayIntro ? 'spawning' : 'done'}" data-focus-mode="${this.isFocusModeEnabled}">
   <main class="shell">
     <section class="stage" aria-label="Buddy companion">
+      <canvas class="scene-background" aria-hidden="true" hidden></canvas>
+      <img class="scene-background custom-background" alt="" hidden />
+      <div class="play-ball" role="img" aria-label="Bouncing ball" hidden></div>
       <div class="health-meter" aria-label="Buddy health">
         ${renderHearts(0, imageSources)}
       </div>
@@ -1452,6 +1546,7 @@ export class Provider implements vscode.WebviewViewProvider {
         <div class="speech-bubble" aria-live="polite" aria-atomic="true"><span></span></div>
         <img class="sprite-image" alt="" src="${spriteSources[initialSpriteState]}" />
       </div>
+      <div class="family-members" role="group" aria-label="Buddy family"></div>
       <img class="cookie-treat" alt="" src="${imageSources.cookie}" hidden />
     </section>
   </main>
@@ -1462,6 +1557,102 @@ export class Provider implements vscode.WebviewViewProvider {
     const baseSpriteDisplaySizes = ${JSON.stringify(getSpriteDisplaySizes())};
     const buddySizeScales = ${JSON.stringify(buddySizeScales)};
     const spriteDisplaySizes = ${JSON.stringify(spriteDisplaySizes)};
+    let currentFamily = ${JSON.stringify(this.family)};
+    const familyMembers = document.querySelector('.family-members');
+    const familyActivity = new Map();
+    const chooseFamilyActivity = ${chooseFamilyActivity.toString()};
+    const arrangeFamily = ${arrangeFamily.toString()};
+    let familyTimer;
+    let familyPausedAt;
+    function renderFamily() {
+      const count = currentFamily.hasPartner ? currentFamily.children + 1 : 0;
+      while (familyMembers.children.length > count) {
+        familyActivity.delete(familyMembers.lastElementChild);
+        familyMembers.lastElementChild.remove();
+      }
+      while (familyMembers.children.length < count) {
+        const index = familyMembers.children.length;
+        const member = document.createElement('button');
+        member.className = 'family-member';
+        member.dataset.partner = String(index === 0);
+        member.setAttribute('aria-label', index === 0 ? 'Buddy partner: show love' : 'Mini Buddy ' + index + ': show love');
+        member.title = index === 0 ? 'Partner' : 'Mini Buddy ' + index;
+        member.appendChild(document.createElement('img'));
+        member.firstElementChild.alt = '';
+        familyActivity.set(member, { state: 'idle', nextAt: performance.now() + 4000 + index * 2100 + Math.random() * 1500, reaction: 'spawn', reactionUntil: performance.now() + 1600 });
+        member.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (isFocusModeEnabled) return;
+          const activity = familyActivity.get(member);
+          activity.state = 'idle';
+          activity.reaction = 'love';
+          activity.reactionUntil = performance.now() + 1600;
+          activity.nextAt = performance.now() + 5000 + Math.random() * 5000;
+          updateFamilySprites();
+        });
+        member.addEventListener('dblclick', (event) => event.stopPropagation());
+        familyMembers.appendChild(member);
+      }
+      tickFamily();
+    }
+    function tickFamily() {
+      clearTimeout(familyTimer);
+      familyTimer = undefined;
+      const now = performance.now();
+      if (document.hidden || isFocusModeEnabled) {
+        if (familyPausedAt === undefined) familyPausedAt = now;
+        updateFamilySprites();
+        return;
+      }
+      if (familyPausedAt !== undefined) {
+        for (const activity of familyActivity.values()) {
+          activity.nextAt += now - familyPausedAt;
+          activity.reactionUntil += now - familyPausedAt;
+        }
+        familyPausedAt = undefined;
+      }
+      for (const activity of familyActivity.values()) {
+        if (now >= activity.nextAt) {
+          const next = chooseFamilyActivity(activity.state, Math.random(), Math.random());
+          activity.state = next.state;
+          activity.nextAt = now + next.duration;
+        }
+      }
+      updateFamilySprites();
+      if (familyMembers.children.length) familyTimer = setTimeout(tickFamily, 350);
+    }
+    function updateFamilyLayout() {
+      if (!familyMembers.children.length) return;
+      const bounds = stage.getBoundingClientRect();
+      const width = bounds.width;
+      const mainBounds = spriteStage.getBoundingClientRect();
+      const actualCenter = mainBounds.left + mainBounds.width / 2 - bounds.left;
+      const targetCenter = width / 2 + walkX;
+      const scale = buddySizeScales[buddySize];
+      const members = [...familyMembers.children];
+      const widths = members.map((member) => 95 * scale * (member.dataset.partner === 'true' ? 0.85 : 0.45));
+      const positions = arrangeFamily(width, (actualCenter + targetCenter) / 2, 95 * scale + Math.abs(actualCenter - targetCenter), 140 * scale + 40 + Math.max(0, -spriteY), widths);
+      members.forEach((member, index) => {
+        const activity = familyActivity.get(member);
+        const wander = !isFocusModeEnabled && activity.state === 'walk' ? Math.sin(performance.now() / 700 + index) * 3 : 0;
+        member.style.left = (positions[index].x + wander) + 'px';
+        member.style.bottom = positions[index].bottom + 'px';
+        member.firstElementChild.style.transform = wander < 0 ? 'scaleX(-1)' : '';
+      });
+    }
+    function updateFamilySprites() {
+      for (const member of familyMembers.children) {
+        const activity = familyActivity.get(member);
+        const state = isFocusModeEnabled ? 'sleeping' : performance.now() < activity.reactionUntil ? activity.reaction : activity.state;
+        member.dataset.activity = state;
+        const size = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
+        const scale = (member.dataset.partner === 'true' ? 0.85 : 0.45) * buddySizeScales[buddySize];
+        member.style.width = Math.min(parseFloat(size.width) * scale, Math.max(1, stage.clientWidth - 12)) + 'px';
+        const source = spriteSources[state] || spriteSources.idle;
+        if (member.firstElementChild.getAttribute('src') !== source) member.firstElementChild.src = source;
+      }
+      updateFamilyLayout();
+    }
     const stage = document.querySelector('.stage');
     const healthMeter = document.querySelector('.health-meter');
     const lifeCounter = document.querySelector('.life-counter');
@@ -1627,6 +1818,7 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
+      updateFamilySprites();
       visibleSpriteState = state;
       const source = spriteSources[state] || spriteSources.idle;
       const displaySize = getSpriteDisplaySize(state);
@@ -1695,6 +1887,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function applyWalkPosition(durationMs = 0) {
+      updateFamilyLayout();
       if (!spriteStage) {
         return;
       }
@@ -1861,6 +2054,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function playIntroSequence(options = {}) {
+      removeBall();
       if (!isIntroPlaying || isDead) {
         return;
       }
@@ -1986,7 +2180,9 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setFocusMode(enabled) {
+      if (enabled) removeBall();
       isFocusModeEnabled = Boolean(enabled);
+      tickFamily();
       document.body.dataset.focusMode = String(isFocusModeEnabled);
       if (focusIndicator) {
         focusIndicator.hidden = !isFocusModeEnabled;
@@ -2047,6 +2243,7 @@ export class Provider implements vscode.WebviewViewProvider {
       isBreakPromptActive = Boolean(options.lockBuddy);
 
       if (options.lockBuddy) {
+        removeBall();
         clearClickReaction();
         clearRandomWalk();
         currentState = 'idle';
@@ -2763,6 +2960,7 @@ export class Provider implements vscode.WebviewViewProvider {
     function setHealth(health, options = {}) {
       const hearts = Math.max(0, Math.min(${maxBuddyHearts}, Number(health?.hearts) || 0));
       const goldHearts = Math.max(0, Math.min(${maxBuddyGoldHearts}, Number(health?.goldHearts) || 0));
+      if (health?.isDead || hearts === 0) removeBall();
       const wasDead = isDead;
       const healthDidChange = hearts !== currentHearts || goldHearts !== currentGoldHearts || Boolean(health?.isDead || hearts <= 0) !== isDead;
       const lostHeart = hearts < previousHearts || goldHearts < previousGoldHearts;
@@ -3153,6 +3351,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function isLookEligible() {
+      if (ball) return false;
       const visibleState = getVisibleSpriteState();
       return !isDead
         && !isReviving
@@ -3315,6 +3514,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function scheduleRandomWalk() {
+      if (ball) return;
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || activeLookState || walkTimer || (currentState !== 'idle' && currentState !== 'sleeping')) {
         return;
       }
@@ -3367,6 +3567,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function returnToCenter() {
+      removeBall();
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive() || !spriteImage || !spriteStage) {
         return;
       }
@@ -3452,6 +3653,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function moveBuddyToPanelTarget(targetX) {
+      removeBall();
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive() || !spriteImage || !spriteStage) {
         return;
       }
@@ -3551,6 +3753,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function spawnCookie(targetX, food = 'cookie') {
+      removeBall();
       if (!cookieTreat) {
         return;
       }
@@ -3769,7 +3972,7 @@ export class Provider implements vscode.WebviewViewProvider {
 
     function setBuddySize(size) {
       preserveSpriteCenter(() => {
-        buddySize = buddySizeScales[size] ? size : 'default';
+        buddySize = buddySizeScales[size] ? size : 'small';
         vscode.setState({
           state: document.body.dataset.state || 'idle',
           buddySize,
@@ -3780,6 +3983,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function setState(state) {
+      if (ball) { lastState = state; return; }
       if (isFocusModeEnabled) {
         clearLookReaction({ resumeWalk: false });
         lastState = state;
@@ -3817,6 +4021,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function triggerBuddyClick() {
+      removeBall();
       if (isDead || isReviving || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive()) {
         return;
       }
@@ -3857,9 +4062,25 @@ export class Provider implements vscode.WebviewViewProvider {
     });
     document.addEventListener('mouseleave', handlePointerExit);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', tickFamily);
+    window.addEventListener('pagehide', () => clearTimeout(familyTimer));
     window.addEventListener('message', (event) => {
       const message = event.data;
-      if (message.type === 'setState') {
+      if (message.type === 'setColors') {
+        setColors(message.colors);
+      } else if (message.type === 'toggleBall') {
+        if (ball) removeBall(); else spawnBall();
+      } else if (message.type === 'spawnBall') {
+        spawnBall();
+      } else if (message.type === 'removeBall') {
+        removeBall();
+      } else if (message.type === 'setBackground') {
+        sceneBackground = message.background;
+        drawBackground();
+      } else if (message.type === 'setFamily') {
+        currentFamily = message.family;
+        renderFamily();
+      } else if (message.type === 'setState') {
         setState(message.state);
       } else if (message.type === 'setBuddySize') {
         setBuddySize(message.size);
@@ -3914,6 +4135,139 @@ export class Provider implements vscode.WebviewViewProvider {
       }
     });
 
+    const colorPresets = ${JSON.stringify(buddyColorPresets)};
+    function setColors(colors) {
+      for (const target of ['buddy', 'partner', 'children']) {
+        const preset = colorPresets.find((color) => color.id === colors[target]);
+        document.body.style.setProperty('--' + target + '-hue', (preset?.rotation ?? 0) + 'deg');
+      }
+    }
+    setColors(${JSON.stringify(this.colors)});
+    const stepBall = ${stepBall.toString()};
+    const stepBallPlay = ${stepBallPlay.toString()};
+    const drawPixelScene = ${drawPixelScene.toString()};
+    const ballElement = document.querySelector('.play-ball');
+    let ball;
+    let ballFrame;
+    let ballLastTime = 0;
+    let ballPlay;
+    let sceneBackground = ${JSON.stringify(this.getBackgroundMessage())};
+    const backgroundCanvas = document.querySelector('canvas.scene-background');
+    const backgroundImage = document.querySelector('.custom-background');
+    let loadedBackgroundSource;
+
+    function removeBall() {
+      const wasPlaying = Boolean(ball);
+      ball = undefined;
+      if (ballFrame !== undefined) cancelAnimationFrame(ballFrame);
+      ballFrame = undefined;
+      ballElement.hidden = true;
+      ballPlay = undefined;
+      delete ballElement.dataset.playPhase;
+      if (wasPlaying) {
+        spriteY = 0;
+        applySpriteY(0);
+        currentState = lastState || 'idle';
+        setSpriteForState(currentState);
+        applyWalkPosition(0);
+        scheduleRandomWalk();
+      }
+    }
+    function spawnBall() {
+      if (isDead || isReviving || isIntroPlaying || isFocusModeEnabled || isBreakPromptActive || isCookieInteractionActive()) return;
+      removeBall();
+      clearLookReaction({ resumeWalk: false });
+      clearClickReaction();
+      clearRandomWalk();
+      const bounds = stage.getBoundingClientRect();
+      ball = { x: Math.max(8, bounds.width * 0.75), y: Math.min(bounds.height - 8, 100), vx: -140, vy: 200 };
+      ballLastTime = 0;
+      ballPlay = { phase: 'watch', elapsed: 0, round: 0, startX: walkX, targetX: walkX, direction: 1, pause: 1.2 + Math.random() * 2 };
+      ballElement.hidden = false;
+      ballFrame = requestAnimationFrame(animateBall);
+    }
+    function animateBall(time) {
+      if (!ball) return;
+      if (document.hidden) { ballFrame = undefined; ballLastTime = 0; return; }
+      if (isDead || isReviving || isIntroPlaying || isFocusModeEnabled || isBreakPromptActive || isCookieInteractionActive()) { removeBall(); return; }
+      const dt = ballLastTime ? Math.min(0.04, (time - ballLastTime) / 1000) : 0;
+      ballLastTime = time;
+      const bounds = stage.getBoundingClientRect();
+      if (ballPlay.phase !== 'mouth') ball = stepBall(ball, bounds.width, Math.max(16, bounds.height - 8), dt);
+      const result = stepBallPlay(ballPlay, ball, walkX, bounds.width, getWalkLimit(), dt);
+      ballPlay = result.play;
+      ball = result.ball;
+      walkX = result.x;
+      walkDirection = result.direction;
+      spriteY = -result.lift;
+      ballElement.hidden = result.hidden;
+      ballElement.dataset.playPhase = ballPlay.phase;
+      setSpriteForState(result.sprite);
+      applyWalkPosition(0);
+      applySpriteY(0);
+      ballElement.style.transform = 'translate(' + (ball.x - 8) + 'px,' + (bounds.height - 8 - ball.y - 8) + 'px)';
+      ballFrame = requestAnimationFrame(animateBall);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && ball && ballFrame === undefined) ballFrame = requestAnimationFrame(animateBall);
+    });
+    window.addEventListener('pagehide', () => { if (ballFrame !== undefined) cancelAnimationFrame(ballFrame); });
+
+    function drawBackground() {
+      const kind = sceneBackground.kind;
+      backgroundCanvas.hidden = kind === 'none' || (kind === 'custom' && sceneBackground.fit !== 'tile');
+      backgroundImage.hidden = kind !== 'custom' || sceneBackground.fit === 'tile';
+      if (kind === 'none') return;
+      if (kind === 'custom') {
+        backgroundImage.style.objectFit = sceneBackground.fit === 'contain' ? 'contain' : 'cover';
+        if (sceneBackground.imageUri !== loadedBackgroundSource) {
+          loadedBackgroundSource = sceneBackground.imageUri;
+          backgroundImage.src = loadedBackgroundSource || '';
+          return;
+        }
+        if (sceneBackground.fit !== 'tile') return;
+      }
+      const bounds = stage.getBoundingClientRect();
+      // A four-CSS-pixel grid remains crisp and fills portrait, landscape, and short panels.
+      backgroundCanvas.width = Math.max(1, Math.ceil(bounds.width / 4));
+      backgroundCanvas.height = Math.max(1, Math.ceil(bounds.height / 4));
+      const ctx = backgroundCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      const w = backgroundCanvas.width, h = backgroundCanvas.height;
+      if (kind === 'custom') {
+        if (!backgroundImage.complete || !backgroundImage.naturalWidth) return;
+        const pattern = ctx.createPattern(backgroundImage, 'repeat');
+        if (pattern) { ctx.fillStyle = pattern; ctx.fillRect(0, 0, w, h); }
+        return;
+      }
+      if (drawPixelScene(ctx, w, h, kind)) return;
+      const night = kind === 'night';
+      ctx.fillStyle = night ? '#171d38' : '#82b9cc'; ctx.fillRect(0, 0, w, h);
+      if (night) {
+        ctx.fillStyle = '#e8dca0';
+        for (let x = 4; x < w; x += 13) ctx.fillRect(x, 3 + ((x * 7) % Math.max(1, Math.floor(h * 0.55))), 1, 1);
+        ctx.fillRect(Math.floor(w * 0.75), Math.max(2, Math.floor(h * 0.16)), 5, 5);
+      } else {
+        ctx.fillStyle = '#e3edd9';
+        for (let x = 5; x < w; x += 29) { const y = 6 + (x % 11); ctx.fillRect(x, y, 12, 2); ctx.fillRect(x + 3, y - 2, 6, 2); }
+      }
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.fillStyle = night ? ['#303855', '#354955'][layer] : ['#60978f', '#4f846c'][layer];
+        for (let x = 0; x < w; x += 2) {
+          const ridge = Math.floor(h * (0.68 + layer * 0.13) + Math.sin(x / 13 + layer * 2) * Math.min(8, h * 0.12));
+          ctx.fillRect(x, ridge, 2, h - ridge);
+        }
+      }
+      ctx.fillStyle = night ? '#263b3c' : '#426b43'; ctx.fillRect(0, h - 5, w, 5);
+      ctx.fillStyle = night ? '#53745a' : '#9aba63';
+      for (let x = 2; x < w; x += 7) ctx.fillRect(x, h - 5, 2, 1);
+    }
+    backgroundImage.addEventListener('load', drawBackground);
+    backgroundImage.addEventListener('error', () => { backgroundImage.hidden = true; backgroundCanvas.hidden = true; });
+    new ResizeObserver(drawBackground).observe(stage);
+    drawBackground();
+
+    renderFamily();
     if (isIntroPlaying) {
       playIntroSequence();
     } else {
@@ -3930,6 +4284,7 @@ export class Provider implements vscode.WebviewViewProvider {
     updateCookieSize();
     clampWalkPosition();
     window.addEventListener('resize', () => {
+      updateFamilySprites();
       const shouldResumeCookieWalk = cookiePhase === 'walking';
       clampWalkPosition(true);
       if (cookieActive) {

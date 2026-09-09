@@ -1,10 +1,8 @@
 name: CI
 
+# Run manually only; releases are built and uploaded locally.
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   validate:

@@ -2,6 +2,17 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.9.0 — 2026-09-09
+
+- Added a saved partner and up to four mini Buddys, with independent activities and naps, click-to-wake reactions, and spacing for narrow panels.
+- Added ball play: watching, stalking, pouncing, nudging, catching, and spitting. The ball loses energy until it rests; care actions and Focus Mode interrupt play.
+- Added eight adaptive pixel backgrounds: meadow, night, cherry blossom garden, Japanese temple, space station, neon city, underwater reef, and mushroom forest.
+- Added saved custom image imports with Fill, Fit, and Tile scaling, plus nine color choices for Buddy, partner, kids, or everyone.
+- Moved ball and family actions into matching filled toolbar icons. Backgrounds and colors live in the panel menu; Clear Family remains in the Command Palette. Removed the bottom controls section.
+- Made the existing small size the default, while preserving saved size choices.
+- Open Buddy on startup by default, with an opt-out setting. Keep a minimum 360 px scene height while allowing any sidebar width.
+- Updated the feature guide and animated preview. Releases can be built and uploaded locally without GitHub Actions.
+
 ## 0.8.1
 
 - Fixed heart loss so closed VS Code, shutdown, and sleep time no longer stack up and kill Buddy on the next launch.

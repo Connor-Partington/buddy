@@ -1,4 +1,8 @@
 import * as vscode from 'vscode';
+import { buddyColorPresets, buddyColorsKey, defaultBuddyColors, normalizeBuddyColors, type BuddyColors } from './colorSettings';
+import { pixelBackgroundPresets } from './pixelBackgrounds';
+import { backgroundStateKey, normalizeBackground, type BuddyBackground, type BackgroundFit } from './backgroundSettings';
+import { BuddyFamilyManager, type BuddyFamilyAction, maxBuddyChildren } from './familyManager';
 
 import { BuddyActivityController } from './activityController';
 import { BuddyAttentionManager, type BuddyAttention } from './attentionManager';
@@ -69,7 +73,7 @@ const debugDashboardViewType = 'buddy.debugDashboard';
 const focusModeContextKey = 'buddy.focusMode';
 
 export async function activate(context: vscode.ExtensionContext) {
-  let buddySize = normalizeBuddySize(context.globalState.get<string>('buddySize', 'default'));
+  let buddySize = normalizeBuddySize(context.globalState.get<string>(buddySizeKey, 'small'));
   let coffeeDropCommitCount = normalizeCoffeeDropCommitCount(
     context.globalState.get<number>(coffeeDropCommitCountKey, 0),
   );
@@ -83,7 +87,143 @@ export async function activate(context: vscode.ExtensionContext) {
   let lastAutoFoodRequestedAt = 0;
   let debugDashboardPanel: vscode.WebviewPanel | undefined;
   const debugOutput = vscode.window.createOutputChannel('Buddy Debug');
-  const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false));
+  const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false), context.globalStorageUri);
+  let background = normalizeBackground(context.globalState.get<BuddyBackground>(backgroundStateKey));
+  provider.setBackground(background);
+  let isChoosingBackground = false;
+  async function chooseBackground(): Promise<void> {
+    if (isChoosingBackground) return;
+    isChoosingBackground = true;
+    try {
+      const selection = await vscode.window.showQuickPick([
+        { label: 'Theme background', backgroundKind: 'none' },
+        ...pixelBackgroundPresets.map(({ label, kind }) => ({ label, backgroundKind: kind })),
+        { label: 'Choose custom image…', backgroundKind: 'custom' },
+        { label: 'Change image scaling…', backgroundKind: 'scaling' },
+      ], { title: 'Buddy background', placeHolder: 'Pixel scenes adapt to the panel size; custom images stay local.' });
+      if (!selection) return;
+      let next = { ...background };
+      if (selection.backgroundKind === 'custom') {
+        const files = await vscode.window.showOpenDialog({
+          title: 'Choose a Buddy background', canSelectMany: false, canSelectFolders: false,
+          filters: { Images: ['png', 'jpg', 'jpeg', 'webp', 'gif'] },
+        });
+        if (!files?.[0]) return;
+        const extension = files[0].path.split('.').pop()?.toLowerCase();
+        if (!extension || !['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension)) {
+          throw new Error('Choose a PNG, JPEG, WebP, or GIF image.');
+        }
+        const info = await vscode.workspace.fs.stat(files[0]);
+        if (info.size > 10 * 1024 * 1024) throw new Error('Choose an image smaller than 10 MB.');
+        const data = await vscode.workspace.fs.readFile(files[0]);
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        const destination = vscode.Uri.joinPath(context.globalStorageUri, 'background-' + Date.now() + '.' + extension);
+        await vscode.workspace.fs.writeFile(destination, data);
+        next = { kind: 'custom', fit: background.fit, imageUri: destination.toString() };
+      } else if (selection.backgroundKind === 'scaling') {
+        const fit = await vscode.window.showQuickPick([
+          { label: 'Fill panel', description: 'Preserve proportions; crop edges to fill the panel.', value: 'cover' },
+          { label: 'Fit whole image', description: 'Show the whole image; leave theme-colored space if needed.', value: 'contain' },
+          { label: 'Tile pixels', description: 'Repeat the image at 4× pixel scale, ideal for seamless pixel textures.', value: 'tile' },
+        ], { title: 'Custom background scaling' });
+        if (!fit) return;
+        next.fit = fit.value as BackgroundFit;
+      } else {
+        next.kind = selection.backgroundKind as BuddyBackground['kind'];
+      }
+      await context.globalState.update(backgroundStateKey, next);
+      const previousImage = background.imageUri;
+      background = next;
+      provider.setBackground(background);
+      // Remove only replaced copies owned by Buddy, never the user's selected source image.
+      if (previousImage && previousImage !== next.imageUri) {
+        const previous = vscode.Uri.parse(previousImage);
+        const root = context.globalStorageUri;
+        if (previous.scheme === root.scheme && previous.authority === root.authority
+          && previous.path.startsWith(root.path + '/background-')) {
+          void vscode.workspace.fs.delete(previous).then(undefined, () => undefined);
+        }
+      }
+    } catch (error) {
+      void vscode.window.showErrorMessage('Buddy could not set the background: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      isChoosingBackground = false;
+    }
+  }
+  let colors = normalizeBuddyColors(context.globalState.get<BuddyColors>(buddyColorsKey));
+  provider.setColors(colors);
+  const colorCommand = vscode.commands.registerCommand('buddy.changeColors', async () => {
+    const target = await vscode.window.showQuickPick([
+      { label: 'Buddy', target: 'buddy' },
+      { label: 'Partner', target: 'partner' },
+      { label: 'Kids', description: 'All current and future mini Buddys', target: 'children' },
+      { label: 'Everyone', description: 'Buddy, partner, and kids', target: 'all' },
+      { label: 'Restore default colors', target: 'reset' },
+    ], { title: 'Buddy: Change Colors', placeHolder: 'Whose color would you like to change?' });
+    if (!target) return;
+    let next: BuddyColors;
+    if (target.target === 'reset') {
+      next = { ...defaultBuddyColors };
+    } else {
+      const selected = await vscode.window.showQuickPick(buddyColorPresets.map((preset) => ({
+        label: preset.label, id: preset.id,
+        description: target.target !== 'all' && colors[target.target as keyof BuddyColors] === preset.id ? 'Current color' : undefined,
+      })), { title: `Color for ${target.label}` });
+      if (!selected) return;
+      next = target.target === 'all'
+        ? { buddy: selected.id, partner: selected.id, children: selected.id }
+        : { ...colors, [target.target]: selected.id };
+    }
+    await context.globalState.update(buddyColorsKey, next);
+    colors = next;
+    provider.setColors(colors);
+  });
+  const backgroundCommand = vscode.commands.registerCommand('buddy.chooseBackground', chooseBackground);
+  const spawnBallCommand = vscode.commands.registerCommand('buddy.spawnBall', async () => {
+    if (shouldBlockFocusModeAction('Ball play is paused while focus mode is on.')) return;
+    await vscode.commands.executeCommand('buddy.showSidebar');
+    if (!await provider.spawnBall()) void vscode.window.showInformationMessage('The Buddy panel is still opening. Try the ball icon again.');
+  });
+  const toggleBallCommand = vscode.commands.registerCommand('buddy.toggleBall', async () => {
+    if (shouldBlockFocusModeAction('Ball play is paused while focus mode is on.')) return;
+    await vscode.commands.executeCommand('buddy.showSidebar');
+    await provider.toggleBall();
+  });
+  const removeBallCommand = vscode.commands.registerCommand('buddy.removeBall', () => provider.removeBall());
+  const familyManager = new BuddyFamilyManager(context.globalState);
+  provider.setFamily(familyManager.family);
+  async function handleFamilyAction(action: BuddyFamilyAction): Promise<void> {
+    if (action === 'haveChild' && !familyManager.family.hasPartner) {
+      void vscode.window.showInformationMessage('Spawn a partner for Buddy first.');
+      return;
+    }
+    if (action === 'haveChild' && familyManager.family.children >= maxBuddyChildren) {
+      void vscode.window.showInformationMessage('Buddy already has four mini Buddys.');
+      return;
+    }
+    await familyManager.apply(action);
+    provider.setFamily(familyManager.family);
+  }
+  const manageFamilyCommand = vscode.commands.registerCommand('buddy.manageFamily', async () => {
+    const family = familyManager.family;
+    const items: (vscode.QuickPickItem & { action: BuddyFamilyAction })[] = [];
+    if (!family.hasPartner) items.push({ label: 'Spawn partner', action: 'spawnPartner' });
+    if (family.hasPartner && family.children < maxBuddyChildren) {
+      items.push({ label: 'Have a kid', description: `${family.children}/${maxBuddyChildren} mini Buddys`, action: 'haveChild' });
+    }
+    if (items.length === 0) {
+      void vscode.window.showInformationMessage('Buddy already has a partner and four mini Buddys.');
+      return;
+    }
+    const choice = await vscode.window.showQuickPick(items, { title: 'Buddy family', placeHolder: 'Choose a family action' });
+    if (choice) await handleFamilyAction(choice.action);
+  });
+  const familyCommands = (['spawnPartner', 'haveChild', 'clearFamily'] as const).map((action) =>
+    vscode.commands.registerCommand('buddy.' + action, async () => {
+      await handleFamilyAction(action);
+      await vscode.commands.executeCommand('buddy.showSidebar');
+    }),
+  );
   const stateManager = new BuddyStateManager();
   const healthManager = new BuddyHealthManager(context.globalState, careSettings);
   const focusModeManager = new BuddyFocusModeManager(context.globalState);
@@ -652,6 +792,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(Provider.viewType, provider),
+    colorCommand,
+    backgroundCommand,
+    spawnBallCommand,
+    removeBallCommand,
+    manageFamilyCommand,
+    toggleBallCommand,
+    ...familyCommands,
     activityController,
     ...(gitActivityController ? [gitActivityController] : []),
     demoController,
@@ -718,6 +865,12 @@ export async function activate(context: vscode.ExtensionContext) {
   provider.setAttention(attentionManager.attention);
   provider.setCareSettings(careSettings);
   provider.setFocusMode(focusModeManager.isEnabled);
+
+  if (vscode.workspace.getConfiguration('buddy').get<boolean>('openOnStartup', true)) {
+    void vscode.commands.executeCommand('buddy.showSidebar').then(undefined, (error) => {
+      appendDebugLine('could not open Buddy on startup', String(error));
+    });
+  }
 
   function shouldBlockFocusModeAction(message: string): boolean {
     if (!focusModeManager.isEnabled) {
@@ -961,7 +1114,7 @@ export async function activate(context: vscode.ExtensionContext) {
   async function resetAllState(): Promise<void> {
     const resetAction = 'Reset Buddy';
     const selected = await vscode.window.showWarningMessage(
-      'Reset all Buddy stats and local state for testing? This clears health, XP, attention, milestones, focus mode, auto-reward counters, size, and intro state.',
+      'Reset all Buddy stats and local state for testing? This clears health, XP, attention, milestones, focus mode, auto-reward counters, family, colors, background, size, and intro state.',
       { modal: true },
       resetAction,
     );
@@ -969,12 +1122,19 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    colors = { ...defaultBuddyColors };
+    provider.setColors(colors);
+    provider.removeBall();
+    background = { kind: 'none', fit: 'cover' };
+    provider.setBackground(background);
     coffeeDropCommitCount = 0;
     autoSandwichProductiveActionCount = 0;
     lastAutoFoodRequestedAt = 0;
-    buddySize = 'default';
+    buddySize = 'small';
 
     await Promise.all([
+      context.globalState.update(buddyColorsKey, undefined),
+      context.globalState.update(backgroundStateKey, undefined),
       context.globalState.update(coffeeDropCommitCountKey, undefined),
       context.globalState.update(autoSandwichLastDropAtKey, undefined),
       context.globalState.update(autoSandwichProductiveActionCountKey, undefined),
@@ -982,6 +1142,7 @@ export async function activate(context: vscode.ExtensionContext) {
       context.globalState.update(autoCakeFirstPushCompletedKey, undefined),
       context.globalState.update(introHasPlayedKey, undefined),
       context.globalState.update(buddySizeKey, undefined),
+      familyManager.apply('clearFamily'),
       healthManager.reset(),
       focusModeManager.reset(),
       xpManager.reset(),
@@ -990,6 +1151,7 @@ export async function activate(context: vscode.ExtensionContext) {
       milestoneManager.reset(),
     ]);
 
+    provider.setFamily(familyManager.family);
     stateManager.setState('idle');
     provider.setBuddySize(buddySize);
     provider.setHealth(healthManager.health);
@@ -1695,5 +1857,5 @@ async function migrateLegacyXpMultiplierSetting(
 }
 
 function normalizeBuddySize(size: string | undefined): BuddySize {
-  return size === 'small' ? 'small' : 'default';
+  return size === 'default' ? 'default' : 'small';
 }

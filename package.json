@@ -2,7 +2,7 @@
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
   "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",
@@ -190,6 +190,50 @@
       {
         "command": "buddy.openLevelUpGallery",
         "title": "Buddy: Open Level-Up Gallery"
+      },
+      {
+        "command": "buddy.spawnPartner",
+        "title": "Buddy: Spawn Partner"
+      },
+      {
+        "command": "buddy.haveChild",
+        "title": "Buddy: Have a Kid"
+      },
+      {
+        "command": "buddy.clearFamily",
+        "title": "Buddy: Clear Family"
+      },
+      {
+        "command": "buddy.spawnBall",
+        "title": "Buddy: Spawn Ball"
+      },
+      {
+        "command": "buddy.removeBall",
+        "title": "Buddy: Remove Ball"
+      },
+      {
+        "command": "buddy.chooseBackground",
+        "title": "Buddy: Choose Background"
+      },
+      {
+        "command": "buddy.toggleBall",
+        "title": "Buddy: Spawn / Remove Ball",
+        "icon": {
+          "light": "media/ball-light.svg",
+          "dark": "media/ball-dark.svg"
+        }
+      },
+      {
+        "command": "buddy.manageFamily",
+        "title": "Buddy: Manage Family",
+        "icon": {
+          "light": "media/family-light.svg",
+          "dark": "media/family-dark.svg"
+        }
+      },
+      {
+        "command": "buddy.changeColors",
+        "title": "Buddy: Change Colors"
       }
     ],
     "menus": {
@@ -205,14 +249,24 @@
           "group": "navigation@2"
         },
         {
-          "command": "buddy.kill",
+          "command": "buddy.toggleBall",
           "when": "view == buddy.companion && !buddy.focusMode",
           "group": "navigation@3"
         },
         {
-          "command": "buddy.toggleBreakPrompt",
-          "when": "view == buddy.companion && !buddy.focusMode",
+          "command": "buddy.manageFamily",
+          "when": "view == buddy.companion",
           "group": "navigation@4"
+        },
+        {
+          "command": "buddy.changeColors",
+          "when": "view == buddy.companion",
+          "group": "appearance@1"
+        },
+        {
+          "command": "buddy.chooseBackground",
+          "when": "view == buddy.companion",
+          "group": "appearance@2"
         }
       ]
     },
@@ -265,6 +319,11 @@
           "type": "boolean",
           "default": true,
           "description": "Allow Buddy to die when red hearts reach zero."
+        },
+        "buddy.openOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the Buddy sidebar when VS Code starts or reloads."
         }
       }
     }
@@ -277,7 +336,7 @@
     "package": "vsce package --allow-missing-repository --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "publish": "vsce publish --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "lint": "eslint src",
-    "test": "npm run compile"
+    "test": "npm run compile && node scripts/test-family.cjs && node scripts/test-scene.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

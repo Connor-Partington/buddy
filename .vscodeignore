@@ -6,6 +6,8 @@ src/**
 .vscode/**
 .vscode-test/**
 out/test/**
+out/qa/**
+out/preview/**
 out/DocFoxProvider.js
 out/DocFoxProvider.js.map
 node_modules/**

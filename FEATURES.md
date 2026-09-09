@@ -2,7 +2,13 @@
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
 
+## New In 0.9.0
+
+Grow a family, give Buddy a ball, and personalize the scene with eight pixel backgrounds and nine companion colors. Family members have their own activity and nap schedules. The compact panel keeps controls in its title bar and menus, opens automatically by default, and starts Buddy at the smaller size.
+
 ## Companion Behavior
+
+Buddy starts at the small size. Toggle Size switches between small and large and preserves your choice across reloads. Reset All State restores the small size.
 
 - Animated sidebar companion with idle, typing, searching, thinking, sleeping, happy, and jump states.
 - First-open spawn animation with a Buddy greeting and heart reveal.
@@ -32,7 +38,7 @@ Buddy can also drop care and celebration treats automatically. When Buddy is dow
 - Command-click inside the Buddy panel to offer a cookie at that spot.
 - Double-click the panel to make Buddy walk or dash to the selected spot.
 - Buddy dashes when he goes after treats that are farther away.
-- Panel title bar actions let you feed, revive, kill, and toggle break prompts.
+- Panel title bar icons let you feed, revive, toggle the ball, and manage Buddy’s family. Kill and break-prompt commands remain in the Command Palette.
 
 ## XP And Levels
 
@@ -111,3 +117,21 @@ When attention gets low, Buddy may give a friendly reminder in a speech bubble.
 ## Life Counter
 
 Buddy tracks the current life across sessions with a day counter in the panel. The counter scrambles into place, keeps going while Buddy is alive, and restarts from Day 1 after Buddy has died and been revived.
+
+## Buddy Family
+
+Use the Manage Family toolbar icon or the Command Palette to spawn one partner, then add up to four mini Buddys. The partner uses a different sprite tint, and the kids use smaller versions of Buddy’s existing animations. Each has an independent activity cycle: looking around, thinking, small movements, celebrations, and naps. Clicking a member wakes it for love. Focus Mode deliberately puts everyone to sleep and pauses their individual schedules. Animation footprints stay separated, using another row when the floor is crowded. They remain present when Buddy dies and have no separate care requirements. Family state persists locally across reloads; the Command Palette’s Buddy: Clear Family or Buddy: Reset All State removes it.
+
+## Ball Play And Backgrounds
+
+Toggle the ball with the panel’s ball icon, or use the Command Palette. It loses energy against the edges and floor until it rests. Buddy sometimes watches it settle, stalks and pounces from a distance, hops onto it nearby, nudges it, or briefly holds it in his mouth before spitting it upward or outward. These play bouts alternate with pauses, and mouthing the ball has no feeding or XP effect. The ball stays within resized scenes, suspends animation while the panel is hidden, and is a temporary toy rather than persisted care state. Feeding, manual movement, breaks, death, and Focus Mode end play; spawning a ball does not farm attention or XP.
+
+Buddy: Choose Background in the panel’s … menu or Command Palette offers responsive pixel meadow, night, cherry blossom garden, Japanese temple, space station, neon city, underwater reef, and mushroom forest scenes, the default theme background, and custom PNG/JPEG/WebP/GIF images up to 10 MB. Built-in scenes redraw on a four-pixel grid as the panel changes shape. Custom images preserve proportions with Fill (cropped) or Fit (whole image), or repeat at 4× pixel scale with Tile. Background choices persist in extension storage; imported images are copied there, so moving the source file does not break them. Remote windows use the filesystem of the extension host. Reset All State restores the theme background.
+
+## Startup And Panel Size
+
+Buddy opens on startup and reload by default (`buddy.openOnStartup: true`). Turn this off to keep your chosen sidebar at startup. Buddy keeps a minimum scene height of 360 px. Its width follows the user’s sidebar width, with vertical scrolling in shorter containers. The panel contains only the scene; actions live in toolbar icons, the panel’s … menu, and the Command Palette. The outer sidebar divider remains controlled by VS Code.
+
+## Companion Colors
+
+Buddy: Change Colors is available from the Command Palette and the panel’s … menu. Choose Buddy, Partner, Kids, or Everyone, then a green, mint, sky blue, blue, purple, pink, red, orange, or gold sprite tint. Kids share one color, including kids spawned later. Choices persist locally; Restore default colors or Reset All State restores the original green Buddy/kids and blue partner. Colors tint the existing animated sprites without changing backgrounds or care items.
