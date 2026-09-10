@@ -2,14 +2,14 @@
 
 An animated IDE companion for VS Code that reacts to your coding flow from the Activity Bar.
 
-[![Version](https://img.shields.io/badge/version-0.10.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.11.0-blue)](CHANGELOG.md)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.90.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
 [![License: LGPL v2.0](https://img.shields.io/badge/license-LGPL%20v2.0-green.svg)](LICENSE)
 
 ## Preview
 
 <p align="left">
-  <img src="assets/images/buddy-demo.gif" alt="Buddy 0.9.0: family, ball play, colors, and pixel backgrounds" style="width: 100%; max-width: 720px; height: auto;">
+  <img src="assets/images/buddy-demo.gif" alt="Buddy: family, ball play, colors, and pixel backgrounds" style="width: 100%; max-width: 720px; height: auto;">
 </p>
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
@@ -27,6 +27,10 @@ Buddy is local-first, lightweight, and built to add a little personality to focu
 - [License](#license)
 
 ## Features
+
+- A first-install pixel tutorial: choose the full tour or just the basics, and replay from the menu.
+- Occasional family conversations, growing bonds, gentle nudges, and heart reactions.
+- Optional community rankings: browse without joining, or share your nickname and Buddy’s days alive.
 
 - A saved partner and up to four mini Buddys, with independent activities, naps, and click reactions.
 - A gentle focus timer with a live countdown, a waking stretch, and a break invitation.
@@ -60,6 +64,9 @@ Download the latest `.vsix` package from the [GitHub releases](https://github.co
 
 ## Using Buddy
 
+On a fresh installation, Buddy offers **Show Me Around** (20 steps) or **Just the Basics** (clicking Buddy, treats, health, the ball, and the panel’s `…` menu). The pixel speech bubble includes Back, Next/Done, and Skip. Progress is saved locally; switching panels or restarting VS Code resumes an unfinished tour without restarting it. Completing or skipping prevents it from appearing again. Existing users can start it from **Buddy: Replay Introduction** in the panel menu or Command Palette. The tour pauses ordinary chatter and break prompts, and never spawns family, toys, or treats automatically.
+
+
 Buddy starts at the smaller size; Toggle Size switches to the larger size and remembers your choice. Buddy opens automatically when VS Code starts or reloads. Disable `buddy.openOnStartup` to keep manual control. The scene follows the available panel height and width, with no minimum height pushing Buddy below the visible area. VS Code controls the outer sidebar size.
 
 To open Buddy manually, open the Command Palette:
@@ -75,7 +82,7 @@ Buddy tracks health, attention, XP, daily quests, care streaks, milestones, focu
 
 Care difficulty is configurable in VS Code settings. You can tune active VS Code heart drain timing, break prompt timing, XP gain multiplier, death penalty, and whether Buddy can die.
 
-Use the **Manage Family** icon in the panel toolbar: **Spawn partner**, then **Have a kid** to add up to four mini Buddys. The family is saved across reloads. Click a family member for a love animation; **Buddy: Clear Family** in the Command Palette removes the partner and kids. Family members independently look around, fidget, celebrate, and nap on different schedules. Clicking one wakes it for a love reaction. Focus Mode settles everyone down; spacing reserves room for sleep animations and uses another row in narrow panels. There is no separate health or XP to maintain.
+Use the **Manage Family** icon in the panel toolbar: **Spawn partner**, then **Have a kid** to add up to four mini Buddys. The family is saved across reloads. Click a family member for a love animation; **Buddy: Clear Family** in the Command Palette removes the partner and kids. Family members independently look around, fidget, celebrate, and nap on different schedules. Clicking one wakes it for a love reaction. Focus Mode settles everyone down; family members stay on the floor. Awake companions can pass through each other; before sleeping, each walks to a spot with an 8 px gap from other sleepers. If no spot fits, it stays awake until space is available. Buddy can cross the full panel to reach treats. Cookie drops and Buddy’s feeding animations do not reposition the family. There is no separate health or XP to maintain.
 
 Use the **ball icon** in the panel toolbar to give Buddy a toy that gradually bounces and rolls to a stop. Buddy takes turns watching it settle, stalking and pouncing on it, nudging it, or catching it in his mouth and spitting it into the air. Click it again to remove the ball. Feeding, breaks, death, and Focus Mode end ball play so those actions can take over.
 
@@ -105,7 +112,13 @@ Choose **Buddy: Focus Timer** from the panel menu or Command Palette for 15, 25,
 
 Choose **Buddy: Arrange Decorations** to view unlock requirements, place an earned item, move it between five horizontal positions, or remove it. Positions adapt to the panel width. Unlock a plant at level 2, cushion at 5, lamp at 10, and yarn toy at 15; earn a bonsai with a 3-day care streak and a star mobile with 7 days. Unlocks and placement persist locally, including across Reset All State. Existing progress counts immediately. Care streak unlocks use the existing milestone system, so milestone reactions must be enabled to earn new streak days. Decorations are cosmetic.
 
-Awake family neighbors occasionally greet, chase within available space, or curl up nearby. Floor-level family members can nudge the ball back into play. Sleeping members keep their own schedules; crowded panels limit travel, and Focus Mode pauses social play.
+Awake family neighbors occasionally greet, chase smoothly along the floor within available space, or curl up nearby. Floor-level family members can nudge the ball back into play. Sleeping members keep their own schedules; crowded panels limit travel, and Focus Mode pauses social play.
+
+### Family chatter
+
+Family members occasionally exchange playful pixel speech when they meet nearby, wake up, or share the ball. New pairs are curious; after encounters on two different days they become familiar, and after five they use closer, affectionate lines. Familiar family pairs can give tiny grounded nudges and heart reactions. Relationship history is saved locally; clearing the family resets those relationships.
+
+Chatter is triggered by scenarios, never by a repeating speaking timer. The whole family shares a maximum of three short exchanges per day and a varied 45–150 minute quiet period after each. It stays silent during Focus Mode, feeding, break prompts, card viewing, and while the panel is hidden. The small speech bubble follows the speaker inside the scene; there are no extra buttons or notifications.
 
 ## Commands
 
@@ -122,12 +135,15 @@ Awake family neighbors occasionally greet, chase within available space, or curl
 | `Buddy: Clear Family` | Removes the partner and all mini Buddys. |
 | `Buddy: Show Sidebar` | Opens the Buddy Activity Bar view. |
 | `Buddy: Wake Up` | Returns Buddy to the idle state. |
+| `Buddy: Leaderboard` | Browse public rankings without joining, join with a nickname, or remove your entry. |
+| `Buddy: Replay Introduction` | Replay the full tour or basics guide. |
 | `Buddy: Preview Animations` | Runs a temporary story preview from Buddy's birth and greeting through movement, look, thinking, jump, happy, size, break, care, quests, coffee XP boost, level up, milestone cake, gold heart, death, revive, and sleep without changing persisted Buddy stats. |
 | `Buddy: Spawn Cookie` | Drops a cookie for Buddy to walk over, eat, and recover a heart. |
 | `Buddy: Spawn Coffee` | Drops coffee for Buddy to walk over, drink, and gain bonus XP. |
 | `Buddy: Spawn Sandwich` | Drops a sandwich for Buddy to walk over, eat, and refill missing red hearts. |
 | `Buddy: Spawn Cake` | Drops cake for Buddy to walk over, eat, and gain a gold heart shield. |
 | `Buddy: Toggle Break Prompt` | Shows or hides Buddy's break reminder speech bubble. |
+| `Buddy: Replay Introduction` | Reopen the welcome and choose the full tour or basics. |
 | `Buddy: Focus Timer` | Start, replace, or cancel a gentle focus session. |
 | `Buddy: Arrange Decorations` | View unlocks and place, move, or remove pixel decorations. |
 | `Buddy: Toggle Focus Mode` | Puts Buddy down for a quiet nap, shows `FOCUS MODE ON`, and pauses heart loss, break prompts, and panel care actions until focus mode ends. |
@@ -181,7 +197,7 @@ npm run package
 Install or update that VSIX locally with the VS Code CLI:
 
 ```bash
-code --install-extension buddy-ide-companion-0.10.0.vsix --force
+code --install-extension buddy-ide-companion-0.11.0.vsix --force
 ```
 
 To record Buddy's core feature loop, start recording the Extension Development Host window, then run this from the repo terminal:
@@ -196,10 +212,22 @@ The demo opens the Buddy sidebar and automatically runs through state changes, o
 
 Build and validate locally with the commands above. Push the release commit, then create a GitHub release and attach the generated VSIX. GitHub Actions workflows are manual-only; no Actions run is needed to build or publish a release.
 
-To update the Marketplace, sign in to [Manage Publishers](https://marketplace.visualstudio.com/manage/publishers/connor-partington), open Buddy’s **… → Update**, and upload the same VSIX. The package includes this README, feature guide, changelog, and preview GIF. A manual upload needs no API token. For CLI publishing, use `vsce login connor-partington` with an Azure DevOps personal access token scoped to **Marketplace (Manage)**, then `vsce publish --packagePath buddy-ide-companion-0.10.0.vsix`. Never commit tokens.
+To update the Marketplace, sign in to [Manage Publishers](https://marketplace.visualstudio.com/manage/publishers/connor-partington), open Buddy’s **… → Update**, and upload the same VSIX. The package includes this README, feature guide, changelog, and preview GIF. A manual upload needs no API token. For CLI publishing, use `vsce login connor-partington` with an Azure DevOps personal access token scoped to **Marketplace (Manage)**, then `vsce publish --packagePath buddy-ide-companion-0.11.0.vsix`. Never commit tokens.
 
 The release preview is rendered from the compiled panel, with temporary demo state. Run `npm run compile && node scripts/build-preview.cjs`, serve the repository locally, and open `out/preview/index.html` to record it. It does not touch your saved Buddy state.
 
 ## License
 
 GNU Lesser General Public License v2.0
+
+## Optional community leaderboard
+
+Open **Buddy: Leaderboard** from the Command Palette or Buddy’s `…` menu. Choose **Join leaderboard** and a public nickname to share Buddy’s current days alive and level. The top 50 and your own rank appear in a native VS Code picker; equal days share a rank. There are no extra panel buttons.
+
+Participation is optional. Before joining, Buddy makes no automatic leaderboard requests. **View rankings** works without joining: it fetches only public rankings, sends no Buddy stats or installation token, and creates no entry. After joining, a random installation token is stored in VS Code SecretStorage; Supabase stores only its SHA-256 hash. No email, code, repository names, or family details are uploaded. Supabase receives normal network metadata such as your IP address. This identity does not automatically follow you to another computer or SSH host, and losing its secret loses access to that entry.
+
+Scores update at most once per 24 hours, only when changed, while VS Code is running. Rankings refresh only when opened, at most every six hours, with saved results available offline. Rankings reflect the last submitted state, including deaths on the next eligible upload, and entries inactive for 30 days are hidden. Scores and care settings are local and editable, so this is friendly, self-reported competition rather than cheat-proof verification.
+
+Use **Leave / remove my entry** to stop uploads and delete the public record. If deletion fails offline, uploads still stop immediately; retry the same menu action when connected. Buddy’s local progress is unaffected.
+
+The backend admits at most 100,000 requests per UTC calendar month, 50 new registrations per UTC day, and 5,000 stored entries. These are conservative application limits, not a guarantee against all Supabase quota usage or abuse. Supabase organization allowances are shared with other projects, and its billing cycle can differ from the application’s calendar month. See [backend setup and operations](supabase/README.md).

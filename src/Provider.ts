@@ -1,9 +1,11 @@
+import { tutorialSteps, basicTutorialSteps, type TutorialState, type TutorialAction } from './tutorial';
+import type { FamilyMoment, FamilyDialogue } from './familyMoments';
 import { drawDecoration, type Decoration } from './decorations';
 import { cardDesign, type CardSnapshot, type SavedCard } from './levelUpCards';
 import { drawPersonalCard } from './cardRenderer';
 import * as vscode from 'vscode';
 import { stepBallPlay } from './ballPlay';
-import { arrangeFamily, chooseFamilyActivity, socialOffset } from './familyBehavior';
+import { findSleepSpot, moveFamilyX, chooseFamilyActivity } from './familyBehavior';
 import { buddyColorPresets, defaultBuddyColors, type BuddyColors } from './colorSettings';
 import { drawPixelScene } from './pixelBackgrounds';
 import { stepBall } from './ballPhysics';
@@ -54,8 +56,10 @@ type WebviewMessage =
   | { type?: 'foodReached'; food?: FoodType }
   | { type?: 'foodRequested'; food?: FoodType; targetX?: number }
   | { type?: 'careAction'; action?: CareAction }
+  | { type?: 'familyMoment'; moment?: FamilyMoment }
   | { type?: 'introPlayed' }
   | { type?: 'cardsReady' }
+  | { type?: 'tutorialAction'; action?: TutorialAction }
   | { type?: 'openCard'; id?: string }
   | { type?: 'openCardGallery' }
   | { type?: 'levelUpCardCaptured'; id?: string; dataUri?: string; level?: number }
@@ -126,6 +130,13 @@ export class Provider implements vscode.WebviewViewProvider {
     this.postMessage({ type: 'setColors', colors });
   }
 
+  private readonly familyMomentEmitter = new vscode.EventEmitter<FamilyMoment>();
+  public readonly onFamilyMoment = this.familyMomentEmitter.event;
+  public showFamilyDialogue(dialogue: FamilyDialogue): void { void this.postMessage({type:'familyDialogue',dialogue}); }
+  private tutorial?: TutorialState;
+  private readonly tutorialEmitter = new vscode.EventEmitter<TutorialAction>();
+  public readonly onTutorialAction = this.tutorialEmitter.event;
+  public setTutorial(state:TutorialState):void { this.tutorial={...state};void this.postMessage({type:'tutorialState',state}); }
   private family: BuddyFamily = { hasPartner: false, children: 0 };
 
   public setFamily(family: BuddyFamily): void {
@@ -217,7 +228,11 @@ export class Provider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri, ...(this.storageUri ? [this.storageUri] : [])],
     };
     webviewView.webview.onDidReceiveMessage((message: WebviewMessage) => {
-      if (message.type === 'cardsReady') {
+      if (message.type === 'tutorialAction') {
+        if (message.action && ['full','basics','next','back','skip'].includes(message.action)) this.tutorialEmitter.fire(message.action);
+      } else if (message.type === 'familyMoment') {
+        if (message.moment) this.familyMomentEmitter.fire(message.moment);
+      } else if (message.type === 'cardsReady') {
         this.cardsReady = true;
         this.postCards();
         this.cardsReadyEmitter.fire();
@@ -493,6 +508,7 @@ export class Provider implements vscode.WebviewViewProvider {
   }
 
   private syncWebviewState(): void {
+    if(this.tutorial)this.setTutorial(this.tutorial);
     this.setDecorations(this.decorationItems);
     this.setColors(this.colors);
     this.setBackground(this.background);
@@ -620,6 +636,18 @@ export class Provider implements vscode.WebviewViewProvider {
     @media (prefers-reduced-motion: reduce) { body[data-focus-stretch="true"] .sprite-image { animation: none; } }
     .decorations { position: absolute; inset: 0; pointer-events: none; }
     .decorations canvas { position: absolute; bottom: 8px; width: 64px; height: 64px; image-rendering: pixelated; transform: translateX(-50%); }
+    .tutorial-bubble { position:absolute; z-index:6; left:8px; bottom:60px; width:260px; max-width:calc(100% - 16px); max-height:calc(100% - 16px); overflow:auto; background:#252c47; color:#fff1d4; border:3px solid #ffcd75; box-shadow:3px 3px #171b31; padding:10px; font:bold 11px/1.4 "Courier New",monospace; }
+    .tutorial-bubble[hidden] { display:none; }
+    .tutorial-bubble p { margin:0 0 8px; }
+    .tutorial-bubble button { font:inherit; color:inherit; background:#171b31; border:2px solid #9aa7bf; padding:5px; cursor:pointer; }
+    .tutorial-bubble nav { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+    .tutorial-bubble button:focus-visible { outline:2px solid #ffcd75; }
+    .tutorial-highlight { outline:2px dashed #ffcd75; outline-offset:3px; }
+    .family-speech { position:absolute; z-index:5; width:max-content; max-width:calc(100% - 16px); padding:7px 9px; border:2px solid #ffe0a6; box-shadow:3px 3px #171b31; background:#252c47; color:#fff1d4; font:bold 11px/1.3 "Courier New",monospace; text-align:center; pointer-events:none; overflow-wrap:anywhere; }
+    .family-speech[hidden] { display:none; }
+    @keyframes family-nudge { 0%,100% { translate:0 0; } 50% { translate:var(--nudge-x,3px) 0; } }
+    .family-member[data-nudge="true"] img { animation:family-nudge .6s steps(4); }
+    @media (prefers-reduced-motion:reduce) { .family-member[data-nudge="true"] img { animation:none; } }
     .family-members { position: absolute; inset: 0; pointer-events: none; }
     .family-member {
       pointer-events: auto;
@@ -1613,6 +1641,8 @@ export class Provider implements vscode.WebviewViewProvider {
         <div class="speech-bubble" aria-live="polite" aria-atomic="true"><span></span></div>
         <img class="sprite-image" alt="" src="${spriteSources[initialSpriteState]}" />
       </div>
+      <section class="tutorial-bubble" aria-label="Buddy introduction" hidden><p class="tutorial-text" aria-live="polite"></p><span class="tutorial-count"></span><nav aria-label="Introduction controls"></nav></section>
+      <div class="family-speech" role="status" aria-live="polite" hidden></div>
       <div class="decorations" aria-hidden="true"></div>
       <div class="family-members" role="group" aria-label="Buddy family"></div>
       <img class="cookie-treat" alt="" src="${imageSources.cookie}" hidden />
@@ -1627,6 +1657,42 @@ export class Provider implements vscode.WebviewViewProvider {
   </dialog>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    let tutorialState = ${JSON.stringify(this.tutorial ?? null)}, tutorialTimer, tutorialBusy=false, tutorialRendered='';
+    const tourSteps = ${JSON.stringify(tutorialSteps)}, basicSteps = ${JSON.stringify(basicTutorialSteps)};
+    const tourBubble = document.querySelector('.tutorial-bubble');
+    function tutorialActive() { return tutorialState && !tutorialState.done; }
+    function renderTutorial() {
+      clearTimeout(tutorialTimer);
+      document.querySelectorAll('.tutorial-highlight').forEach(node=>node.classList.remove('tutorial-highlight'));
+      if (!tutorialActive()) { tourBubble.hidden=true;scheduleBreakPrompt(true);return; }
+      clearBreakPromptTimer();hideBreakPrompt();hideFamilyDialogue();
+      const waiting=document.hidden || isIntroPlaying || document.querySelector('.card-overlay').open;
+      tourBubble.hidden=waiting;
+      if (!waiting) {
+        const steps=tutorialState.mode==='basics'?basicSteps:tourSteps.map((_,index)=>index);
+        const step=tourSteps[steps[tutorialState.step]];
+        const key=tutorialState.mode+':'+tutorialState.step;
+        if(key!==tutorialRendered) {
+          const restoreFocus=tourBubble.contains(document.activeElement);
+          tutorialRendered=key;tourBubble.scrollTop=0;
+          tourBubble.querySelector('.tutorial-text').textContent=tutorialState.mode==='welcome'?"HI! I'M BUDDY. WOULD YOU LIKE A LITTLE TOUR?":step.text.replace('{shortcut}',${JSON.stringify(process.platform === 'darwin' ? 'CMD + SHIFT + P' : 'CTRL + SHIFT + P')});
+          tourBubble.querySelector('.tutorial-count').textContent=tutorialState.mode==='welcome'?'':(tutorialState.step+1)+' / '+steps.length;
+          const nav=tourBubble.querySelector('nav');nav.replaceChildren();
+          const choices=tutorialState.mode==='welcome'?[['SHOW ME AROUND','full'],['JUST THE BASICS','basics'],['SKIP','skip']]:[['BACK','back'],[tutorialState.step===steps.length-1?'DONE':'NEXT','next'],['SKIP','skip']];
+          for(const [label,action] of choices){const button=document.createElement('button');button.textContent=label;button.onclick=event=>{event.stopPropagation();if(tutorialBusy)return;tutorialBusy=true;vscode.postMessage({type:'tutorialAction',action});};nav.append(button);}
+          if(restoreFocus)nav.children[tutorialState.mode==='welcome'?0:1]?.focus();
+        }
+        const selectors={buddy:'.frame-stage',health:'.health-meter',attention:'.attention-meter',xp:'.xp-meter',quests:'.daily-quests'};
+        if(tutorialState.mode!=='welcome') document.querySelector(selectors[step.target])?.classList.add('tutorial-highlight');
+        const box=spriteStage.getBoundingClientRect(),bounds=stage.getBoundingClientRect();
+        tourBubble.style.left=Math.max(8,Math.min(bounds.width-tourBubble.offsetWidth-8,box.left+box.width/2-bounds.left-tourBubble.offsetWidth/2))+'px';
+        tourBubble.style.bottom=Math.max(8,Math.min(bounds.height-tourBubble.offsetHeight-8,bounds.bottom-box.top+10))+'px';
+      }
+      tutorialTimer=setTimeout(renderTutorial,250);
+    }
+    tourBubble.addEventListener('click',event=>event.stopPropagation());
+    tourBubble.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();vscode.postMessage({type:'tutorialAction',action:'skip'});}});
+
     const spriteSources = ${JSON.stringify(spriteSources)};
     const imageSources = ${JSON.stringify(imageSources)};
     const baseSpriteDisplaySizes = ${JSON.stringify(getSpriteDisplaySizes())};
@@ -1635,7 +1701,54 @@ export class Provider implements vscode.WebviewViewProvider {
     let currentFamily = ${JSON.stringify(this.family)};
     const familyMembers = document.querySelector('.family-members');
     const familyActivity = new Map();
-    const socialOffset = ${socialOffset.toString()};
+    let familyDialogueTimer, activeFamilyDialogue;
+    const familySpeech = document.querySelector('.family-speech');
+    const familyEncounters = new Set();
+    let lastFamilyOpportunity = 0;
+    function familyQuiet() {
+      return tutorialActive() || document.hidden || isFocusModeEnabled || isDead || isIntroPlaying || isBreakPromptActive || isCookieInteractionActive() || document.querySelector('.card-overlay').open;
+    }
+    function familyOpportunity(kind, speaker, target = -1) {
+      if (familyQuiet() || activeFamilyDialogue || (lastFamilyOpportunity && performance.now()-lastFamilyOpportunity < 15000)) return false;
+      lastFamilyOpportunity = performance.now();
+      vscode.postMessage({type:'familyMoment',moment:{kind,speaker,target}});
+      return true;
+    }
+    function hideFamilyDialogue() { clearTimeout(familyDialogueTimer);activeFamilyDialogue=undefined;familySpeech.hidden=true; }
+    function positionFamilyDialogue() {
+      if (!activeFamilyDialogue) return;
+      const anchor = activeFamilyDialogue.speaker < 0 ? spriteStage : familyMembers.children[activeFamilyDialogue.speaker];
+      if (!anchor || familyQuiet() || anchor.dataset.activity === 'sleeping' || (activeFamilyDialogue.speaker < 0 && currentState === 'sleeping')) { hideFamilyDialogue();return; }
+      const box=anchor.getBoundingClientRect(), bounds=stage.getBoundingClientRect();
+      familySpeech.style.maxWidth=Math.max(1,Math.min(170,bounds.width-16))+'px';
+      familySpeech.style.left=Math.max(8,Math.min(bounds.width-familySpeech.offsetWidth-8,box.left+box.width/2-bounds.left-familySpeech.offsetWidth/2))+'px';
+      familySpeech.style.bottom=Math.max(8,Math.min(bounds.height-familySpeech.offsetHeight-8,bounds.bottom-box.top+8))+'px';
+    }
+    function showFamilyDialogue(dialogue) {
+      if (familyQuiet() || activeFamilyDialogue) return;
+      const member=familyMembers.children[dialogue.speaker];
+      if (!member || member.dataset.activity === 'sleeping') return;
+      if (dialogue.target >= 0 && (!familyMembers.children[dialogue.target] || familyMembers.children[dialogue.target].dataset.activity === 'sleeping')) return;
+      const say=(speaker,text)=>{activeFamilyDialogue={speaker};familySpeech.textContent=text;familySpeech.hidden=false;positionFamilyDialogue();};
+      say(dialogue.speaker,dialogue.text);
+      if (dialogue.affectionate && dialogue.target >= 0) {
+        for(const index of [dialogue.speaker,dialogue.target]) {
+          const neighbor=familyMembers.children[index];
+          if (!neighbor) continue;
+          const activity=familyActivity.get(neighbor);activity.reaction='love';activity.reactionUntil=performance.now()+1800;
+          const other=familyMembers.children[index===dialogue.speaker?dialogue.target:dialogue.speaker];
+          const ownBox=neighbor.getBoundingClientRect(), otherBox=other.getBoundingClientRect();
+          neighbor.style.setProperty('--nudge-x',otherBox.left>ownBox.left?'3px':'-3px');
+          if(Math.abs(ownBox.left-otherBox.left)<(ownBox.width+otherBox.width)/2+24) neighbor.dataset.nudge='true';setTimeout(()=>delete neighbor.dataset.nudge,650);
+        }
+        updateFamilySprites();
+      }
+      familyDialogueTimer=setTimeout(()=>{
+        if (familyQuiet()) { hideFamilyDialogue();return; }
+        say(dialogue.target,dialogue.reply);
+        familyDialogueTimer=setTimeout(hideFamilyDialogue,4500);
+      },4500);
+    }
     let familySocial, nextFamilySocial = performance.now() + 7000;
     let familyBallCooldown = 0;
     const drawDecoration = ${drawDecoration.toString()};
@@ -1664,10 +1777,29 @@ export class Provider implements vscode.WebviewViewProvider {
       }, 1400);
     }
     const chooseFamilyActivity = ${chooseFamilyActivity.toString()};
-    const arrangeFamily = ${arrangeFamily.toString()};
+    const findSleepSpot = ${findSleepSpot.toString()};
+    const moveFamilyX = ${moveFamilyX.toString()};
+    let familyFrame, familyFrameTime;
+    function familyFloor() {
+      const width = stage.clientWidth;
+      const widths = [...familyMembers.children].map(member => Math.min(width, parseFloat(baseSpriteDisplaySizes.sleeping.width) * buddySizeScales[buddySize] * (member.dataset.partner === 'true' ? .85 : .45)));
+      return { widths, positions: widths.map((size,index) => ({x: Math.max(size/2, Math.min(width-size/2,width*(index+1)/(widths.length+1))), bottom:8})) };
+    }
+    function animateFamily(time) {
+      familyFrame = undefined;
+      if (document.hidden || !familyMembers.children.length) { familyFrameTime = undefined; return; }
+      const before = [...familyActivity.values()].map(a => String(a.settled)+String(a.seekingSleep)).join();
+      updateFamilyLayout(familyFrameTime === undefined ? 0 : (time-familyFrameTime)/1000);
+      if (before !== [...familyActivity.values()].map(a => String(a.settled)+String(a.seekingSleep)).join()) updateFamilySprites();
+      positionFamilyDialogue();
+      familyFrameTime = time;
+      familyFrame = requestAnimationFrame(animateFamily);
+    }
     let familyTimer;
     let familyPausedAt;
     function renderFamily() {
+      hideFamilyDialogue();
+      familyEncounters.clear();
       familySocial = undefined;
       const count = currentFamily.hasPartner ? currentFamily.children + 1 : 0;
       while (familyMembers.children.length > count) {
@@ -1700,6 +1832,8 @@ export class Provider implements vscode.WebviewViewProvider {
         familyMembers.appendChild(member);
       }
       tickFamily();
+      if (familyFrame === undefined) familyFrame = requestAnimationFrame(animateFamily);
+      clampWalkPosition(true);
     }
     function tickFamily() {
       clearTimeout(familyTimer);
@@ -1720,9 +1854,11 @@ export class Provider implements vscode.WebviewViewProvider {
         familyPausedAt = undefined;
       }
       for (const activity of familyActivity.values()) {
+        if (activity.state === 'sleeping' && activity.seekingSleep && !activity.settled) continue;
         if (familySocial?.pair.some(index => familyActivity.get(familyMembers.children[index]) === activity)) continue;
         if (now >= activity.nextAt) {
           const next = chooseFamilyActivity(activity.state, Math.random(), Math.random());
+          if (activity.state === 'sleeping' && next.state !== 'sleeping') familyOpportunity('wake',[...familyActivity.values()].indexOf(activity));
           activity.state = next.state;
           activity.nextAt = now + next.duration;
         }
@@ -1744,36 +1880,77 @@ export class Provider implements vscode.WebviewViewProvider {
         }
         nextFamilySocial = now + 16000 + Math.random()*18000;
       }
+      const neighbors=[...familyMembers.children];
+      neighbors.forEach((member,i)=>{
+        if (familyActivity.get(member).state === 'sleeping') return;
+        const box=member.getBoundingClientRect();
+        const others=[spriteStage,...neighbors.slice(0,i)];
+        others.forEach((other,j)=>{
+          const otherIndex=j-1, otherBox=other.getBoundingClientRect();
+          if (otherIndex>=0 && familyActivity.get(other).state==='sleeping') return;
+          const key=i+':'+otherIndex;
+          const gap=Math.abs(box.left+box.width/2-otherBox.left-otherBox.width/2)-(box.width+otherBox.width)/2;
+          if(gap<20) {
+            if(!familyEncounters.has(key) && familyOpportunity('near',i,otherIndex)) familyEncounters.add(key);
+          } else if(gap>35) familyEncounters.delete(key);
+        });
+      });
       updateFamilySprites();
       if (familyMembers.children.length) familyTimer = setTimeout(tickFamily, 350);
     }
-    function updateFamilyLayout() {
+    function updateFamilyLayout(elapsed = 0) {
       if (!familyMembers.children.length) return;
-      const bounds = stage.getBoundingClientRect();
-      const width = bounds.width;
-      const mainBounds = spriteStage.getBoundingClientRect();
-      const actualCenter = mainBounds.left + mainBounds.width / 2 - bounds.left;
-      const targetCenter = width / 2 + walkX;
-      const scale = buddySizeScales[buddySize];
+      const width = stage.clientWidth;
       const members = [...familyMembers.children];
-      const widths = members.map((member) => 95 * scale * (member.dataset.partner === 'true' ? 0.85 : 0.45));
-      const positions = arrangeFamily(width, (actualCenter + targetCenter) / 2, 95 * scale + Math.abs(actualCenter - targetCenter), 140 * scale + 40 + Math.max(0, -spriteY), widths);
-      const offset = familySocial?.kind === 'chase' ? socialOffset(positions,widths,familySocial.pair,width,(actualCenter+targetCenter)/2,95*scale+Math.abs(actualCenter-targetCenter),Math.sin((performance.now()-familySocial.started)/600)) : 0;
+      const floor = familyFloor();
+      const {positions, widths} = floor;
       members.forEach((member, index) => {
         const activity = familyActivity.get(member);
-        const wander = !isFocusModeEnabled && activity.state === 'walk' ? Math.sin(performance.now() / 700 + index) * 3 : 0;
-        member.style.left = (positions[index].x + (familySocial?.pair.includes(index) ? offset : wander)) + 'px';
-        member.dataset.social = familySocial?.pair.includes(index) ? familySocial.kind : '';
-        member.style.bottom = positions[index].bottom + 'px';
-        const direction = familySocial?.kind === 'chase' && familySocial.pair.includes(index) ? Math.cos((performance.now()-familySocial.started)/600) : wander;
-        member.firstElementChild.style.transform = direction < 0 ? 'scaleX(-1)' : '';
+        const social = familySocial?.pair.includes(index);
+        const previous = activity.x;
+        if (activity.x === undefined) activity.x = positions[index].x;
+        const wantsSleep = isFocusModeEnabled || activity.state === 'sleeping' || (social && familySocial.kind === 'curl');
+        let target = activity.x;
+        if (wantsSleep) {
+          // Reserve current sleepers and chosen sleep destinations, never evade a walking Buddy.
+          const sleepers = members.flatMap((other,j) => {
+            if (other === member) return [];
+            const state = familyActivity.get(other);
+            return state.sleepTarget !== undefined ? [{x:state.sleepTarget,width:widths[j]}] : [];
+          });
+          if (currentState === 'sleeping' || isFocusModeEnabled) {
+            const main = spriteStage.getBoundingClientRect(), bounds = stage.getBoundingClientRect();
+            sleepers.push({x:main.left+main.width/2-bounds.left,width:main.width});
+          }
+          const spot = findSleepSpot(activity.x,widths[index],width,sleepers);
+          activity.sleepTarget = spot;
+          const settled = spot !== undefined && Math.abs(spot-activity.x) < .1;
+          if (settled && !activity.settled && activity.state === 'sleeping') activity.nextAt = performance.now()+18000+Math.random()*24000;
+          activity.settled = settled;
+          activity.seekingSleep = true;
+          if (spot !== undefined) target = spot;
+          else target = Math.max(widths[index]/2,Math.min(width-widths[index]/2, activity.x + Math.sin(performance.now()/900+index)*2));
+        } else {
+          activity.sleepTarget = undefined; activity.settled = false; activity.seekingSleep = false;
+          if (activity.state === 'walk' || (social && familySocial.kind === 'chase')) {
+            if (activity.walkTarget === undefined || Math.abs(activity.walkTarget-activity.x)<1) activity.walkTarget = Math.max(widths[index]/2,Math.min(width-widths[index]/2,activity.x+(Math.random()<.5?-1:1)*40));
+            target = activity.walkTarget;
+          } else activity.walkTarget = undefined;
+        }
+        activity.x = moveFamilyX(activity.x, target, elapsed);
+        activity.x = Math.max(widths[index]/2, Math.min(width-widths[index]/2, activity.x));
+        member.style.left = activity.x + 'px';
+        member.style.bottom = '8px';
+        member.dataset.social = social ? familySocial.kind : '';
+        if (previous !== undefined && Math.abs(activity.x-previous) > .01) member.firstElementChild.style.transform = activity.x < previous ? 'scaleX(-1)' : '';
       });
     }
     function updateFamilySprites() {
       for (const member of familyMembers.children) {
         const activity = familyActivity.get(member);
         const social = familySocial?.pair.includes([...familyMembers.children].indexOf(member)) ? familySocial.kind : undefined;
-        const state = isFocusModeEnabled ? 'sleeping' : performance.now() < activity.reactionUntil ? activity.reaction : social === 'curl' ? 'sleeping' : social === 'greet' ? 'love' : social === 'chase' ? 'walk' : activity.state;
+        const sleepState = activity.settled ? 'sleeping' : 'walk';
+        const state = activity.seekingSleep ? sleepState : performance.now() < activity.reactionUntil ? activity.reaction : social === 'greet' ? 'love' : social === 'chase' ? 'walk' : activity.state === 'sleeping' ? 'idle' : activity.state;
         member.dataset.activity = state;
         const size = baseSpriteDisplaySizes[state] || baseSpriteDisplaySizes.idle;
         const scale = (member.dataset.partner === 'true' ? 0.85 : 0.45) * buddySizeScales[buddySize];
@@ -1948,7 +2125,6 @@ export class Provider implements vscode.WebviewViewProvider {
         return;
       }
 
-      updateFamilySprites();
       visibleSpriteState = state;
       const source = spriteSources[state] || spriteSources.idle;
       const displaySize = getSpriteDisplaySize(state);
@@ -2003,7 +2179,8 @@ export class Provider implements vscode.WebviewViewProvider {
 
       const stageWidth = getPanelWidth();
       const spriteWidth = spriteStage.getBoundingClientRect().width * (useVisibleWalkWidth ? walkVisibleWidthRatio : 1);
-      return Math.max(0, (stageWidth - spriteWidth) / 2);
+      const limit = Math.max(0, (stageWidth - spriteWidth) / 2);
+      return limit;
     }
 
     function getPanelWidth() {
@@ -2017,7 +2194,6 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function applyWalkPosition(durationMs = 0) {
-      updateFamilyLayout();
       if (!spriteStage) {
         return;
       }
@@ -2293,7 +2469,7 @@ export class Provider implements vscode.WebviewViewProvider {
         clearBreakPromptTimer();
       }
 
-      if (breakPromptTimer || isDead || isReviving || isFocusModeEnabled) {
+      if (tutorialActive() || breakPromptTimer || isDead || isReviving || isFocusModeEnabled) {
         return;
       }
 
@@ -2354,6 +2530,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function showSpeechMessage(message, options = {}) {
+      if(tutorialActive())return;
       if (!speechBubble || !speechBubbleText) {
         if (options.scheduleNextBreak) {
           scheduleBreakPrompt(true);
@@ -3730,6 +3907,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function handlePanelDoubleClick(event) {
+      if(event.target.closest('.tutorial-bubble'))return;
       event.preventDefault();
       moveBuddyToPanelTarget(getPanelTargetX(event));
     }
@@ -3741,6 +3919,7 @@ export class Provider implements vscode.WebviewViewProvider {
     }
 
     function handlePanelClick(event) {
+      if(event.target.closest('.tutorial-bubble'))return;
       if (!event.metaKey) {
         return;
       }
@@ -3971,6 +4150,7 @@ export class Provider implements vscode.WebviewViewProvider {
     function setBuddySize(size) {
       preserveSpriteCenter(() => {
         buddySize = buddySizeScales[size] ? size : 'small';
+        updateFamilySprites();
         vscode.setState({
           state: document.body.dataset.state || 'idle',
           buddySize,
@@ -4061,10 +4241,19 @@ export class Provider implements vscode.WebviewViewProvider {
     document.addEventListener('mouseleave', handlePointerExit);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('visibilitychange', tickFamily);
-    window.addEventListener('pagehide', () => clearTimeout(familyTimer));
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)hideFamilyDialogue();});
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (familyFrame !== undefined) cancelAnimationFrame(familyFrame); familyFrame = undefined; familyFrameTime = undefined; }
+      else if (familyFrame === undefined) familyFrame = requestAnimationFrame(animateFamily);
+    });
+    window.addEventListener('pagehide', () => { clearTimeout(tutorialTimer);clearTimeout(familyTimer); if (familyFrame !== undefined) cancelAnimationFrame(familyFrame); });
     window.addEventListener('message', (event) => {
       const message = event.data;
-      if (message.type === 'setDecorations') {
+      if (message.type === 'tutorialState') {
+        tutorialState=message.state;tutorialBusy=false;renderTutorial();
+      } else if (message.type === 'familyDialogue') {
+        showFamilyDialogue(message.dialogue);
+      } else if (message.type === 'setDecorations') {
         setDecorations(message.items);
       } else if (message.type === 'focusDeadline') {
         updateFocusDeadline(message.endsAt);
@@ -4210,6 +4399,7 @@ export class Provider implements vscode.WebviewViewProvider {
             ball.vx = x < bounds.width/2 ? 130 : -130; ball.vy = 160;
             familyBallCooldown = time + 2200;
             activity.reaction='happy';activity.reactionUntil=performance.now()+1300;
+            familyOpportunity('ball',[...familyMembers.children].indexOf(member));
             updateFamilySprites();break;
           }
         }
@@ -4301,6 +4491,7 @@ export class Provider implements vscode.WebviewViewProvider {
     setCareSettings(${JSON.stringify(careSettings)});
     setFocusMode(${JSON.stringify(this.isFocusModeEnabled)});
     scheduleLifeCounterTick();
+    renderTutorial();
     vscode.postMessage({ type: 'cardsReady' });
     updateCookieSize();
     clampWalkPosition();

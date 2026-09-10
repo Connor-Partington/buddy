@@ -29,18 +29,23 @@ async function main() {
   console.log('PASS: family prerequisites, duplicate partner, persistence, child limit, reset, and invalid saved state');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
-const { chooseFamilyActivity, arrangeFamily } = require('../out/familyBehavior');
-assert.equal(chooseFamilyActivity('idle',0.99,0).state,'sleeping');
-assert.equal(chooseFamilyActivity('sleeping',0.99,0).state,'idle');
-for(const width of [80,160,220,320,500]) {
-  for(const center of [20,width/2,width-20]) {
-    const widths=[58,31,31,31,31];
-    const spots=arrangeFamily(width,center,70,140,widths);
-    spots.forEach((spot,i)=>{
-      assert(spot.x-widths[i]/2>=0 && spot.x+widths[i]/2<=width);
-      if(spot.bottom===8)assert(spot.x+widths[i]/2<=center-35 || spot.x-widths[i]/2>=center+35);
-      for(let j=0;j<i;j++)if(spot.bottom===spots[j].bottom)assert(Math.abs(spot.x-spots[j].x)>=(widths[i]+widths[j])/2+8);
-    });
+const {chooseFamilyActivity,moveFamilyX,findSleepSpot}=require('../out/familyBehavior');
+assert.equal(chooseFamilyActivity('idle',.99,0).state,'sleeping');
+assert.equal(findSleepSpot(50,30,300,[{x:90,width:30}]),50);
+assert.equal(findSleepSpot(50,30,300,[{x:50,width:30}]),88);
+assert.equal(findSleepSpot(20,40,60,[{x:30,width:40}]),undefined);
+for(const width of [80,160,220,480]) {
+ const sleepers=[];
+ for(const size of [58,31,31,31,31]) {
+  const spot=findSleepSpot(width/2,size,width,sleepers);
+  if(spot===undefined)continue;
+  assert(sleepers.every(other=>Math.abs(spot-other.x)>=(size+other.width)/2+7.999));
+  let x=width/2;
+  for(let i=0;i<1000 && Math.abs(x-spot)>.1;i++){
+    const next=moveFamilyX(x,spot,1/60);assert(Math.abs(next-x)<=40/60+.001);x=next;
   }
+  assert(Math.abs(x-spot)<.1);sleepers.push({x:spot,width:size});
+ }
 }
-console.log('PASS: independent activity transitions and non-overlapping family footprints');
+assert.equal(moveFamilyX(0,100,1000),2);
+console.log('PASS: sleep spacing, no-room handling, and bounded walking to sleep');

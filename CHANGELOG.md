@@ -2,6 +2,21 @@
 
 All notable changes to Buddy will be documented in this file.
 
+## 0.11.0 — 2026-09-10
+
+- Allow viewing public leaderboard rankings without joining or uploading Buddy stats.
+
+- Add an optional Supabase leaderboard with nicknames, days-alive rankings, daily uploads, cached results, removal, and server-enforced usage limits.
+
+- Added a first-install welcome with a full 20-step tour or five-step basics, persisted progress, Back/Next/Skip controls, and Replay Introduction in the menu. Existing installations do not auto-start the tutorial.
+
+- Added occasional scenario-driven family conversations, persistent familiarity, nearby nudges, and heart reactions.
+- Added in-scene pixel speech with a shared daily limit and varied quiet periods; suppressed chatter during focus, feeding, breaks, cards, and hidden panels.
+
+- Removed family avoidance, elevated rows, crowd scaling, and Buddy's reserved walking lane. Awake companions may pass through one another.
+- Family members walk to a clear spot before sleeping, keeping an 8 px gap from other sleepers. When no spot fits, they stay awake and retry.
+- Cookie chasing no longer repositions family members.
+
 ## 0.10.0 — 2026-09-10
 
 - Removed the minimum scene height so shrinking the panel no longer pushes Buddy below the visible area.

@@ -2,6 +2,18 @@
 
 Buddy is local-first, lightweight, and built to add a little personality to focused work.
 
+Family movement stays on the floor. Awake companions can pass through one another without avoidance. Before sleeping, each walks to a spot with an 8 px gap from other sleepers; if none fits, it stays awake and tries again.
+
+## New In 0.11.0
+
+Browse community rankings without joining, or opt in with a nickname to share days alive and level. Rankings use daily score uploads, six-hour local caching, and shared server usage limits. A first-install full or basic tour introduces Buddy. Family speech grows warmer over time, and sleep-only spacing keeps movement grounded during cookie chasing.
+
+## Family Conversation
+
+Brief two-way pixel speech accompanies nearby encounters, waking, and ball sharing. Pairs begin curious and become familiar after encounters on two different days, then closer after five days. Relationships persist locally; clearing the family clears their bonds. Familiar family members can nudge and show hearts.
+
+Conversations are scenario-driven, limited to three exchanges a day across the whole family, with varied 45–150 minute quiet periods. Focus, food, break prompts, cards, and hidden panels suppress chatter. No source code or personal data is used.
+
 ## New In 0.10.0
 
 Personalized pixel level-up cards now appear inside the Buddy panel, with a thumbnail gallery and original-image access. A saved local seed makes the 100 level designs personal to your profile; each earned card preserves your Buddy, optional family, colors, and progress at that moment.
@@ -15,6 +27,10 @@ Awake family neighbors greet, chase where space allows, and curl up nearby; fami
 ## New In 0.9.0
 
 Grow a family, give Buddy a ball, and personalize the scene with eight pixel backgrounds and nine companion colors. Family members have their own activity and nap schedules. The compact panel keeps controls in its title bar and menus, opens automatically by default, and starts Buddy at the smaller size.
+
+## Guided Introduction
+
+Fresh installations offer a 20-step **Show Me Around** tour or five-step **Just the Basics** guide. Controls stay inside a pixel speech bubble; in-scene highlights identify Buddy and the meters. Tutorial progress persists across reloads, completed/skipped tours stay dismissed, and existing installations are not interrupted. Use **Buddy: Replay Introduction** from the panel menu or Command Palette to replay. Reset All State preserves tutorial completion.
 
 ## Companion Behavior
 
@@ -132,7 +148,7 @@ Buddy tracks the current life across sessions with a day counter in the panel. T
 
 ## Buddy Family
 
-Use the Manage Family toolbar icon or the Command Palette to spawn one partner, then add up to four mini Buddys. The partner uses a different sprite tint, and the kids use smaller versions of Buddy’s existing animations. Each has an independent activity cycle: looking around, thinking, small movements, celebrations, and naps. Clicking a member wakes it for love. Focus Mode deliberately puts everyone to sleep and pauses their individual schedules. Animation footprints stay separated, using another row when the floor is crowded. They remain present when Buddy dies and have no separate care requirements. Family state persists locally across reloads; the Command Palette’s Buddy: Clear Family or Buddy: Reset All State removes it.
+Use the Manage Family toolbar icon or the Command Palette to spawn one partner, then add up to four mini Buddys. The partner uses a different sprite tint, and the kids use smaller versions of Buddy’s existing animations. Each has an independent activity cycle: looking around, thinking, small movements, celebrations, and naps. Clicking a member wakes it for love. Focus Mode deliberately puts everyone to sleep and pauses their individual schedules. Family members move horizontally at a bounded speed, without avoidance rows or reserved walking lanes. Sleep spacing uses an 8 px edge-to-edge gap. They remain present when Buddy dies and have no separate care requirements. Family state persists locally across reloads; the Command Palette’s Buddy: Clear Family or Buddy: Reset All State removes it.
 
 ## Ball Play And Backgrounds
 
@@ -147,3 +163,9 @@ Buddy opens on startup and reload by default (`buddy.openOnStartup: true`). Turn
 ## Companion Colors
 
 Buddy: Change Colors is available from the Command Palette and the panel’s … menu. Choose Buddy, Partner, Kids, or Everyone, then a green, mint, sky blue, blue, purple, pink, red, orange, or gold sprite tint. Kids share one color, including kids spawned later. Choices persist locally; Restore default colors or Reset All State restores the original green Buddy/kids and blue partner. Colors tint the existing animated sprites without changing backgrounds or care items.
+
+### Optional leaderboard
+
+- Join through the `…` menu with a nickname; compare current days alive, with shared ranks for ties.
+- Top 50 plus your rank, daily score uploads, six-hour cached rankings, and offline fallback.
+- Private installation identity, explicit opt-in and removal, and server-enforced community budgets.

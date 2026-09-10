@@ -1,8 +1,8 @@
 {
   "name": "buddy-ide-companion",
   "displayName": "Buddy - IDE Companion",
-  "description": "A playful IDE companion that reacts to your coding flow from the VS Code sidebar.",
-  "version": "0.10.0",
+  "description": "A pixel IDE companion with family, playful interactions, guided tours, focus tools, and an optional community leaderboard.",
+  "version": "0.11.0",
   "publisher": "connor-partington",
   "author": "Connor",
   "license": "LGPL-2.0-only",
@@ -242,6 +242,14 @@
       {
         "command": "buddy.decorations",
         "title": "Buddy: Arrange Decorations"
+      },
+      {
+        "command": "buddy.replayIntroduction",
+        "title": "Buddy: Replay Introduction"
+      },
+      {
+        "command": "buddy.leaderboard",
+        "title": "Buddy: Leaderboard"
       }
     ],
     "menus": {
@@ -290,6 +298,16 @@
           "command": "buddy.decorations",
           "when": "view == buddy.companion",
           "group": "activities@1"
+        },
+        {
+          "command": "buddy.replayIntroduction",
+          "when": "view == buddy.companion",
+          "group": "help@1"
+        },
+        {
+          "command": "buddy.leaderboard",
+          "when": "view == buddy.companion",
+          "group": "community@1"
         }
       ]
     },
@@ -359,7 +377,7 @@
     "package": "vsce package --allow-missing-repository --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "publish": "vsce publish --baseContentUrl https://github.com/Connor-Partington/buddy/blob/main --baseImagesUrl https://raw.githubusercontent.com/Connor-Partington/buddy/main",
     "lint": "eslint src",
-    "test": "npm run compile && node scripts/test-family.cjs && node scripts/test-scene.cjs && node scripts/test-cards.cjs && node scripts/test-leisure.cjs"
+    "test": "npm run compile && node scripts/test-family.cjs && node scripts/test-scene.cjs && node scripts/test-cards.cjs && node scripts/test-leisure.cjs && node scripts/test-cookie-family.cjs && node scripts/test-family-moments.cjs && node scripts/test-tutorial.cjs && node scripts/test-leaderboard.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,3 +1,6 @@
+import { registerLeaderboard } from './leaderboardCommands';
+import { BuddyTutorial } from './tutorial';
+import { FamilyMoments } from './familyMoments';
 import { FocusTimer } from './focusTimer';
 import { Decorations, decorationCatalog } from './decorations';
 import { LevelUpCards, type CardSnapshot, type SavedCard } from './levelUpCards';
@@ -92,6 +95,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const debugOutput = vscode.window.createOutputChannel('Buddy Debug');
   const cardCollection = await LevelUpCards.create(context.globalState);
   const provider = new Provider(context.extensionUri, !context.globalState.get<boolean>(introHasPlayedKey, false), context.globalStorageUri);
+  const tutorial = new BuddyTutorial(context.globalState,context.globalState.get<boolean>(introHasPlayedKey,false));
+  await tutorial.initialize();
+  provider.setTutorial(tutorial.current);
+  context.subscriptions.push(provider.onTutorialAction(action => {
+    void tutorial.action(action).then(state=>provider.setTutorial(state)).catch(error=>{provider.setTutorial(tutorial.current);console.warn('Buddy tutorial:',error);});
+  }),vscode.commands.registerCommand('buddy.replayIntroduction',async()=>{
+    provider.setTutorial(await tutorial.action('replay'));
+    await vscode.commands.executeCommand('buddy.showSidebar');
+  }));
   let background = normalizeBackground(context.globalState.get<BuddyBackground>(backgroundStateKey));
   provider.setBackground(background);
   let isChoosingBackground = false;
@@ -195,6 +207,14 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   const removeBallCommand = vscode.commands.registerCommand('buddy.removeBall', () => provider.removeBall());
   const familyManager = new BuddyFamilyManager(context.globalState);
+  const familyMoments = new FamilyMoments(context.globalState);
+  const familyCount = () => familyManager.family.hasPartner ? familyManager.family.children+1 : 0;
+  await familyMoments.reconcile(familyCount());
+  const familyMomentSubscription = provider.onFamilyMoment(event => {
+    void familyMoments.consider(event,familyCount()).then(dialogue => {
+      if (dialogue) provider.showFamilyDialogue(dialogue);
+    }).catch(error => console.warn('Buddy family moment:',error));
+  });
   provider.setFamily(familyManager.family);
   async function handleFamilyAction(action: BuddyFamilyAction): Promise<void> {
     if (action === 'haveChild' && !familyManager.family.hasPartner) {
@@ -206,6 +226,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
     await familyManager.apply(action);
+    await familyMoments.reconcile(familyCount());
     provider.setFamily(familyManager.family);
   }
   const manageFamilyCommand = vscode.commands.registerCommand('buddy.manageFamily', async () => {
@@ -267,6 +288,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provider.setDecorations(decorations.items);
   });
   const xpManager = new BuddyXpManager(context.globalState, careSettings);
+  registerLeaderboard(context, () => ({ days: healthManager.health.aliveDays, level: xpManager.xp.level }));
   const attentionManager = new BuddyAttentionManager(context.globalState);
   const dailyQuestManager = new BuddyDailyQuestManager(
     context.globalState,
@@ -909,6 +931,7 @@ export async function activate(context: vscode.ExtensionContext) {
     foodReachedSubscription,
     foodRequestSubscription,
     careActionSubscription,
+    familyMomentSubscription,
     introSubscription,
     cardsReadySubscription,
     cardActionSubscription,
@@ -1274,6 +1297,7 @@ export async function activate(context: vscode.ExtensionContext) {
       milestoneManager.reset(),
     ]);
 
+    await familyMoments.reconcile(familyCount());
     provider.setFamily(familyManager.family);
     stateManager.setState('idle');
     provider.setBuddySize(buddySize);
